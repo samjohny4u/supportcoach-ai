@@ -39,6 +39,7 @@ Focus on:
 
 Be practical, leadership-friendly, and concise.
 Return only the requested JSON.
+Do not include bullet characters, em dashes, or any special Unicode symbols in your text. Use only plain ASCII characters. The UI adds its own formatting.
           `.trim(),
         },
         {
