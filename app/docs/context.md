@@ -17,12 +17,12 @@
 - Task 5: Verify exclude filter coverage across all files — DONE (already implemented across all 12 files)
 - Task 6: Pattern Cards UI — DONE
 - Task 7: Surface quick_summary and copy coaching message — DONE (already implemented)
+- Task 8: Attention priority badges — DONE (already implemented)
 
 ## CURRENT TASK
-- Task 8: Attention priority badges
+- Task 9: Global error boundary and 404 page
 
 ## REMAINING TASKS
-- Task 8: Attention priority badges
 - Task 9: Global error boundary and 404 page
 
 ## KNOWN ISSUES / BLOCKERS
