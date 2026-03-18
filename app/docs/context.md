@@ -1,7 +1,7 @@
 # SUPPORTCOACH AI — CONTEXT FILE
 # This file is updated after every task completion.
 # When starting a new AI thread, paste this file first.
-# Last updated: [UPDATE THIS DATE AFTER EACH TASK]
+# Last updated: March 18, 2026
 
 ## PROJECT STATUS
 - **Phase:** MVP Build
@@ -9,33 +9,37 @@
 - **Codebase:** GitHub repo, committed and pushed
 
 ## COMPLETED TASKS
-<!-- Move tasks here as they are completed -->
-- None yet — starting from Task 0
+- Task 0: Remove manager-insights route and dashboard panel — DONE
+- Task 1: Run topic reclassification — PENDING (route exists, user needs to trigger manually)
+- Task 3: Human-readable job titles and verified status badges — DONE
 
 ## CURRENT TASK
-- Task 0: Remove manager-insights route and dashboard panel — IN PROGRESS
+- Task 4: Worker trigger button rename + auto-trigger
 
 ## REMAINING TASKS
-- Task 1: Run topic reclassification (manual — user triggers)
 - Task 2: Verify duplicate detection in create-analysis-job
-- Task 3: Job display names (human-readable instead of UUIDs)
 - Task 4: Worker trigger button rename + auto-trigger
 - Task 5: Verify exclude filter coverage across all files
 - Task 6: Pattern Cards UI
 - Task 7: Surface quick_summary and copy coaching message
 - Task 8: Attention priority badges
+- Task 9: Global error boundary and 404 page
 
 ## KNOWN ISSUES / BLOCKERS
 - RLS not enabled on any table (security warning from Supabase — not blocking MVP but must be done before production launch)
 - Topic reclassification route exists but hasn't been run yet (Task 1)
+- Character encoding issue: AI team summary bullet points render as garbled UTF-8 on dashboard. Pre-existing, cosmetic only. The garbled text (ÃƒÂ¢) is a bullet point character (•) double-encoded through UTF-8. Fix after MVP tasks are complete — do NOT attempt cascading fixes on this.
+- Six cascading fix attempts on the encoding issue were reverted. Dashboard restored to post-Task-3 clean state. Do not re-attempt until all MVP tasks are complete.
 
 ## KEY DECISIONS MADE
-- Manager-insights route to be removed (duplicates existing routes)
+- Manager-insights route removed (duplicated existing routes, no org security, unnecessary AI cost)
 - Soft delete via `excluded` boolean, not hard delete
 - Template-based pattern card narratives, not AI-generated (v1)
 - Response time threshold: under 2 min = normal, 2-4 min = notable, over 4 min = coaching point
 - Pre-formatted structured transcripts sent to AI instead of raw PDF text
 - knownSenderNames set for handling inconsistent PDF spacing
+- Worker button renamed to "Process Now" with states (default, processing, done)
+- If a fix attempt fails, STOP. Do not cascade fixes. Report the error and let the user decide.
 
 ## FILES THAT MUST NOT BREAK
 - `src/app/api/process-jobs/route.ts` — the core worker. Contains parser, AI prompt, all analysis logic
@@ -45,9 +49,9 @@
 
 ## DOCUMENTS TO READ ON NEW THREAD
 1. `docs/RULES.md` — standing orders (read first, always)
-2. `docs/codex-orchestration.md` — current task list with statuses
-3. `docs/supportcoach-ai-context.md` — full master prompt (read relevant sections, not the whole thing)
-4. `docs/CONTEXT.md` — this file (current progress and decisions)
+2. `docs/CONTEXT.md` — this file (current progress and decisions)
+3. `docs/codex-orchestration.md` — current task list with statuses
+4. `docs/supportcoach-ai-context.md` — full master prompt (read relevant sections, not the whole thing)
 
 ## NEW THREAD STARTER MESSAGE
 Copy this when starting a fresh thread:
