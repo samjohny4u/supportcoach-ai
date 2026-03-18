@@ -413,7 +413,7 @@ export default function UploadPage() {
                         href={`/jobs/${job.id}`}
                         className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
                       >
-                        View Job ?
+                        View Job →
                       </a>
 
                       {job.status !== "completed" && (
