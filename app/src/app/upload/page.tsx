@@ -66,6 +66,7 @@ export default function UploadPage() {
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [duplicateResults, setDuplicateResults] = useState<DuplicateResult[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
 
   async function loadRecentJobs() {
     try {
@@ -134,17 +135,42 @@ export default function UploadPage() {
     setStatus(`Processing failed: ${message}`);
   }
 
-  function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files || []);
-    setSelectedFiles(files);
-    if (files.length > 0) {
-      setStatus(`${files.length} file(s) selected. Click "Upload and Analyze" to begin.`);
+  function processFileList(files: File[]) {
+    const pdfFiles = files.filter((f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
+    setSelectedFiles(pdfFiles);
+    if (pdfFiles.length > 0) {
+      setStatus(`${pdfFiles.length} file(s) selected. Click "Upload and Analyze" to begin.`);
       setJobId("");
       setQueuedCount(0);
       setDuplicateResults([]);
     } else {
-      setStatus("No files uploaded yet.");
+      setStatus("No valid PDF files found. Please select PDF transcripts.");
     }
+  }
+
+  function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    processFileList(files);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    processFileList(files);
   }
 
   async function handleUpload() {
@@ -236,15 +262,23 @@ export default function UploadPage() {
                 document.getElementById("file-upload")?.click();
               }
             }}
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
             className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 transition-colors ${
-              selectedFiles.length > 0
-                ? "border-emerald-400/40 bg-black/50"
-                : "cursor-pointer border-white/20 bg-black/30 hover:border-emerald-400/40 hover:bg-black/50"
+              isDragging
+                ? "border-emerald-400 bg-emerald-400/10"
+                : selectedFiles.length > 0
+                  ? "border-emerald-400/40 bg-black/50"
+                  : "cursor-pointer border-white/20 bg-black/30 hover:border-emerald-400/40 hover:bg-black/50"
             }`}
           >
             {selectedFiles.length === 0 ? (
               <>
-                <p className="text-lg font-semibold text-emerald-300">Click to Upload</p>
+                <p className="text-lg font-semibold text-emerald-300">
+                  {isDragging ? "Drop files here" : "Click or Drag to Upload"}
+                </p>
                 <p className="mt-2 text-sm text-gray-400">Select one or more PDF transcripts</p>
               </>
             ) : (
