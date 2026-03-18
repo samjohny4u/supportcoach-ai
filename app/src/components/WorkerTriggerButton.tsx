@@ -1,19 +1,37 @@
 // src/components/WorkerTriggerButton.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type WorkerTriggerButtonProps = {
   className?: string;
   label?: string;
+  onSuccess?: () => void | Promise<void>;
+  onError?: (message: string) => void;
 };
 
 export default function WorkerTriggerButton({
   className = "",
   label = "Process Now",
+  onSuccess,
+  onError,
 }: WorkerTriggerButtonProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [showDone, setShowDone] = useState(false);
+
+  useEffect(() => {
+    if (!showDone) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShowDone(false);
+    }, 1200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [showDone]);
 
   async function handleClick() {
     try {
@@ -25,18 +43,19 @@ export default function WorkerTriggerButton({
         cache: "no-store",
       });
 
-      await res.json().catch(() => null);
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Worker trigger failed");
+      }
 
       setIsRunning(false);
       setShowDone(true);
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 700);
-    } catch (error) {
+      await onSuccess?.();
+    } catch (error: any) {
       console.error("Worker trigger error:", error);
       setIsRunning(false);
-      window.location.reload();
+      onError?.(error?.message || "Worker trigger failed");
     }
   }
 
@@ -47,7 +66,16 @@ export default function WorkerTriggerButton({
       disabled={isRunning}
       className={className}
     >
-      {isRunning ? "Processing..." : showDone ? "Done ✓" : label}
+      {isRunning ? (
+        <span className="inline-flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-current animate-pulse" />
+          Processing...
+        </span>
+      ) : showDone ? (
+        "Done"
+      ) : (
+        label
+      )}
     </button>
   );
 }

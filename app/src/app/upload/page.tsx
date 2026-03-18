@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import WorkerTriggerButton from "@/components/WorkerTriggerButton";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.mjs";
 
@@ -39,7 +40,7 @@ function getProgressPercent(processed: number, total: number) {
 }
 
 function formatJobDisplayName(createdAt: string) {
-  return `Upload — ${new Date(createdAt).toLocaleString()}`;
+  return `Upload - ${new Date(createdAt).toLocaleString()}`;
 }
 
 function getStatusClasses(status: string) {
@@ -115,60 +116,45 @@ export default function UploadPage() {
     return extractedText;
   }
 
-  async function triggerWorkerManually() {
-    try {
-      setIsTriggeringWorker(true);
-      setStatus("Processing queued transcripts...");
+  function triggerWorkerAutomatically() {
+    setIsTriggeringWorker(true);
+    setStatus("Job queued successfully. Processing queued transcripts...");
 
-      const res = await fetch("/api/process-jobs", {
-        method: "GET",
-        cache: "no-store",
-      });
+    void (async () => {
+      try {
+        const res = await fetch("/api/process-jobs", {
+          method: "GET",
+          cache: "no-store",
+        });
 
-      const data = await res.json().catch(() => null);
+        const data = await res.json().catch(() => null);
 
-      if (!res.ok) {
-        throw new Error(data?.error || "Worker trigger failed");
+        if (!res.ok) {
+          throw new Error(data?.error || "Worker trigger failed");
+        }
+
+        setStatus("Processing started successfully.");
+        await loadRecentJobs();
+      } catch (error: any) {
+        console.error("Auto worker trigger error:", error);
+        setStatus(
+          `Job queued successfully, but processing did not start automatically: ${
+            error?.message || "Unknown error"
+          }`
+        );
+      } finally {
+        setIsTriggeringWorker(false);
       }
-
-      setStatus("Processing started successfully. Refreshing jobs...");
-      await loadRecentJobs();
-    } catch (error: any) {
-      console.error("Manual worker trigger error:", error);
-      setStatus(`Processing failed: ${error?.message || "Unknown error"}`);
-    } finally {
-      setIsTriggeringWorker(false);
-    }
+    })();
   }
 
-  async function triggerWorkerAutomatically() {
-    try {
-      setIsTriggeringWorker(true);
-      setStatus("Job queued successfully. Processing queued transcripts...");
+  async function handleManualWorkerSuccess() {
+    setStatus("Processing started successfully. Refreshing jobs...");
+    await loadRecentJobs();
+  }
 
-      const res = await fetch("/api/process-jobs", {
-        method: "GET",
-        cache: "no-store",
-      });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Worker trigger failed");
-      }
-
-      setStatus("Processing started successfully.");
-      await loadRecentJobs();
-    } catch (error: any) {
-      console.error("Auto worker trigger error:", error);
-      setStatus(
-        `Job queued successfully, but processing did not start automatically: ${
-          error?.message || "Unknown error"
-        }`
-      );
-    } finally {
-      setIsTriggeringWorker(false);
-    }
+  function handleManualWorkerError(message: string) {
+    setStatus(`Processing failed: ${message}`);
   }
 
   async function handleFiles(event: React.ChangeEvent<HTMLInputElement>) {
@@ -245,7 +231,7 @@ export default function UploadPage() {
       }
 
       await loadRecentJobs();
-      await triggerWorkerAutomatically();
+      triggerWorkerAutomatically();
 
       event.target.value = "";
     } catch (error: any) {
@@ -345,14 +331,11 @@ export default function UploadPage() {
                     View This Job
                   </a>
 
-                  <button
-                    type="button"
-                    onClick={triggerWorkerManually}
-                    disabled={isTriggeringWorker}
+                  <WorkerTriggerButton
+                    onSuccess={handleManualWorkerSuccess}
+                    onError={handleManualWorkerError}
                     className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 hover:bg-yellow-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isTriggeringWorker ? "Processing..." : "Process Now"}
-                  </button>
+                  />
                 </div>
               </div>
             )}
@@ -430,18 +413,16 @@ export default function UploadPage() {
                         href={`/jobs/${job.id}`}
                         className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
                       >
-                        View Job →
+                        View Job ?
                       </a>
 
                       {job.status !== "completed" && (
-                        <button
-                          type="button"
-                          onClick={triggerWorkerManually}
-                          disabled={isTriggeringWorker}
+                        <WorkerTriggerButton
+                          onSuccess={handleManualWorkerSuccess}
+                          onError={handleManualWorkerError}
                           className="text-sm font-semibold text-yellow-300 hover:text-yellow-200 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {isTriggeringWorker ? "Processing..." : "Process Now →"}
-                        </button>
+                          label="Process Now ->"
+                        />
                       )}
                     </div>
                   </div>
