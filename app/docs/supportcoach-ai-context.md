@@ -982,9 +982,60 @@ Future queries like: "show chats where empathy missed", "show refund conversatio
 Track whether agents repeat mistakes over time. Will require a new `coaching_records` table. Not designed yet.
 
 ### 10c. Helpdesk Integrations
-Future integrations with: Zendesk, Intercom, Freshdesk, HubSpot. The `source_type` and `source_platform` fields exist to support this later. No integration code should be built now.
+
+Future integrations with: Zendesk, Intercom, Freshdesk, HubSpot, Zoho SalesIQ. The `source_type` and `source_platform` fields exist to support this later. No integration code should be built now.
 
 **Critical dependency:** The Unfair Rating Detection feature (Section 10h) MUST be built and working before any helpdesk API integration goes live. Without it, automated ingestion of all conversations will flood agent metrics with unfair ratings (~40% of 1-star chats are product-directed, not agent-directed), making the coaching data unreliable. Do not ship API integration without unfair rating handling in place.
+
+**Two-Layer Integration Architecture (Design Intent):**
+
+When API integration is built, the system must use a two-layer approach to balance cost, accuracy, and value:
+
+**Layer 1 — Full Metadata Ingest (all chats, no AI cost):**
+- Pull basic metadata for every chat from the helpdesk API: agent name, customer name, rating (star value or emoji mapping), timestamp, duration, department, and optionally the raw transcript text.
+- Store in the existing `conversations` table (and optionally `conversation_messages` if transcript is pulled).
+- No OpenAI API call. No `chat_analyses` record created.
+- This gives accurate, unbiased team health data: real volume, real star distribution, real response times, real agent chat counts.
+- Storage cost is trivial: ~5 KB per chat, ~20 MB/month at 4,000 chats, ~240 MB/year per customer.
+
+**Layer 2 — Selective AI Coaching Analysis (subset of chats, AI cost only where valuable):**
+- Automatically select chats for full AI analysis based on rating and signals:
+  - Rating 1-2 stars (or "sad" emoji) → always analyze. These are the chats that need coaching.
+  - Rating 3 stars (or "neutral" emoji) → metadata only + random 10% sample selected for AI analysis (QA spot-checking).
+  - Rating 4-5 stars (or "happy" emoji) → metadata only + random 5% sample selected for AI analysis (QA spot-checking).
+  - No rating → metadata only (many chats are not rated by customers).
+  - Customer disconnected early → always analyze (potential abandonment issue).
+  - Chats explicitly flagged by manager → always analyze.
+- Selected chats go through the existing worker pipeline: parsing, AI analysis, `chat_analyses` record creation.
+- This reduces AI API cost to ~5-15% of total volume instead of 100%.
+
+**Dashboard Shows Both Layers:**
+- "Team Health" section uses Layer 1 (full ingest) data — real volume, real star distribution, real metrics. No skew, no selection bias. This permanently solves the selection bias problem documented in Section 7c and eliminates the need for manual benchmarks (Section 10g).
+- "Coaching Intelligence" section uses Layer 2 (AI-analyzed subset) data — coaching feedback, pattern cards, topic insights, agent coaching breakdowns. Clearly labeled as "Based on N chats selected for coaching review" so managers understand the scope.
+- Churn risk scoring uses Layer 1 data for accuracy — computed from the full dataset, not the coaching subset.
+
+**Rating Normalization:**
+Different helpdesk platforms use different rating systems. The integration layer must normalize them:
+- SalesIQ: happy/neutral/sad emojis AND 1-5 stars (both may be present in data)
+- Zendesk: 1-5 stars or good/bad
+- Intercom: 1-5 stars or emoji reactions
+- The existing `conversations.rating_value` (numeric) and `conversations.rating_type` (star, csat, nps) fields handle this. Add a normalization function per platform that maps their format to a consistent numeric scale.
+
+**What this approach solves:**
+
+| Problem | Solution |
+|---|---|
+| Selection bias (Section 7c) | Layer 1 provides real, unbiased team health data |
+| Dashboard skew from coaching-only uploads | Team Health section uses full data |
+| High AI API costs at scale | Only 5-15% of chats get AI analysis |
+| Pricing complexity | One product, one price — smart filtering is automatic, not a customer choice |
+| Churn accuracy | Computed from full dataset |
+| Manual benchmarks (Section 10g) | No longer needed — real data replaces manual input |
+| Storage cost | Trivial — metadata is ~5 KB per chat |
+
+**The customer never chooses between "all chats" and "coaching only."** The system does both automatically — lightweight ingest for everything, deep analysis for what matters. One price per agent. No configuration needed.
+
+**Do not build any part of this until the user explicitly approves API integration for development. This section documents design intent only.**
 
 ### 10d. Observability (Future Enhancement)
 Future versions of the system may introduce logging and monitoring capabilities such as:
