@@ -16,12 +16,12 @@
 - Task 4: Worker trigger button rename + auto-trigger — DONE
 - Task 5: Verify exclude filter coverage across all files — DONE (already implemented across all 12 files)
 - Task 6: Pattern Cards UI — DONE
+- Task 7: Surface quick_summary and copy coaching message — DONE (already implemented)
 
 ## CURRENT TASK
-- Task 7: Surface quick_summary and copy coaching message
+- Task 8: Attention priority badges
 
 ## REMAINING TASKS
-- Task 7: Surface quick_summary and copy coaching message
 - Task 8: Attention priority badges
 - Task 9: Global error boundary and 404 page
 
