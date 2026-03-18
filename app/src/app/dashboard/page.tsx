@@ -62,7 +62,6 @@ type TeamSummaryResult = {
   agents_needing_attention: string[];
 };
 
-
 type TrendPoint = {
   date: string;
   empathy: number;
@@ -256,7 +255,6 @@ async function getTeamAISummary(payload: unknown): Promise<TeamSummaryResult | n
     return null;
   }
 }
-
 
 export default async function DashboardPage({
   searchParams,
@@ -559,7 +557,6 @@ export default async function DashboardPage({
     ? "Showing only chats where attention priority is high."
     : "Use the view filter to focus only on high-priority chats.";
 
-
   return (
     <main className="px-6 py-16">
       <div className="mx-auto max-w-6xl">
@@ -667,7 +664,7 @@ export default async function DashboardPage({
         <div className="mb-6 rounded-2xl border border-white/10 bg-[#081225] p-4 text-sm text-gray-300">
           Showing {totalChats} included chats
           {typeof excludedCount === "number" && excludedCount > 0
-            ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${excludedCount} excluded from reports`
+            ? ` - ${excludedCount} excluded from reports`
             : ""}
         </div>
 
@@ -702,7 +699,6 @@ export default async function DashboardPage({
           <TrendChart data={trendData} title={trendSectionTitle} subtitle={trendSectionSubtitle} />
         </div>
 
-
         <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
           <h2 className="mb-6 text-2xl font-semibold">{summaryTitle}</h2>
 
@@ -718,7 +714,7 @@ export default async function DashboardPage({
                 <h3 className="mb-4 text-lg font-semibold">{summaryStrengthsTitle}</h3>
                 <ul className="space-y-2 text-gray-300">
                   {aiWeeklySummary.top_strengths?.map((item, index) => (
-                    <li key={index}>ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ {item}</li>
+                    <li key={index}>- {item}</li>
                   ))}
                 </ul>
               </div>
@@ -727,7 +723,7 @@ export default async function DashboardPage({
                 <h3 className="mb-4 text-lg font-semibold">{summaryOpportunitiesTitle}</h3>
                 <ul className="space-y-2 text-gray-300">
                   {aiWeeklySummary.top_coaching_opportunities?.map((item, index) => (
-                    <li key={index}>ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ {item}</li>
+                    <li key={index}>- {item}</li>
                   ))}
                 </ul>
               </div>
@@ -736,7 +732,7 @@ export default async function DashboardPage({
                 <h3 className="mb-4 text-lg font-semibold">{summaryRiskTitle}</h3>
                 <ul className="space-y-2 text-gray-300">
                   {aiWeeklySummary.risk_patterns?.map((item, index) => (
-                    <li key={index}>ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ {item}</li>
+                    <li key={index}>- {item}</li>
                   ))}
                 </ul>
               </div>
@@ -745,7 +741,7 @@ export default async function DashboardPage({
                 <h3 className="mb-4 text-lg font-semibold">{summaryFocusTitle}</h3>
                 <ul className="space-y-2 text-gray-300">
                   {aiWeeklySummary.manager_focus_next?.map((item, index) => (
-                    <li key={index}>ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ {item}</li>
+                    <li key={index}>- {item}</li>
                   ))}
                 </ul>
               </div>
@@ -754,7 +750,7 @@ export default async function DashboardPage({
                 <h3 className="mb-4 text-lg font-semibold">{summaryAttentionTitle}</h3>
                 <ul className="space-y-2 text-gray-300">
                   {aiWeeklySummary.agents_needing_attention?.map((item, index) => (
-                    <li key={index}>ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ {item}</li>
+                    <li key={index}>- {item}</li>
                   ))}
                 </ul>
               </div>
@@ -781,7 +777,7 @@ export default async function DashboardPage({
         <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
           <h2 className="mb-2 text-2xl font-semibold">{attentionSectionTitle}</h2>
           <p className="mb-6 text-sm text-gray-400">
-            High-priority chats based on the workerÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s computed attention score.
+            {"High-priority chats based on the worker's computed attention score."}
           </p>
 
           <div className="space-y-4">
@@ -796,7 +792,7 @@ export default async function DashboardPage({
                   <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-lg font-semibold text-white">
-                        {isKnownAgentName(chat.agent_name) ? chat.agent_name : "Unknown Agent"} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢{" "}
+                        {isKnownAgentName(chat.agent_name) ? chat.agent_name : "Unknown Agent"}{" → "}
                         {chat.customer_name || "Unknown Customer"}
                       </p>
                       <p className="text-sm text-gray-400">{chat.file_name}</p>
@@ -864,7 +860,7 @@ export default async function DashboardPage({
                       href={`/analysis/${chat.id}`}
                       className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
                     >
-                      View Analysis ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢
+                      {"View Analysis →"}
                     </a>
                   </div>
                 </div>
@@ -888,7 +884,7 @@ export default async function DashboardPage({
                 ) : (
                   topImprovementAreas.map(([item, count]) => (
                     <li key={item}>
-                      ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ {item} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â <span className="text-gray-500">{count} chats</span>
+                      - {item} — <span className="text-gray-500">{count} chats</span>
                     </li>
                   ))
                 )}
@@ -906,7 +902,7 @@ export default async function DashboardPage({
                 ) : (
                   topStrengths.map(([item, count]) => (
                     <li key={item}>
-                      ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ {item} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â <span className="text-gray-500">{count} chats</span>
+                      - {item} — <span className="text-gray-500">{count} chats</span>
                     </li>
                   ))
                 )}
@@ -976,7 +972,7 @@ export default async function DashboardPage({
               ) : (
                 topChatTypes.map(([theme, count]) => (
                   <li key={theme}>
-                    ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ {theme} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {count}
+                    - {theme} — {count}
                   </li>
                 ))
               )}
@@ -996,7 +992,7 @@ export default async function DashboardPage({
                       href={`/dashboard/agent/${encodeURIComponent(agent.agentName)}`}
                       className="hover:text-white"
                     >
-                      ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ {agent.agentName} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Empathy {agent.avgEmpathy}
+                      - {agent.agentName} — Empathy {agent.avgEmpathy}
                     </a>
                   </li>
                 ))
@@ -1023,7 +1019,7 @@ export default async function DashboardPage({
                       href={`/dashboard/agent/${encodeURIComponent(agent.agentName)}`}
                       className="text-sm text-indigo-300 hover:text-indigo-200"
                     >
-                      View Agent ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢
+                      {"View Agent →"}
                     </a>
                   </div>
 
@@ -1082,7 +1078,7 @@ export default async function DashboardPage({
                   <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-lg font-semibold text-white">
-                        {isKnownAgentName(chat.agent_name) ? chat.agent_name : "Unknown Agent"} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢{" "}
+                        {isKnownAgentName(chat.agent_name) ? chat.agent_name : "Unknown Agent"}{" → "}
                         {chat.customer_name || "Unknown Customer"}
                       </p>
                       <p className="text-sm text-gray-400">{chat.file_name}</p>
@@ -1127,7 +1123,7 @@ export default async function DashboardPage({
                     href={`/analysis/${chat.id}`}
                     className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
                   >
-                    View Analysis ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢
+                    {"View Analysis →"}
                   </a>
                 </div>
               ))
