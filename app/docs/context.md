@@ -18,12 +18,12 @@
 - Task 6: Pattern Cards UI — DONE
 - Task 7: Surface quick_summary and copy coaching message — DONE (already implemented)
 - Task 8: Attention priority badges — DONE (already implemented)
+- Task 9: Global error boundary and 404 page — DONE
 
 ## CURRENT TASK
-- Task 9: Global error boundary and 404 page
+- All MVP tasks complete
 
 ## REMAINING TASKS
-- Task 9: Global error boundary and 404 page
 
 ## KNOWN ISSUES / BLOCKERS
 - RLS not enabled on any table (security warning from Supabase — not blocking MVP but must be done before production launch)
