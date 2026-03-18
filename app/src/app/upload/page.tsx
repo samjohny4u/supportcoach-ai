@@ -47,15 +47,12 @@ function getStatusClasses(status: string) {
   if (status === "completed") {
     return "border border-emerald-500/20 bg-emerald-500/15 text-emerald-300";
   }
-
   if (status === "processing") {
     return "border border-yellow-500/20 bg-yellow-500/15 text-yellow-300";
   }
-
   if (status === "pending") {
     return "border border-blue-500/20 bg-blue-500/15 text-blue-300";
   }
-
   return "border border-red-500/20 bg-red-500/15 text-red-300";
 }
 
@@ -68,20 +65,16 @@ export default function UploadPage() {
   const [recentJobs, setRecentJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [duplicateResults, setDuplicateResults] = useState<DuplicateResult[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   async function loadRecentJobs() {
     try {
       setLoadingJobs(true);
-
-      const res = await fetch("/api/job-status", {
-        cache: "no-store",
-      });
-
+      const res = await fetch("/api/job-status", { cache: "no-store" });
       if (!res.ok) {
         setRecentJobs([]);
         return;
       }
-
       const data = (await res.json()) as JobsResponse;
       setRecentJobs(data.jobs || []);
     } catch (error) {
@@ -99,48 +92,32 @@ export default function UploadPage() {
   async function extractPdfText(file: File): Promise<string> {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
     let extractedText = "";
-
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
       const page = await pdf.getPage(pageNumber);
       const textContent = await page.getTextContent();
-
       const pageText = textContent.items
         .map((item: any) => ("str" in item ? item.str : ""))
         .join(" ");
-
       extractedText += `--- Page ${pageNumber} ---\n${pageText}\n\n`;
     }
-
     return extractedText;
   }
 
   function triggerWorkerAutomatically() {
     setIsTriggeringWorker(true);
     setStatus("Job queued successfully. Processing queued transcripts...");
-
     void (async () => {
       try {
-        const res = await fetch("/api/process-jobs", {
-          method: "GET",
-          cache: "no-store",
-        });
-
+        const res = await fetch("/api/process-jobs", { method: "GET", cache: "no-store" });
         const data = await res.json().catch(() => null);
-
-        if (!res.ok) {
-          throw new Error(data?.error || "Worker trigger failed");
-        }
-
+        if (!res.ok) throw new Error(data?.error || "Worker trigger failed");
         setStatus("Processing started successfully.");
         await loadRecentJobs();
       } catch (error: any) {
         console.error("Auto worker trigger error:", error);
         setStatus(
-          `Job queued successfully, but processing did not start automatically: ${
-            error?.message || "Unknown error"
-          }`
+          `Job queued successfully, but processing did not start automatically: ${error?.message || "Unknown error"}`
         );
       } finally {
         setIsTriggeringWorker(false);
@@ -157,41 +134,41 @@ export default function UploadPage() {
     setStatus(`Processing failed: ${message}`);
   }
 
-  async function handleFiles(event: React.ChangeEvent<HTMLInputElement>) {
-    try {
-      const files = Array.from(event.target.files || []);
-      if (files.length === 0) return;
+  function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    setSelectedFiles(files);
+    if (files.length > 0) {
+      setStatus(`${files.length} file(s) selected. Click "Upload and Analyze" to begin.`);
+      setJobId("");
+      setQueuedCount(0);
+      setDuplicateResults([]);
+    } else {
+      setStatus("No files uploaded yet.");
+    }
+  }
 
+  async function handleUpload() {
+    if (selectedFiles.length === 0) return;
+    try {
       setIsUploading(true);
       setJobId("");
       setQueuedCount(0);
       setDuplicateResults([]);
-      setStatus(`Extracting text from ${files.length} PDF(s)...`);
+      setStatus(`Extracting text from ${selectedFiles.length} PDF(s)...`);
 
       const extractedFiles: { file_name: string; transcript_text: string }[] = [];
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        setStatus(`Reading PDF ${i + 1} of ${files.length}: ${file.name}`);
-
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        setStatus(`Reading PDF ${i + 1} of ${selectedFiles.length}: ${file.name}`);
         const transcriptText = await extractPdfText(file);
-
-        extractedFiles.push({
-          file_name: file.name,
-          transcript_text: transcriptText,
-        });
+        extractedFiles.push({ file_name: file.name, transcript_text: transcriptText });
       }
 
-      setStatus(`Creating analysis job for ${files.length} transcript(s)...`);
-
+      setStatus(`Creating analysis job for ${selectedFiles.length} transcript(s)...`);
       const res = await fetch("/api/create-analysis-job", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          files: extractedFiles,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: extractedFiles }),
       });
 
       const data = (await res.json()) as QueueResponse;
@@ -199,41 +176,31 @@ export default function UploadPage() {
 
       if (!res.ok || !data.success) {
         setDuplicateResults(duplicates);
-
-        if (
-          data.error === "All uploaded files were duplicates" &&
-          duplicates.length > 0
-        ) {
+        if (data.error === "All uploaded files were duplicates" && duplicates.length > 0) {
           setStatus("No new job was created because all uploaded files were duplicates.");
-          event.target.value = "";
+          setSelectedFiles([]);
           return;
         }
-
         throw new Error(data.error || "Failed to queue files");
       }
 
       setJobId(data.job_id || "");
-      setQueuedCount(data.total_files || files.length);
+      setQueuedCount(data.total_files || selectedFiles.length);
       setDuplicateResults(duplicates);
 
       if (duplicates.length > 0) {
         setStatus(
-          `Job created successfully. ${
-            data.total_files || files.length
-          } transcript(s) queued. ${duplicates.length} duplicate file(s) were skipped.`
+          `Job created successfully. ${data.total_files || selectedFiles.length} transcript(s) queued. ${duplicates.length} duplicate file(s) were skipped.`
         );
       } else {
         setStatus(
-          `Job created successfully. ${
-            data.total_files || files.length
-          } transcript(s) queued for processing.`
+          `Job created successfully. ${data.total_files || selectedFiles.length} transcript(s) queued for processing.`
         );
       }
 
+      setSelectedFiles([]);
       await loadRecentJobs();
       triggerWorkerAutomatically();
-
-      event.target.value = "";
     } catch (error: any) {
       console.error("Upload queue error:", error);
       setStatus(`Failed: ${error?.message || "Unknown error"}`);
@@ -249,11 +216,9 @@ export default function UploadPage() {
           <div className="mb-3 inline-flex items-center rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
             Transcript Queue Upload
           </div>
-
           <h1 className="mb-3 text-4xl font-bold tracking-tight">
             Upload Chat Transcript PDFs
           </h1>
-
           <p className="max-w-3xl text-gray-300">
             Upload one or more support transcript PDFs. Files will be added to a background
             processing queue and processing will start automatically.
@@ -265,12 +230,76 @@ export default function UploadPage() {
             Choose PDF transcripts
           </label>
 
+          <div
+            onClick={() => {
+              if (selectedFiles.length === 0) {
+                document.getElementById("file-upload")?.click();
+              }
+            }}
+            className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 transition-colors ${
+              selectedFiles.length > 0
+                ? "border-emerald-400/40 bg-black/50"
+                : "cursor-pointer border-white/20 bg-black/30 hover:border-emerald-400/40 hover:bg-black/50"
+            }`}
+          >
+            {selectedFiles.length === 0 ? (
+              <>
+                <p className="text-lg font-semibold text-emerald-300">Click to Upload</p>
+                <p className="mt-2 text-sm text-gray-400">Select one or more PDF transcripts</p>
+              </>
+            ) : (
+              <>
+                <p className="mb-3 text-sm text-gray-400">
+                  {selectedFiles.length} file(s) ready:
+                </p>
+                <ul className="mb-5 space-y-1 text-center">
+                  {selectedFiles.map((file, index) => (
+                    <li key={index} className="text-sm text-gray-300">
+                      {file.name}
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex gap-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUpload();
+                    }}
+                    className="rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-white transition-colors hover:bg-emerald-400"
+                  >
+                    Upload and Analyze
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedFiles([]);
+                      setStatus("No files uploaded yet.");
+                    }}
+                    className="rounded-xl border border-white/10 px-6 py-3 font-semibold text-gray-300 transition-colors hover:bg-white/5"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    document.getElementById("file-upload")?.click();
+                  }}
+                  className="mt-3 text-sm text-gray-500 transition-colors hover:text-gray-300"
+                >
+                  Choose different files
+                </button>
+              </>
+            )}
+          </div>
+
           <input
+            id="file-upload"
             type="file"
             accept=".pdf"
             multiple
-            onChange={handleFiles}
-            className="block w-full rounded-xl border border-white/10 bg-black px-4 py-4 text-gray-200"
+            onChange={handleFileSelect}
+            className="hidden"
           />
 
           <div className="mt-5 space-y-2">
@@ -293,7 +322,6 @@ export default function UploadPage() {
                 <p className="text-sm font-semibold text-yellow-300">
                   Duplicate files skipped: {duplicateResults.length}
                 </p>
-
                 <div className="mt-3 space-y-2">
                   {duplicateResults.map((item) => (
                     <div key={`${item.file_name}-${item.matched_file_name || "unknown"}`}>
@@ -306,16 +334,13 @@ export default function UploadPage() {
 
             {jobId && (
               <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
-                <p className="text-sm text-emerald-300">
-                  Job created successfully.
-                </p>
+                <p className="text-sm text-emerald-300">Job created successfully.</p>
                 <p className="mt-1 text-sm text-gray-300">
                   Job ID: <span className="font-mono">{jobId}</span>
                 </p>
                 <p className="mt-1 text-sm text-gray-300">
                   Queued transcripts: {queuedCount}
                 </p>
-
                 <div className="mt-4 flex flex-wrap gap-3">
                   <a
                     href="/jobs"
@@ -323,14 +348,12 @@ export default function UploadPage() {
                   >
                     View All Jobs
                   </a>
-
                   <a
                     href={`/jobs/${jobId}`}
                     className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-300 hover:bg-indigo-500/20"
                   >
                     View This Job
                   </a>
-
                   <WorkerTriggerButton
                     onSuccess={handleManualWorkerSuccess}
                     onError={handleManualWorkerError}
@@ -350,7 +373,6 @@ export default function UploadPage() {
                 Recent transcript queue submissions and their current processing status.
               </p>
             </div>
-
             <button
               onClick={loadRecentJobs}
               className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-white/5 hover:text-white"
@@ -370,7 +392,6 @@ export default function UploadPage() {
                   job.processed_files || 0,
                   job.total_files || 0
                 );
-
                 return (
                   <div
                     key={job.id}
@@ -385,7 +406,6 @@ export default function UploadPage() {
                           Created {new Date(job.created_at).toLocaleString()}
                         </p>
                       </div>
-
                       <div
                         className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getStatusClasses(
                           job.status
@@ -394,34 +414,29 @@ export default function UploadPage() {
                         {job.status}
                       </div>
                     </div>
-
                     <div className="mb-3 grid gap-2 text-sm text-gray-300 md:grid-cols-3">
                       <div>Total Files: {job.total_files}</div>
                       <div>Processed: {job.processed_files}</div>
                       <div>Progress: {progress}%</div>
                     </div>
-
                     <div className="h-3 rounded-full bg-white/10">
                       <div
                         className="h-3 rounded-full bg-blue-400"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-
                     <div className="mt-4 flex flex-wrap gap-3">
                       <a
                         href={`/jobs/${job.id}`}
                         className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
                       >
-                        View Job →
+                        {"View Job →"}
                       </a>
-
                       {job.status !== "completed" && (
                         <WorkerTriggerButton
                           onSuccess={handleManualWorkerSuccess}
                           onError={handleManualWorkerError}
                           className="text-sm font-semibold text-yellow-300 hover:text-yellow-200 disabled:cursor-not-allowed disabled:opacity-60"
-                          label="Process Now ->"
                         />
                       )}
                     </div>
