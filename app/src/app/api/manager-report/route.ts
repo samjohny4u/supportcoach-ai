@@ -75,7 +75,7 @@ Rules:
 - Do not offer extra help.
 - Do not say "If helpful, I can..."
 - No closing paragraph after Coaching Focus Next.
-- Coaching Focus Next must contain 3ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“5 specific actions for this one agent.
+- Coaching Focus Next must contain 3–5 specific actions for this one agent.
     `.trim();
   }
 
@@ -102,7 +102,7 @@ Rules:
 - Do not offer extra help.
 - Do not say "If helpful, I can..."
 - No closing paragraph after Manager Focus Next.
-- Manager Focus Next must contain 3ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“5 specific coaching actions.
+- Manager Focus Next must contain 3–5 specific coaching actions.
   `.trim();
 }
 
@@ -124,7 +124,7 @@ ${JSON.stringify(data.slice(0, 75), null, 2)}
   `.trim();
 }
 
-export async function POST(req: Request) {
+export async function GET(req: Request) {
   try {
     const supabaseAuth = await createSupabaseServer();
     const {
