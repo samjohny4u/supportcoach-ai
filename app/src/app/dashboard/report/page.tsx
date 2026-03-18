@@ -40,6 +40,7 @@ type ChatAnalysis = {
 
 function sanitizeReport(text: string) {
   return text
+    .replace(/^\s*(?:ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢|Ã¢â‚¬Â¢|â€¢|•)\s+/gm, "- ")
     .replace(/^If helpful, I can also.*$/gim, "")
     .replace(/^Let me know if.*$/gim, "")
     .replace(/^I can also.*$/gim, "")
@@ -133,7 +134,7 @@ Rules:
 - Do not offer extra help.
 - Do not say "If helpful, I can..."
 - No closing paragraph after Coaching Focus Next.
-- Coaching Focus Next must contain 3–5 specific actions for this one agent.
+- Coaching Focus Next must contain 3ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 specific actions for this one agent.
         `.trim()
       : `
 You are writing a finished internal management report for a support leadership team.
@@ -158,7 +159,7 @@ Rules:
 - Do not offer extra help.
 - Do not say "If helpful, I can..."
 - No closing paragraph after Manager Focus Next.
-- Manager Focus Next must contain 3–5 specific coaching actions.
+- Manager Focus Next must contain 3ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 specific coaching actions.
         `.trim();
 
     const userPrompt = isSingleAgent
@@ -303,7 +304,7 @@ export default async function ManagerReportPage({
             href="/dashboard"
             className="mb-6 inline-block text-sm text-gray-400 hover:text-white"
           >
-            ← Back to Dashboard
+            ÃƒÂ¢Ã¢â‚¬Â Ã‚Â Back to Dashboard
           </a>
 
           <div className="mb-3 inline-flex items-center rounded-full border border-indigo-400/20 bg-indigo-400/10 px-3 py-1 text-xs font-medium text-indigo-300">

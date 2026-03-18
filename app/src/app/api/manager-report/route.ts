@@ -42,6 +42,7 @@ type ChatAnalysis = {
 
 function sanitizeReport(text: string) {
   return text
+    .replace(/^\s*(?:ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢|Ã¢â‚¬Â¢|â€¢|•)\s+/gm, "- ")
     .replace(/^If helpful, I can also.*$/gim, "")
     .replace(/^Let me know if.*$/gim, "")
     .replace(/^I can also.*$/gim, "")
@@ -75,7 +76,7 @@ Rules:
 - Do not offer extra help.
 - Do not say "If helpful, I can..."
 - No closing paragraph after Coaching Focus Next.
-- Coaching Focus Next must contain 3–5 specific actions for this one agent.
+- Coaching Focus Next must contain 3ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 specific actions for this one agent.
     `.trim();
   }
 
@@ -102,7 +103,7 @@ Rules:
 - Do not offer extra help.
 - Do not say "If helpful, I can..."
 - No closing paragraph after Manager Focus Next.
-- Manager Focus Next must contain 3–5 specific coaching actions.
+- Manager Focus Next must contain 3ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 specific coaching actions.
   `.trim();
 }
 
