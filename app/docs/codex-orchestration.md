@@ -229,7 +229,7 @@ Only build what's missing. Skip what already exists.
 ---
 
 ### TASK 8: Attention priority badges (Section 9d)
-STATUS: NOT STARTED
+STATUS: DONE (already implemented, no code changes needed)
 
 **Read:** `src/app/dashboard/page.tsx` — check if priority badges exist on chat cards.
 
@@ -271,4 +271,6 @@ When Tasks 0–9 are complete, report final status. Do not build anything else. 
 ## SCOPE LOCK
 
 This document defines the complete task list. Do not add tasks, suggest improvements, propose refactors, or recommend features. Execute tasks in order. When done, say "Done" and stop.
+
+
 
