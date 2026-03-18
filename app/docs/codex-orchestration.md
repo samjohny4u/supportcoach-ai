@@ -2,17 +2,22 @@
 
 ## Role and Rules
 
-You are building a SaaS product called SupportCoach AI. Read and follow the master development context at `docs/supportcoach-ai-context.md` before starting any task.
+You are building a SaaS product called SupportCoach AI. The master development context is at `docs/supportcoach-ai-context.md` in this repo — read it before starting any task.
 
 **Critical rules:**
-- Rule 1a: Full file replacements only. Never partial snippets or diffs.
+- Read the full file before editing it. Do not assume contents.
+- Make only the changes needed for the current task. Do not refactor or reorganize surrounding code.
 - Rule 1g: Do not redesign or refactor working code.
-- Rule 1j: Do not suggest features, enhancements, or scope changes. Build only what is specified in this document. When a task is done, say "Done. What's next?" and stop.
+- Rule 1j: Do not suggest features, enhancements, or scope changes. Build only what is specified. When a task is done, say "Done" and stop.
 - Rule 1k: Use defensive string handling: `typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback`
 - All database queries must filter by `organization_id` for tenant isolation.
 - All queries on `chat_analyses` must include `.eq('excluded', false)` unless the query is specifically for managing exclusions.
+- Database changes must use `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` and `CREATE TABLE IF NOT EXISTS`. Never drop columns or tables.
 
-**Before editing any file:** Read the full current file first. Do not assume its contents.
+**After completing each task:**
+1. Commit changes with a clear message: `git commit -m "Task N: brief description"`
+2. Push to origin: `git push origin main`
+3. Say "Done" and stop.
 
 ---
 
@@ -21,18 +26,18 @@ You are building a SaaS product called SupportCoach AI. Read and follow the mast
 **Database:**
 - `transcript_hash` column on `analysis_job_items`: EXISTS
 - `excluded` column on `chat_analyses`: EXISTS
-- Legacy items with `status = 'done'`: Cleaned up via SQL (all now 'completed')
-- Records with `source_type = 'chat_transcript'`: 0 (fix 8c fully applied)
+- Legacy items with `status = 'done'`: Cleaned up (all now 'completed')
+- Records with `source_type = 'chat_transcript'`: 0 (fully fixed)
 - Total analyses: ~52 active records + ~175 from earlier batches
 
 **Worker (`src/app/api/process-jobs/route.ts`):**
-- ✅ Idempotency check (8a) — applied
-- ✅ Processing status claim (8b) — applied
-- ✅ source_type fix (8c) — applied
+- ✅ Idempotency check (8a)
+- ✅ Processing status claim (8b)
+- ✅ source_type fix (8c)
 - ✅ Item completion status (8d) — applied in worker
-- ✅ Orphan line parsing (8e) — applied
-- ✅ Sender misattribution fix (8h) — knownSenderNames applied
-- ✅ Structured transcript pre-formatting — buildStructuredTranscript() applied
+- ✅ Orphan line parsing (8e)
+- ✅ Sender misattribution fix (8h) — knownSenderNames
+- ✅ Structured transcript pre-formatting — buildStructuredTranscript()
 - ✅ Full coaching prompt with scoring rubric, boolean criteria, factual accuracy rules, response time thresholds
 - ✅ Misattributed message detection (Rule 8 in prompt)
 
@@ -43,9 +48,7 @@ You are building a SaaS product called SupportCoach AI. Read and follow the mast
 - ✅ Dashboard with filters, attention view, agent filtering, date ranges
 - ✅ Topic Intelligence Dashboard (`/dashboard/topics`)
 - ✅ Topic drill-down (`/dashboard/topics/[topic]`)
-- ✅ Topic stats API (`/api/topic-stats`)
-- ✅ Topic agent stats API (`/api/topic-agent-stats`)
-- ✅ Topic coaching stats API (`/api/topic-coaching-stats`)
+- ✅ Topic stats API, topic agent stats API, topic coaching stats API
 - ✅ Manager reports + PDF export
 - ✅ CSV export
 - ✅ Exclude/include from reports (toggle-exclude + ExcludeToggleButton)
@@ -54,7 +57,7 @@ You are building a SaaS product called SupportCoach AI. Read and follow the mast
 - ✅ Reclassify topics route (exists, needs to be run)
 
 **Exists but must be REMOVED:**
-- ❌ `src/app/api/manager-insights/route.ts` — duplicates existing routes, no org security, adds unnecessary AI cost
+- ❌ `src/app/api/manager-insights/route.ts` — duplicates existing routes, no org security, unnecessary AI cost
 - ❌ Manager Coaching Insights panel in `src/app/dashboard/page.tsx` — powered by the above route
 
 ---
@@ -62,87 +65,98 @@ You are building a SaaS product called SupportCoach AI. Read and follow the mast
 ## TASK LIST — Execute In Order
 
 ### TASK 0: Remove manager-insights (cleanup)
+STATUS: NOT STARTED
 
-**Delete file:** `src/app/api/manager-insights/route.ts`
+**Delete:** `src/app/api/manager-insights/route.ts` — remove the entire file.
 
-**Modify file:** `src/app/dashboard/page.tsx`
-Remove these items:
+**Edit:** `src/app/dashboard/page.tsx` — remove only these items:
 - `ManagerInsightsResult` type definition
 - `getManagerInsights()` function
 - `const managerInsights = await getManagerInsights(aiSummaryPayload);` call
 - `managerInsightsTitle` variable
 - The entire "Manager Coaching Insights" panel JSX block (the `<div>` containing `managerInsightsTitle` and the `managerInsights` rendering)
 
-Do NOT touch anything else in the dashboard file. All other panels, filters, and features must remain.
+Do NOT touch anything else in the dashboard file.
 
 **Test:** Dashboard loads without errors. No "Manager Coaching Insights" panel visible. All other panels still work.
+
+**Commit:** `git commit -m "Task 0: Remove duplicate manager-insights route and dashboard panel"`
 
 ---
 
 ### TASK 1: Run topic reclassification
+STATUS: NOT STARTED
 
-This is not a code task — it's an API call. The route already exists at `/api/reclassify-topics`.
-
-**Action:** The user will trigger this manually via browser or curl. Codex does not need to do anything here — skip to Task 2.
+This is not a code task. The route exists at `/api/reclassify-topics`. The user will trigger it manually. Skip to Task 2.
 
 ---
 
 ### TASK 2: Verify duplicate detection in create-analysis-job
+STATUS: NOT STARTED
 
-**File:** `src/app/api/create-analysis-job/route.ts`
+**Read:** `src/app/api/create-analysis-job/route.ts`
 
-Read the full file. Check whether it:
+Check whether it:
 1. Generates a SHA-256 hash of `transcript_text`
 2. Stores the hash in `transcript_hash` on `analysis_job_items`
 3. Checks for existing hash before inserting
 4. Returns duplicate info to the user if match found
 
-If all four are present and correct → skip this task, report "Already implemented."
-If any are missing → implement per Section 8f of the master prompt. Provide the complete file.
+If all four are present → say "Already implemented" and skip.
+If any are missing → implement per Section 8f of the master prompt. Edit only what's needed.
 
 **Test:**
 1. Upload a PDF — job created normally.
 2. Upload same PDF again — rejected with duplicate message.
 3. Upload 3 PDFs where 1 is a duplicate — job created with 2 items only.
 
+**Commit:** `git commit -m "Task 2: Implement duplicate transcript detection at upload"`
+
 ---
 
 ### TASK 3: Production hardening — Job display names (Section 9i)
+STATUS: NOT STARTED
 
-**Files:** `src/app/jobs/page.tsx`, `src/app/jobs/[id]/page.tsx`
+**Read:** `src/app/jobs/page.tsx` and `src/app/jobs/[id]/page.tsx`
 
-Read both files. Replace raw UUID job titles with human-readable format: "Upload — Mar 12, 2026, 5:49 PM" using the job's `created_at` timestamp.
+Replace raw UUID job titles with human-readable format: "Upload — Mar 12, 2026, 5:49 PM" using the job's `created_at` timestamp.
 
-Also verify that `src/app/jobs/[id]/page.tsx` uses `"completed"` not `"done"` for item status badges. If it still references `"done"`, fix it.
+Also verify `src/app/jobs/[id]/page.tsx` uses `"completed"` not `"done"` for item status badges. Fix if needed.
 
-**Test:** Go to `/jobs` — job titles show dates, not UUIDs. Go to `/jobs/{id}` — items show "completed" with green badges.
+**Test:** `/jobs` shows date-based titles. `/jobs/{id}` shows "completed" badges in green.
+
+**Commit:** `git commit -m "Task 3: Human-readable job titles and verified status badges"`
 
 ---
 
 ### TASK 4: Production hardening — Worker trigger (Section 9i)
+STATUS: NOT STARTED
 
-**File:** `src/components/WorkerTriggerButton.tsx`
+**Read:** `src/components/WorkerTriggerButton.tsx`
 
-Read the full file. Make these changes:
-1. Rename button label from "Run Worker Manually" (or "Run Worker") to "Process Now"
-2. Add button states:
+Changes:
+1. Rename button label to "Process Now"
+2. Add states:
    - Default: "Process Now" — clickable
-   - While running: "Processing..." — disabled with spinner/pulse
-   - After completion: "Done ✓" briefly, then reset to "Process Now"
+   - Running: "Processing..." — disabled with spinner/pulse
+   - Complete: "Done ✓" briefly, then reset
 
-**File:** `src/app/upload/page.tsx` OR `src/app/api/create-analysis-job/route.ts`
+**Read:** `src/app/upload/page.tsx` OR `src/app/api/create-analysis-job/route.ts`
 
-Add automatic worker trigger after job creation. A fire-and-forget fetch to `/api/process-jobs` after the job is successfully created. The manual button remains as a backup.
+Add automatic worker trigger — a fire-and-forget fetch to `/api/process-jobs` after job creation. The manual button remains as backup.
 
-**Test:** Upload a PDF → worker triggers automatically without clicking "Process Now". Button shows "Processing..." during worker run.
+**Test:** Upload a PDF → worker triggers automatically. Button shows "Processing..." during run.
+
+**Commit:** `git commit -m "Task 4: Rename worker button to Process Now with states, add auto-trigger"`
 
 ---
 
-### TASK 5: Soft delete — verify excluded filter coverage (Section 9j)
+### TASK 5: Verify excluded filter coverage (Section 9j)
+STATUS: NOT STARTED
 
-The exclude/include feature is built and working. This task verifies that ALL queries across the app respect the `excluded` flag.
+The exclude feature is built. This task verifies ALL queries respect the `excluded` flag.
 
-**Read each of these files** and confirm they have `.eq('excluded', false)` or `.neq('excluded', true)` on `chat_analyses` queries:
+**Read each file** and check for `.eq('excluded', false)` or `.neq('excluded', true)` on `chat_analyses` queries:
 
 - `src/app/dashboard/page.tsx`
 - `src/app/dashboard/agent/[name]/page.tsx`
@@ -157,70 +171,69 @@ The exclude/include feature is built and working. This task verifies that ALL qu
 - `src/app/api/topic-coaching-stats/route.ts`
 - `src/app/api/export/route.ts`
 
-For each file, report: "Has exclude filter" or "MISSING exclude filter."
-Only modify files that are missing the filter. Provide complete file replacements for any that need fixing.
+Report status of each file. Only edit files missing the filter.
 
-**Test:** Exclude a chat from reports. Verify it disappears from dashboard stats, topic stats, and export. Verify it still appears on its analysis detail page.
+**Test:** Exclude a chat → verify it disappears from dashboard stats, topics, and export. Still visible on analysis detail page.
+
+**Commit:** `git commit -m "Task 5: Verified and fixed exclude filter coverage across all queries"`
 
 ---
 
 ### TASK 6: Pattern Cards UI (Section 9h)
+STATUS: NOT STARTED
 
-Read Section 9h of the master prompt carefully — specifically the "Pattern Cards" specification.
+**Read:** `src/app/dashboard/topics/[topic]/page.tsx`
 
-**Check:** Does `src/app/dashboard/topics/[topic]/page.tsx` already display pattern cards with template-based narratives and recommendations? If yes, verify they match the spec (agent name, topic, occurrence count, detected signals, narrative, recommendation, confidence level). Report what exists vs what's missing.
+Check if pattern cards already exist with: agent name, topic, occurrence count, detected signals, narrative, recommendation, confidence level.
 
-If pattern cards are not yet built or are incomplete:
-
-**Implementation:**
-- Pattern cards appear within the topic drill-down page
-- Generated from existing data — no new API routes needed
-- Template-based narratives per Section 9h specification
-- Confidence levels: High (7+), Medium (5–6), Low (3–4)
+If complete → say "Already implemented" and skip.
+If missing or incomplete → implement per Section 9h "Pattern Cards" specification in the master prompt:
+- Template-based narratives (not AI calls)
+- Confidence: High (7+), Medium (5–6), Low (3–4)
 - Severity ordering for multiple signals
+- Minimum 3 chats per agent+topic
 - Sortable by confidence, occurrence count, agent, topic
-- Minimum 3 chats per agent+topic before generating a card
 
-**Test:** Navigate to a topic drill-down with enough data. Pattern cards should appear with agent names, signal counts, and coaching recommendations.
+**Test:** Navigate to a topic drill-down with data. Pattern cards appear with coaching recommendations.
+
+**Commit:** `git commit -m "Task 6: Pattern cards with template-based coaching narratives"`
 
 ---
 
 ### TASK 7: Surface quick_summary and copy coaching message (Section 9b, 9c)
+STATUS: NOT STARTED
 
-**Check:** Does the dashboard already show `quick_summary` on chat cards? Does the analysis detail page have a copy-to-clipboard button for `copy_coaching_message`?
+**Read:** `src/app/dashboard/page.tsx` — check if `quick_summary` is shown on chat cards.
+**Read:** `src/app/analysis/[id]/page.tsx` — check if copy-to-clipboard exists for `copy_coaching_message`.
 
-Read `src/app/dashboard/page.tsx` and `src/app/analysis/[id]/page.tsx` to verify.
+Only build what's missing. Skip what already exists.
 
-If `quick_summary` is already visible on chat cards in the dashboard → skip that part.
-If copy-to-clipboard for coaching message is already on the analysis page → skip that part.
-Only build what's missing.
+**Test:** Dashboard cards show quick summary. Analysis page has working copy button for coaching message.
 
-**Test:** Dashboard chat cards show quick summary text. Analysis detail page has a working "Copy Coaching Message" button.
+**Commit:** `git commit -m "Task 7: Surface quick summary and copy coaching message in UI"`
 
 ---
 
 ### TASK 8: Attention priority badges (Section 9d)
+STATUS: NOT STARTED
 
-**Check:** Does the dashboard already display attention priority badges on chat cards? Read `src/app/dashboard/page.tsx` to verify.
+**Read:** `src/app/dashboard/page.tsx` — check if priority badges exist on chat cards.
 
-If badges are already present → skip this task.
-If missing → add color-coded priority badges (high = red, medium = yellow, low = green) to each chat card in the dashboard.
+If present → say "Already implemented" and skip.
+If missing → add color-coded badges: high = red, medium = yellow, low = green.
 
 **Test:** Dashboard chat cards show colored priority badges.
+
+**Commit:** `git commit -m "Task 8: Attention priority badges on dashboard chat cards"`
 
 ---
 
 ## AFTER ALL TASKS
 
-When all 9 tasks (0–8) are complete, the MVP feature set is functionally done. Remaining work is:
-- Production deployment (Vercel)
-- Landing page
-- Stripe billing integration (Section 14 — not current sprint)
-
-Do not build any of these unless the user explicitly requests them.
+When Tasks 0–8 are complete, report final status. Do not build anything else. Remaining work (deployment, landing page, Stripe) is outside current scope.
 
 ---
 
-## SCOPE LOCK REMINDER
+## SCOPE LOCK
 
-This document defines the complete task list. Do not add tasks, suggest improvements, propose refactors, or recommend "nice to have" features. Execute the tasks in order. When a task is done, say "Done. What's next?" and stop. If a task is already complete, say "Already implemented" and move to the next one.
+This document defines the complete task list. Do not add tasks, suggest improvements, propose refactors, or recommend features. Execute tasks in order. When done, say "Done" and stop.
