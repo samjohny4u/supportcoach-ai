@@ -32,7 +32,15 @@ function getProgressPercent(processed: number, total: number) {
 }
 
 function formatJobDisplayName(createdAt: string) {
-  return `Upload — ${new Date(createdAt).toLocaleString()}`;
+  const formatted = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(createdAt));
+
+  return `Upload — ${formatted}`;
 }
 
 function getStatusClasses(status: string) {
@@ -109,7 +117,7 @@ export default async function JobDetailsPage({
         <div className="mb-8">
           <div className="mb-6 flex flex-wrap items-center gap-4 text-sm">
             <a href="/upload" className="text-gray-400 hover:text-white">
-              ← Back to Upload
+              â† Back to Upload
             </a>
 
             <a href="/jobs" className="text-gray-400 hover:text-white">
@@ -227,7 +235,7 @@ export default async function JobDetailsPage({
                             href={`/analysis/${item.analysis_id}`}
                             className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
                           >
-                            View Analysis →
+                            View Analysis â†’
                           </a>
                         </div>
                       ) : item.status === "completed" ? (

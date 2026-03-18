@@ -23,7 +23,15 @@ function getProgressPercent(processed: number, total: number) {
 }
 
 function formatJobDisplayName(createdAt: string) {
-  return `Upload — ${new Date(createdAt).toLocaleString()}`;
+  const formatted = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(createdAt));
+
+  return `Upload — ${formatted}`;
 }
 
 function getStatusClasses(status: string) {
@@ -86,7 +94,7 @@ export default async function JobsPage() {
             href="/upload"
             className="mb-6 inline-block text-sm text-gray-400 hover:text-white"
           >
-            ← Back to Upload
+            â† Back to Upload
           </a>
 
           <div className="mb-3 inline-flex items-center rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1 text-xs font-medium text-blue-300">
@@ -162,7 +170,7 @@ export default async function JobsPage() {
                         href={`/jobs/${job.id}`}
                         className="text-sm text-indigo-300 hover:text-indigo-200"
                       >
-                        View Job Details →
+                        View Job Details â†’
                       </a>
                     </div>
                   </div>
