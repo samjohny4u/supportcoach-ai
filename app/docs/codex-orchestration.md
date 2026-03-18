@@ -2,7 +2,11 @@
 
 ## Role and Rules
 
-You are building a SaaS product called SupportCoach AI. The master development context is at `docs/supportcoach-ai-context.md` in this repo — read it before starting any task.
+You are building a SaaS product called SupportCoach AI. Before starting any task, read these files in order:
+1. `docs/RULES.md` — standing orders (mandatory, read every time)
+2. `docs/CONTEXT.md` — current progress and decisions
+3. This file — task list and statuses
+4. `docs/supportcoach-ai-context.md` — master prompt (read relevant sections as needed)
 
 **Critical rules:**
 - Read the full file before editing it. Do not assume contents.
@@ -13,11 +17,21 @@ You are building a SaaS product called SupportCoach AI. The master development c
 - All database queries must filter by `organization_id` for tenant isolation.
 - All queries on `chat_analyses` must include `.eq('excluded', false)` unless the query is specifically for managing exclusions.
 - Database changes must use `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` and `CREATE TABLE IF NOT EXISTS`. Never drop columns or tables.
+- NEVER log customer emails, payment info, passwords, API keys, or PII.
 
-**After completing each task:**
-1. Commit changes with a clear message: `git commit -m "Task N: brief description"`
-2. Push to origin: `git push origin main`
-3. Say "Done" and stop.
+**Version control — MANDATORY for every task:**
+1. Before starting a task that modifies more than 1 file: `git add -A && git commit -m "Pre-task savepoint: Task N"`
+2. If a task modifies more than 3 files: commit after each file change, not at the end.
+3. After completing a task: `git commit -m "Task N: brief description"` then `git push origin main`
+4. After pushing, update the task status in this file AND in `docs/CONTEXT.md`.
+
+**If something breaks:**
+1. STOP immediately. Do not attempt cascading fixes.
+2. Report: what file was changed, what the error is.
+3. The user can revert with: `git checkout HEAD~1 -- path/to/file`
+
+**Context window management:**
+If the conversation exceeds 50 messages or you notice context degradation, stop and tell the user: "Context is getting long. Recommend starting a fresh thread. Current progress is saved in the repo." Commit all work before stopping.
 
 ---
 
@@ -228,9 +242,29 @@ If missing → add color-coded badges: high = red, medium = yellow, low = green.
 
 ---
 
+### TASK 9: Global error boundary — no white screens
+STATUS: NOT STARTED
+
+**Create:** `src/app/error.tsx` — a Next.js App Router error boundary. This catches runtime errors on any page and shows a user-friendly message instead of a white screen.
+
+The error page should:
+- Show a simple message: "Something went wrong. Please try refreshing the page."
+- Include a "Try Again" button that calls `reset()`
+- Include a "Go to Dashboard" link
+- Match the existing dark theme styling
+- Log the error to console (but NEVER log user data, emails, or PII)
+
+**Also create:** `src/app/not-found.tsx` — a custom 404 page. Shows "Page not found" with a link back to the dashboard. Matches the dark theme.
+
+**Test:** Navigate to a non-existent URL like `/dashboard/fakepage` — should show the 404 page, not a white screen.
+
+**Commit:** `git commit -m "Task 9: Global error boundary and 404 page"`
+
+---
+
 ## AFTER ALL TASKS
 
-When Tasks 0–8 are complete, report final status. Do not build anything else. Remaining work (deployment, landing page, Stripe) is outside current scope.
+When Tasks 0–9 are complete, report final status. Do not build anything else. Remaining work (deployment, landing page, Stripe, RLS policies) is outside current scope.
 
 ---
 
