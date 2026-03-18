@@ -117,7 +117,7 @@ export default async function JobDetailsPage({
         <div className="mb-8">
           <div className="mb-6 flex flex-wrap items-center gap-4 text-sm">
             <a href="/upload" className="text-gray-400 hover:text-white">
-              â† Back to Upload
+               ← Back to Upload
             </a>
 
             <a href="/jobs" className="text-gray-400 hover:text-white">
@@ -235,7 +235,7 @@ export default async function JobDetailsPage({
                             href={`/analysis/${item.analysis_id}`}
                             className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
                           >
-                            View Analysis â†’
+                            View Analysis 
                           </a>
                         </div>
                       ) : item.status === "completed" ? (
