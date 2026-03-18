@@ -170,7 +170,7 @@ export default async function JobsPage() {
                         href={`/jobs/${job.id}`}
                         className="text-sm text-indigo-300 hover:text-indigo-200"
                       >
-                        View Job Details â†’
+                        View Job →
                       </a>
                     </div>
                   </div>
