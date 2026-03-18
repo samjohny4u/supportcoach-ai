@@ -30,6 +30,23 @@ type TopicAgentRow = {
   deleted_message: boolean | null;
 };
 
+type PatternSignalKey =
+  | "customer_frustration_present"
+  | "premature_close"
+  | "resolution_quality"
+  | "empathy"
+  | "missed_confirmation"
+  | "ownership";
+
+type PatternConfidence = "High" | "Medium" | "Low";
+
+type PatternSignal = {
+  key: PatternSignalKey;
+  label: string;
+  narrative: string;
+  recommendation: string;
+  detail: string;
+};
 function avg(values: Array<number | null | undefined>) {
   const filtered = values.filter((value): value is number => typeof value === "number");
   if (filtered.length === 0) return 0;
@@ -92,6 +109,23 @@ function getRiskClasses(level: "low" | "medium" | "high") {
   return "border border-emerald-500/20 bg-emerald-500/15 text-emerald-300";
 }
 
+function getPatternConfidence(totalChats: number): PatternConfidence {
+  if (totalChats >= 7) return "High";
+  if (totalChats >= 5) return "Medium";
+  return "Low";
+}
+
+function getPatternConfidenceClasses(confidence: PatternConfidence) {
+  if (confidence === "High") {
+    return "border border-red-500/20 bg-red-500/15 text-red-300";
+  }
+
+  if (confidence === "Medium") {
+    return "border border-yellow-500/20 bg-yellow-500/15 text-yellow-300";
+  }
+
+  return "border border-sky-500/20 bg-sky-500/15 text-sky-300";
+}
 function ScoreBar({ label, value }: { label: string; value: number }) {
   const width = `${Math.max(0, Math.min(100, value * 10))}%`;
 
@@ -365,6 +399,21 @@ export default async function TopicDetailPage({
   const agents = Array.from(grouped.entries())
     .map(([agentName, agentRows]) => {
       const total = agentRows.length;
+      const customerFrustrationCount = agentRows.filter(
+        (row) => row.customer_frustration_present === true
+      ).length;
+      const escalationCount = agentRows.filter(
+        (row) => row.escalation_done_well === true
+      ).length;
+      const prematureCloseCount = agentRows.filter(
+        (row) => row.premature_close === true
+      ).length;
+      const productLimitationCount = agentRows.filter(
+        (row) => row.product_limitation_chat === true
+      ).length;
+      const missedConfirmationCount = agentRows.filter(
+        (row) => row.missed_confirmation === true
+      ).length;
       const average_scores = {
         empathy: avg(agentRows.map((row) => row.empathy)),
         clarity: avg(agentRows.map((row) => row.clarity)),
@@ -400,22 +449,14 @@ export default async function TopicDetailPage({
         agent_name: agentName,
         total_chats: total,
         average_scores,
-        customer_frustration_rate: percent(
-          agentRows.filter((row) => row.customer_frustration_present === true).length,
-          total
-        ),
-        escalation_rate: percent(
-          agentRows.filter((row) => row.escalation_done_well === true).length,
-          total
-        ),
-        premature_close_rate: percent(
-          agentRows.filter((row) => row.premature_close === true).length,
-          total
-        ),
-        product_limitation_rate: percent(
-          agentRows.filter((row) => row.product_limitation_chat === true).length,
-          total
-        ),
+        customer_frustration_count: customerFrustrationCount,
+        customer_frustration_rate: percent(customerFrustrationCount, total),
+        escalation_rate: percent(escalationCount, total),
+        premature_close_count: prematureCloseCount,
+        premature_close_rate: percent(prematureCloseCount, total),
+        product_limitation_rate: percent(productLimitationCount, total),
+        missed_confirmation_count: missedConfirmationCount,
+        missed_confirmation_rate: percent(missedConfirmationCount, total),
         top_improvements: countPhrases(agentRows, [
           "improvement_areas",
           "summary_improvements",
@@ -441,6 +482,168 @@ export default async function TopicDetailPage({
       };
     })
     .sort((a, b) => b.total_chats - a.total_chats);
+
+  const patternSignalPriority: PatternSignalKey[] = [
+    "customer_frustration_present",
+    "premature_close",
+    "resolution_quality",
+    "empathy",
+    "missed_confirmation",
+    "ownership",
+  ];
+
+  const patternConfidenceRank: Record<PatternConfidence, number> = {
+    High: 3,
+    Medium: 2,
+    Low: 1,
+  };
+
+  const patternCards = agents
+    .map((agent) => {
+      if (agent.total_chats < 3) {
+        return null;
+      }
+
+      const detectedSignals: PatternSignal[] = [];
+
+      if (
+        overall.customer_frustration_rate > 0 &&
+        agent.customer_frustration_rate > overall.customer_frustration_rate * 1.5
+      ) {
+        detectedSignals.push({
+          key: "customer_frustration_present",
+          label: "Customer frustration present",
+          detail: `Customer frustration present in ${agent.customer_frustration_count} of ${agent.total_chats} chats vs ${overall.customer_frustration_rate}% org average`,
+          narrative: `Customer frustration is frequently present in ${agent.agent_name}'s ${displayTopic} conversations (${agent.customer_frustration_count} of ${agent.total_chats} chats).`,
+          recommendation: `When handling ${displayTopic} issues, acknowledge the customer's frustration early with empathy statements before moving to resolution.`,
+        });
+      }
+
+      if (
+        overall.premature_close_rate > 0 &&
+        agent.premature_close_rate > overall.premature_close_rate * 1.5
+      ) {
+        detectedSignals.push({
+          key: "premature_close",
+          label: "Premature close",
+          detail: `Premature close in ${agent.premature_close_count} of ${agent.total_chats} chats vs ${overall.premature_close_rate}% org average`,
+          narrative: `${agent.agent_name} frequently closes ${displayTopic} conversations before confirming resolution (${agent.premature_close_count} of ${agent.total_chats} chats).`,
+          recommendation: `Before closing ${displayTopic} chats, confirm resolution by asking: 'Does that resolve the issue for you, or would you like me to check anything else?'`,
+        });
+      }
+
+      if (
+        overall.average_scores.resolution_quality > 0 &&
+        agent.average_scores.resolution_quality > 0 &&
+        agent.average_scores.resolution_quality <=
+          overall.average_scores.resolution_quality - 1
+      ) {
+        const diff = Number(
+          (
+            overall.average_scores.resolution_quality -
+            agent.average_scores.resolution_quality
+          ).toFixed(1)
+        );
+
+        detectedSignals.push({
+          key: "resolution_quality",
+          label: "Low resolution quality",
+          detail: `Resolution quality avg ${agent.average_scores.resolution_quality} vs ${overall.average_scores.resolution_quality} org average`,
+          narrative: `${agent.agent_name}'s resolution quality in ${displayTopic} conversations averages ${agent.average_scores.resolution_quality} out of 10, which is ${diff} points below the team average.`,
+          recommendation: `Focus on providing complete resolutions in ${displayTopic} chats - ensure all aspects of the customer's issue are addressed before closing.`,
+        });
+      }
+
+      if (
+        overall.average_scores.empathy > 0 &&
+        agent.average_scores.empathy > 0 &&
+        agent.average_scores.empathy <= overall.average_scores.empathy - 1
+      ) {
+        const diff = Number(
+          (overall.average_scores.empathy - agent.average_scores.empathy).toFixed(1)
+        );
+
+        detectedSignals.push({
+          key: "empathy",
+          label: "Low empathy",
+          detail: `Empathy avg ${agent.average_scores.empathy} vs ${overall.average_scores.empathy} org average`,
+          narrative: `Empathy levels in ${agent.agent_name}'s ${displayTopic} conversations average ${agent.average_scores.empathy} out of 10, which is ${diff} points below the team average.`,
+          recommendation: `Practice acknowledging the customer's situation before jumping to solutions - phrases like 'I understand how frustrating this must be' can significantly improve the interaction.`,
+        });
+      }
+
+      if (
+        overall.missed_confirmation_rate > 0 &&
+        agent.missed_confirmation_rate > overall.missed_confirmation_rate * 1.5
+      ) {
+        detectedSignals.push({
+          key: "missed_confirmation",
+          label: "Missed confirmation",
+          detail: `Missed confirmation in ${agent.missed_confirmation_count} of ${agent.total_chats} chats vs ${overall.missed_confirmation_rate}% org average`,
+          narrative: `${agent.agent_name} frequently misses confirming resolution in ${displayTopic} conversations (${agent.missed_confirmation_count} of ${agent.total_chats} chats).`,
+          recommendation: "Build a habit of confirming resolution before closing - ask the customer to confirm the issue is fully resolved.",
+        });
+      }
+
+      if (
+        overall.average_scores.ownership > 0 &&
+        agent.average_scores.ownership > 0 &&
+        agent.average_scores.ownership <= overall.average_scores.ownership - 1
+      ) {
+        detectedSignals.push({
+          key: "ownership",
+          label: "Low ownership",
+          detail: `Ownership avg ${agent.average_scores.ownership} vs ${overall.average_scores.ownership} org average`,
+          narrative: `${agent.agent_name} shows low ownership in ${displayTopic} conversations, averaging ${agent.average_scores.ownership} out of 10.`,
+          recommendation: `Encourage taking ownership in ${displayTopic} chats by using phrases like 'I'll take care of this for you' and following through on commitments.`,
+        });
+      }
+
+      if (detectedSignals.length === 0) {
+        return null;
+      }
+
+      const sortedSignals = [...detectedSignals].sort(
+        (a, b) =>
+          patternSignalPriority.indexOf(a.key) - patternSignalPriority.indexOf(b.key)
+      );
+      const [primarySignal, ...additionalSignals] = sortedSignals;
+      const confidence = getPatternConfidence(agent.total_chats);
+
+      return {
+        agent_name: agent.agent_name,
+        topic: displayTopic,
+        total_chats: agent.total_chats,
+        confidence,
+        detected_signals: sortedSignals,
+        primary_signal: primarySignal,
+        additional_signals: additionalSignals,
+      };
+    })
+    .filter((card): card is NonNullable<typeof card> => card !== null)
+    .sort((a, b) => {
+      const severityDifference =
+        patternSignalPriority.indexOf(a.primary_signal.key) -
+        patternSignalPriority.indexOf(b.primary_signal.key);
+
+      if (severityDifference !== 0) {
+        return severityDifference;
+      }
+
+      const confidenceDifference =
+        patternConfidenceRank[b.confidence] - patternConfidenceRank[a.confidence];
+
+      if (confidenceDifference !== 0) {
+        return confidenceDifference;
+      }
+
+      if (b.total_chats !== a.total_chats) {
+        return b.total_chats - a.total_chats;
+      }
+
+      return a.agent_name.localeCompare(b.agent_name);
+    });
+
 
   return (
     <main className="px-6 py-16">
@@ -637,6 +840,82 @@ export default async function TopicDetailPage({
           )}
         </div>
 
+        <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
+          <h2 className="mb-6 text-2xl font-semibold">Coaching Pattern Cards</h2>
+
+          {patternCards.length === 0 ? (
+            <p className="text-gray-400">No coaching pattern cards detected for this topic yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {patternCards.map((card) => (
+                <div
+                  key={`${card.agent_name}-${card.topic}`}
+                  className="rounded-2xl border border-white/10 bg-black/20 p-6"
+                >
+                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">{card.agent_name}</h3>
+                      <p className="text-sm text-gray-400">
+                        {card.topic} - {card.total_chats} chats
+                      </p>
+                    </div>
+
+                    <div
+                      className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getPatternConfidenceClasses(
+                        card.confidence
+                      )}`}
+                    >
+                      {card.confidence} confidence
+                    </div>
+                  </div>
+
+                  <div className="mb-4 flex flex-wrap gap-2 text-sm">
+                    <span className="rounded-full border border-indigo-400/20 bg-indigo-400/10 px-3 py-1 text-indigo-300">
+                      Primary signal: {card.primary_signal.label}
+                    </span>
+                    {card.additional_signals.map((signal) => (
+                      <span
+                        key={`${card.agent_name}-${signal.key}`}
+                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-gray-300"
+                      >
+                        {signal.label}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="mb-4 rounded-2xl border border-white/10 bg-[#081225] p-4">
+                    <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">
+                      Detected Signals
+                    </p>
+                    <ul className="space-y-2 text-sm text-gray-300">
+                      {card.detected_signals.map((signal) => (
+                        <li key={`${card.agent_name}-${signal.key}`}>- {signal.detail}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-2xl border border-white/10 bg-[#081225] p-4">
+                      <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">
+                        Narrative
+                      </p>
+                      <p className="text-sm text-gray-300">{card.primary_signal.narrative}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-[#081225] p-4">
+                      <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">
+                        Recommendation
+                      </p>
+                      <p className="text-sm text-gray-300">
+                        {card.primary_signal.recommendation}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="rounded-3xl border border-white/10 bg-[#081225] p-8">
           <h2 className="mb-6 text-2xl font-semibold">Agents Handling This Topic</h2>
 
@@ -773,3 +1052,4 @@ export default async function TopicDetailPage({
     </main>
   );
 }
+
