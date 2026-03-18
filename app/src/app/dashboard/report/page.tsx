@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
+import ReactMarkdown from "react-markdown";
 import { createSupabaseServer } from "../../../lib/supabaseServer";
 import { getCurrentOrganization } from "../../../lib/currentOrganization";
 
@@ -40,7 +42,7 @@ type ChatAnalysis = {
 
 function sanitizeReport(text: string) {
   return text
-    .replace(/^\s*(?:ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢|Ã¢â‚¬Â¢|â€¢|•)\s+/gm, "- ")
+    .replace(/^\s*(?:ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢|ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢|ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢|Ã¢â‚¬Â¢)\s+/gm, "- ")
     .replace(/^If helpful, I can also.*$/gim, "")
     .replace(/^Let me know if.*$/gim, "")
     .replace(/^I can also.*$/gim, "")
@@ -134,7 +136,7 @@ Rules:
 - Do not offer extra help.
 - Do not say "If helpful, I can..."
 - No closing paragraph after Coaching Focus Next.
-- Coaching Focus Next must contain 3ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 specific actions for this one agent.
+- Coaching Focus Next must contain 3ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“5 specific actions for this one agent.
         `.trim()
       : `
 You are writing a finished internal management report for a support leadership team.
@@ -159,7 +161,7 @@ Rules:
 - Do not offer extra help.
 - Do not say "If helpful, I can..."
 - No closing paragraph after Manager Focus Next.
-- Manager Focus Next must contain 3ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5 specific coaching actions.
+- Manager Focus Next must contain 3ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“5 specific coaching actions.
         `.trim();
 
     const userPrompt = isSingleAgent
@@ -250,6 +252,26 @@ function renderReport(report: string) {
   });
 }
 
+const reportMarkdownComponents = {
+  h2: ({ children }: { children?: ReactNode }) => (
+    <h1 className="mb-4 mt-8 text-3xl font-bold text-white first:mt-0">{children}</h1>
+  ),
+  h3: ({ children }: { children?: ReactNode }) => (
+    <h2 className="mb-3 mt-6 text-2xl font-semibold text-white">{children}</h2>
+  ),
+  p: ({ children }: { children?: ReactNode }) => (
+    <p className="leading-7 text-gray-300">{children}</p>
+  ),
+  ul: ({ children }: { children?: ReactNode }) => (
+    <ul className="space-y-3">{children}</ul>
+  ),
+  li: ({ children }: { children?: ReactNode }) => (
+    <li className="ml-5 list-disc leading-7 text-gray-300">{children}</li>
+  ),
+  strong: ({ children }: { children?: ReactNode }) => (
+    <strong className="font-semibold text-white">{children}</strong>
+  ),
+};
 export default async function ManagerReportPage({
   searchParams,
 }: {
@@ -304,7 +326,7 @@ export default async function ManagerReportPage({
             href="/dashboard"
             className="mb-6 inline-block text-sm text-gray-400 hover:text-white"
           >
-            ÃƒÂ¢Ã¢â‚¬Â Ã‚Â Back to Dashboard
+            ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Back to Dashboard
           </a>
 
           <div className="mb-3 inline-flex items-center rounded-full border border-indigo-400/20 bg-indigo-400/10 px-3 py-1 text-xs font-medium text-indigo-300">
@@ -380,7 +402,7 @@ export default async function ManagerReportPage({
         </div>
 
         <div className="rounded-3xl border border-white/10 bg-[#081225] p-8">
-          <div className="space-y-3">{renderReport(report)}</div>
+          <div className="space-y-3"><ReactMarkdown components={reportMarkdownComponents}>{report}</ReactMarkdown></div>
         </div>
       </div>
     </main>
