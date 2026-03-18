@@ -94,7 +94,7 @@ export default async function JobsPage() {
             href="/upload"
             className="mb-6 inline-block text-sm text-gray-400 hover:text-white"
           >
-            â† Back to Upload
+            ← Back to Upload
           </a>
 
           <div className="mb-3 inline-flex items-center rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1 text-xs font-medium text-blue-300">
