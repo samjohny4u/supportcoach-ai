@@ -781,6 +781,10 @@ Every query that aggregates or displays `chat_analyses` data must add `.eq('excl
 **Files affected:** SQL migration + `src/app/api/toggle-exclude/route.ts` (new) + `src/app/analysis/[id]/page.tsx` + all files listed above that query `chat_analyses`.
 
 **Dependencies:** None. Can be built independently.
+
+### 9f. Error Handling for Parsing Failures
+
+The worker already handles parsing at a basic level.
 The worker already handles parsing at a basic level. The parsing logic should be understood as producing one of three outcomes:
 
 **Complete success:**
