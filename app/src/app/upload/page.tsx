@@ -354,7 +354,7 @@ export default function UploadPage() {
             {duplicateResults.length > 0 && (
               <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4">
                 <p className="text-sm font-semibold text-yellow-300">
-                  Duplicate files skipped: {duplicateResults.length}
+                  Duplicate {duplicateResults.length === 1 ? "file" : "files"} skipped: {duplicateResults.length}
                 </p>
                 <div className="mt-3 space-y-2">
                   {duplicateResults.map((item) => (

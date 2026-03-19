@@ -662,7 +662,7 @@ export default async function DashboardPage({
         </div>
 
         <div className="mb-6 rounded-2xl border border-white/10 bg-[#081225] p-4 text-sm text-gray-300">
-          Showing {totalChats} included chats
+          Showing {totalChats} included {totalChats === 1 ? "chat" : "chats"}
           {typeof excludedCount === "number" && excludedCount > 0
             ? ` - ${excludedCount} excluded from reports`
             : ""}
@@ -884,7 +884,7 @@ export default async function DashboardPage({
                 ) : (
                   topImprovementAreas.map(([item, count]) => (
                     <li key={item}>
-                      - {item} — <span className="text-gray-500">{count} chats</span>
+                      - {item} — <span className="text-gray-500">{count} {count === 1 ? "chat" : "chats"}</span>
                     </li>
                   ))
                 )}
@@ -902,7 +902,7 @@ export default async function DashboardPage({
                 ) : (
                   topStrengths.map(([item, count]) => (
                     <li key={item}>
-                      - {item} — <span className="text-gray-500">{count} chats</span>
+                      - {item} — <span className="text-gray-500">{count} {count === 1 ? "chat" : "chats"}</span>
                     </li>
                   ))
                 )}

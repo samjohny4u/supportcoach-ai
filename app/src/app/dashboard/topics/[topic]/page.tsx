@@ -513,8 +513,8 @@ export default async function TopicDetailPage({
         detectedSignals.push({
           key: "customer_frustration_present",
           label: "Customer frustration present",
-          detail: `Customer frustration present in ${agent.customer_frustration_count} of ${agent.total_chats} chats vs ${overall.customer_frustration_rate}% org average`,
-          narrative: `Customer frustration is frequently present in ${agent.agent_name}'s ${displayTopic} conversations (${agent.customer_frustration_count} of ${agent.total_chats} chats).`,
+          detail: `Customer frustration present in ${agent.customer_frustration_count} of ${agent.total_chats} ${agent.total_chats === 1 ? "chat" : "chats"} vs ${overall.customer_frustration_rate}% org average`,
+          narrative: `Customer frustration is frequently present in ${agent.agent_name}'s ${displayTopic} conversations (${agent.customer_frustration_count} of ${agent.total_chats} ${agent.total_chats === 1 ? "chat" : "chats"}).`,
           recommendation: `When handling ${displayTopic} issues, acknowledge the customer's frustration early with empathy statements before moving to resolution.`,
         });
       }
@@ -526,8 +526,8 @@ export default async function TopicDetailPage({
         detectedSignals.push({
           key: "premature_close",
           label: "Premature close",
-          detail: `Premature close in ${agent.premature_close_count} of ${agent.total_chats} chats vs ${overall.premature_close_rate}% org average`,
-          narrative: `${agent.agent_name} frequently closes ${displayTopic} conversations before confirming resolution (${agent.premature_close_count} of ${agent.total_chats} chats).`,
+          detail: `Premature close in ${agent.premature_close_count} of ${agent.total_chats} ${agent.total_chats === 1 ? "chat" : "chats"} vs ${overall.premature_close_rate}% org average`,
+          narrative: `${agent.agent_name} frequently closes ${displayTopic} conversations before confirming resolution (${agent.premature_close_count} of ${agent.total_chats} ${agent.total_chats === 1 ? "chat" : "chats"}).`,
           recommendation: `Before closing ${displayTopic} chats, confirm resolution by asking: 'Does that resolve the issue for you, or would you like me to check anything else?'`,
         });
       }
@@ -579,8 +579,8 @@ export default async function TopicDetailPage({
         detectedSignals.push({
           key: "missed_confirmation",
           label: "Missed confirmation",
-          detail: `Missed confirmation in ${agent.missed_confirmation_count} of ${agent.total_chats} chats vs ${overall.missed_confirmation_rate}% org average`,
-          narrative: `${agent.agent_name} frequently misses confirming resolution in ${displayTopic} conversations (${agent.missed_confirmation_count} of ${agent.total_chats} chats).`,
+          detail: `Missed confirmation in ${agent.missed_confirmation_count} of ${agent.total_chats} ${agent.total_chats === 1 ? "chat" : "chats"} vs ${overall.missed_confirmation_rate}% org average`,
+          narrative: `${agent.agent_name} frequently misses confirming resolution in ${displayTopic} conversations (${agent.missed_confirmation_count} of ${agent.total_chats} ${agent.total_chats === 1 ? "chat" : "chats"}).`,
           recommendation: "Build a habit of confirming resolution before closing - ask the customer to confirm the issue is fully resolved.",
         });
       }
@@ -856,7 +856,7 @@ export default async function TopicDetailPage({
                     <div>
                       <h3 className="text-2xl font-bold text-white">{card.agent_name}</h3>
                       <p className="text-sm text-gray-400">
-                        {card.topic} - {card.total_chats} chats
+                        {card.topic} - {card.total_chats} {card.total_chats === 1 ? "chat" : "chats"}
                       </p>
                     </div>
 
@@ -932,7 +932,7 @@ export default async function TopicDetailPage({
                     <div>
                       <h3 className="text-2xl font-bold text-white">{agent.agent_name}</h3>
                       <p className="text-sm text-gray-400">
-                        {agent.total_chats} chats in this topic
+                        {agent.total_chats} {agent.total_chats === 1 ? "chat" : "chats"} in this topic
                       </p>
                     </div>
 

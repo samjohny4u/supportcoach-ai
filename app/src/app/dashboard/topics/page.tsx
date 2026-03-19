@@ -653,7 +653,7 @@ export default async function TopicsDashboardPage({
                             {formatTopicLabel(topic.topic)}
                           </p>
                           <p className="text-sm text-gray-400">
-                            {topic.total_chats} chats • {topic.support_volume_percentage}% of
+                            {topic.total_chats} {topic.total_chats === 1 ? "chat" : "chats"} • {topic.support_volume_percentage}% of
                             support volume
                           </p>
                         </div>
@@ -679,7 +679,7 @@ export default async function TopicsDashboardPage({
 
                       {topic.has_limited_data ? (
                         <p className="mb-3 text-sm text-yellow-300">
-                          Based on limited data ({topic.total_chats} chats).
+                          Based on limited data ({topic.total_chats} {topic.total_chats === 1 ? "chat" : "chats"}).
                         </p>
                       ) : null}
 
@@ -763,7 +763,7 @@ export default async function TopicsDashboardPage({
                           </div>
                         </div>
                         <p className="text-sm text-gray-400">
-                          {topic.total_chats} chats • Resolution{" "}
+                          {topic.total_chats} {topic.total_chats === 1 ? "chat" : "chats"} • Resolution{" "}
                           {topic.average_scores.resolution_quality}
                         </p>
                       </a>
