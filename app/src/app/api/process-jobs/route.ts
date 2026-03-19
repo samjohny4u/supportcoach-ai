@@ -110,6 +110,10 @@ function uniqueClean(items: string[] | null | undefined, limit = 10): string[] {
   return result;
 }
 
+function normalizeOptionalText(value: unknown): string {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : "";
+}
+
 function buildQuickSummary(parsed: AnalysisResult): string {
   if (parsed.quick_summary && parsed.quick_summary.trim()) {
     return parsed.quick_summary.trim();
@@ -667,6 +671,14 @@ export async function GET() {
           ? buildStructuredTranscript(parsedMessages)
           : "";
         const transcriptForAI = structuredTranscript || transcriptText;
+        const { data: organizationSettings } = await supabase
+          .from("organizations")
+          .select("coaching_context")
+          .eq("id", organizationId)
+          .maybeSingle();
+        const companyCoachingContext = normalizeOptionalText(
+          organizationSettings?.coaching_context
+        );
 
         const { data: insertedConversation, error: conversationInsertError } = await supabase
           .from("conversations")
@@ -765,6 +777,22 @@ Return this exact structure:
   "product_limitation_chat": false,
   "customer_frustration_present": false,
   "escalation_done_well": false
+}
+
+${
+  companyCoachingContext
+    ? `=== COMPANY COACHING CONTEXT ===
+
+Use this organization-specific context when deciding whether the agent's explanation, guidance, and coaching opportunities align with company expectations.
+- Treat this context as additional product and process knowledge for this organization.
+- Prefer this context over generic assumptions when there is a conflict.
+- Do not invent facts that are not supported by the transcript or the context.
+- Use the context to improve topic classification, issue framing, and coaching accuracy when relevant.
+
+Organization context:
+${companyCoachingContext}
+`
+    : ""
 }
 
 === FIELD-SPECIFIC RULES ===

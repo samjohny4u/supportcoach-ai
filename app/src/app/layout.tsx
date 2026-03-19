@@ -36,6 +36,13 @@ export default function RootLayout({
                   Dashboard
                 </Link>
 
+                <Link
+                  href="/settings"
+                  className="rounded-lg border border-white/10 px-4 py-2 text-gray-300 transition hover:border-white/20 hover:bg-white/5 hover:text-white"
+                >
+                  Settings
+                </Link>
+
                 <form action="/api/logout" method="post">
                   <button
                     type="submit"
