@@ -220,8 +220,10 @@ function BooleanPill({
 
 export default async function AnalysisDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ reanalyzed?: string; error?: string }>;
 }) {
   const supabaseAuth = await createSupabaseServer();
   const {
@@ -251,6 +253,7 @@ export default async function AnalysisDetailPage({
   }
 
   const { id } = await params;
+  const resolvedSearchParams = (await searchParams) || {};
 
   const { data, error } = await supabase
     .from("chat_analyses")
@@ -278,6 +281,12 @@ export default async function AnalysisDetailPage({
   const coachingMessage = analysis.copy_coaching_message?.trim() || "";
   const quickSummary = analysis.quick_summary?.trim() || "";
   const isExcluded = analysis.excluded === true;
+  const reanalyzed = resolvedSearchParams.reanalyzed === "1";
+  const pageError =
+    typeof resolvedSearchParams.error === "string" &&
+    resolvedSearchParams.error.trim().length > 0
+      ? resolvedSearchParams.error.trim()
+      : "";
 
   return (
     <main className="px-6 py-16">
@@ -301,6 +310,18 @@ export default async function AnalysisDetailPage({
 
           <p className="text-gray-400">{analysis.file_name || "Unknown File"}</p>
         </div>
+
+        {reanalyzed ? (
+          <div className="mb-8 rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+            Chat re-analyzed successfully using the latest saved company coaching context.
+          </div>
+        ) : null}
+
+        {pageError ? (
+          <div className="mb-8 rounded-3xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
+            {pageError}
+          </div>
+        ) : null}
 
         <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -339,6 +360,29 @@ export default async function AnalysisDetailPage({
             Excluded chats remain viewable here, but they are removed from dashboards,
             reports, exports, and topic intelligence until included again.
           </p>
+        </div>
+
+        <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-semibold text-white">Re-Analyze Chat</h2>
+              <p className="mt-2 text-sm text-gray-400">
+                Re-run this analysis against the stored transcript using the latest prompt and
+                company coaching context from Settings.
+              </p>
+            </div>
+
+            <form method="post" action="/api/reanalyze-analysis">
+              <input type="hidden" name="analysis_id" value={analysis.id} />
+              <input type="hidden" name="return_to" value={`/analysis/${analysis.id}`} />
+              <button
+                type="submit"
+                className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-300 hover:bg-indigo-500/20"
+              >
+                Re-Analyze Chat
+              </button>
+            </form>
+          </div>
         </div>
 
         <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
