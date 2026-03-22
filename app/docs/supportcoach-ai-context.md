@@ -273,6 +273,10 @@ supportcoach-ai/
         ├── signup/page.tsx                 # Signup page
         ├── onboarding/page.tsx             # Org setup for new users
         ├── upload/page.tsx                 # PDF upload interface (drag-and-drop, auto-trigger)
+        ├── terms/page.tsx                  # Terms of Service page
+        ├── privacy/page.tsx                # Privacy Policy page
+        ├── refund/page.tsx                 # Refund Policy page
+        ├── support/page.tsx                # Customer Support page (address, phone, email)
         │
         ├── dashboard/
         │   ├── page.tsx                    # Main manager dashboard (stats, filters, chat list)
@@ -1431,8 +1435,9 @@ The system prompt includes the following quality and accuracy rules. These are c
 - Must include chat reference number/ID if present in transcript.
 - Improvement points must cite specific timestamps, durations, and message quotes.
 - Summary bullet points must be specific, not vague generalities.
-- Coaching openings must vary naturally — no repetitive "this chat was really about" pattern.
+- Coaching openings must vary naturally — the phrase "this chat was really about" and "this was really about" are explicitly BANNED from the opening line in the prompt.
 - Timestamps only cited when timing is actually a coaching point — not as decoration.
+- When company coaching context is present, evidence-based coaching quality must be maintained — the AI is explicitly instructed not to soften coaching detail or skip transcript evidence just because company context is available.
 
 ### Rules for Modifying the OpenAI Integration
 - Use a single OpenAI call per conversation unless the developer explicitly requests otherwise.
@@ -1461,9 +1466,10 @@ The system prompt includes the following quality and accuracy rules. These are c
 - ✅ Fix 8h: Sender misattribution fix (knownSenderNames)
 - ✅ Structured transcript pre-formatting (buildStructuredTranscript)
 - ✅ Full coaching prompt with scoring rubric, boolean criteria, factual accuracy rules
-- ✅ Company coaching context injection (Section 9k)
-- ✅ Coaching opening variety (no repetitive patterns)
+- ✅ Company coaching context injection (Section 9k) — fetches from organizations table before every OpenAI call
+- ✅ Coaching opening variety — "this chat was really about" pattern explicitly banned in prompt
 - ✅ Reduced timestamp obsession (only cited when coaching-relevant)
+- ✅ Evidence preservation instruction (maintains detailed coaching even when company context is present)
 
 **Features:**
 - ✅ All MVP tasks (0-9) from orchestration guide
@@ -1474,16 +1480,22 @@ The system prompt includes the following quality and accuracy rules. These are c
 - ✅ Pluralization fix across all pages
 - ✅ Upload page polish (click to upload, drag-and-drop, centered button)
 - ✅ Encoding fix (dashboard garbled Unicode → clean ASCII)
+- ✅ Production deployment on Vercel (supportcoach.io, auto-deploys on git push)
+- ✅ Terms of Service page (`/terms`)
+- ✅ Privacy Policy page (`/privacy`)
+- ✅ Refund Policy page (`/refund`)
+- ✅ Customer Support page (`/support`) with registered address and phone
+- ✅ Paddle billing account approved and ready for integration
 
-### Remaining Before Production Launch
+### Remaining Before Full Launch
 
 | Item | Effort | Status |
 |---|---|---|
+| Paddle billing integration (checkout, webhooks, plan gating) | 2-3 days | Next priority — Paddle is approved |
 | UI design polish | 1 day (light) to 1 week (full) | Not started — user exploring shadcn/ui |
-| Stripe billing integration | 2-3 days | Not started |
-| Production deployment | Half a day | Not started |
+| Stripe billing (if approved) | Optional | Stripe under review — Paddle is primary |
 
-The product is functionally complete. All remaining work is launch preparation, not product development.
+The product is live in production at supportcoach.io. All remaining work is billing integration and UI polish.
 
 ### Future Phase: Zoho SalesIQ API Integration
 
@@ -1493,14 +1505,15 @@ The API integration described in Section 10c is the next major development phase
 
 ## 13. Goal of This Thread
 
-**SCOPE IS LOCKED. THE PRODUCT IS FEATURE-COMPLETE.**
+**SCOPE IS LOCKED. THE PRODUCT IS LIVE IN PRODUCTION.**
 
-This master document defines the complete scope of the product as built. Do not suggest, design, or build anything outside of what is documented here. If the user wants to add or change scope, they will provide an updated master prompt or explicitly approve the change.
+This master document defines the complete scope of the product as built. The app is deployed at supportcoach.io and auto-deploys from GitHub via Vercel. Do not suggest, design, or build anything outside of what is documented here. If the user wants to add or change scope, they will provide an updated master prompt or explicitly approve the change.
 
 Continue development from this architecture forward. Do not redesign the system unless the user explicitly requests it. Focus exclusively on:
 
-1. Launch preparation: UI polish, Stripe billing, production deployment.
-2. Preserving every existing working feature.
+1. Paddle billing integration: checkout flow, webhooks, plan gating.
+2. UI design polish.
+3. Preserving every existing working feature.
 
 Do not build roadmap items from Section 10 (including FAQ Suggestions, helpdesk integrations, coaching history, observability, topic normalization, manual benchmarks, or unfair rating detection) unless the user explicitly requests them. These are documented for future reference only.
 

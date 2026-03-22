@@ -57,9 +57,10 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - ✅ Structured transcript pre-formatting — buildStructuredTranscript()
 - ✅ Full coaching prompt with scoring rubric, boolean criteria, factual accuracy rules, response time thresholds
 - ✅ Misattributed message detection (Rule 8 in prompt)
-- ✅ Company coaching context injection (9k)
-- ✅ Coaching opening variety
+- ✅ Company coaching context injection (9k) — fetches from organizations table and injects into system prompt
+- ✅ Coaching opening variety — "this chat was really about" pattern explicitly banned
 - ✅ Reduced timestamp obsession
+- ✅ Evidence preservation instruction — maintains detailed coaching even when company context is present
 
 **Working features:**
 - ✅ Upload pipeline with duplicate detection and auto-trigger
@@ -82,6 +83,12 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - ✅ RLS policies on all tables
 - ✅ Pluralization fix across all pages
 - ✅ Worker trigger button ("Process Now" with states)
+- ✅ Production deployment on Vercel (supportcoach.io)
+- ✅ Terms of Service page (`/terms`)
+- ✅ Privacy Policy page (`/privacy`)
+- ✅ Refund Policy page (`/refund`)
+- ✅ Customer Support page (`/support`) with address and phone
+- ✅ Paddle billing account approved
 
 ---
 
@@ -110,7 +117,7 @@ Do NOT touch anything else in the dashboard file.
 ### TASK 1: Run topic reclassification
 STATUS: ✅ DONE
 
-This is not a code task. The route exists at `/api/reclassify-topics`. The user triggered it manually.
+This is not a code task. The route at `/api/reclassify-topics` was triggered manually.
 
 ---
 
@@ -278,6 +285,7 @@ STATUS: ✅ DONE
 - SQL migration applied: `coaching_context` column on `organizations`
 - Settings page: `src/app/dashboard/settings/page.tsx`
 - Worker integration: coaching context injected into OpenAI system prompt
+- Bug fix applied: worker was not fetching coaching_context on first analysis — now fetches from organizations table before every OpenAI call
 - Tested with Shakir/Jake chat — coaching now references company-specific processes
 
 ### Section 9l: Per-Chat Re-Analyze
@@ -313,21 +321,40 @@ STATUS: ✅ DONE
 
 ### Prompt Improvements
 STATUS: ✅ DONE
-- Coaching opening variety (no more repetitive "this chat was really about")
+- Coaching opening variety (no more repetitive "this chat was really about" — pattern explicitly banned in prompt)
 - Reduced timestamp obsession (only cite timing when it's a coaching point)
+- Evidence preservation instruction (maintain detailed evidence-based coaching even when company context is present)
+
+### Production Deployment
+STATUS: ✅ DONE
+- Deployed to Vercel (auto-deploys on git push)
+- Domain supportcoach.io connected and live
+- Environment variables configured in Vercel dashboard
+
+### Legal / Compliance Pages
+STATUS: ✅ DONE
+- Terms of Service: `src/app/terms/page.tsx` → supportcoach.io/terms
+- Privacy Policy: `src/app/privacy/page.tsx` → supportcoach.io/privacy
+- Refund Policy: `src/app/refund/page.tsx` → supportcoach.io/refund
+- Customer Support: `src/app/support/page.tsx` → supportcoach.io/support (includes registered address and phone number)
+
+### Billing Provider
+STATUS: ✅ Paddle APPROVED, Stripe under review
+- Paddle account approved and ready for integration
+- Stripe application submitted, still under review
 
 ---
 
-## REMAINING WORK (NOT CODEX TASKS YET)
+## REMAINING WORK
 
 | Item | Effort | Owner |
 |---|---|---|
+| Paddle billing integration (checkout, webhooks, plan gating) | 2-3 days | Next priority |
 | UI design polish | 1 day – 1 week | User decision on shadcn/ui direction pending |
-| Stripe billing integration | 2-3 days | Requires Stripe account setup first |
-| Production deployment | Half a day | Vercel or similar |
+| Stripe billing (if approved) | Optional — Paddle is primary | Backup |
 
 ---
 
 ## SCOPE LOCK
 
-All MVP and post-MVP tasks are complete. The orchestration guide is now a reference document. Future work (UI polish, Stripe, deployment, API integration) will be scoped in new task lists as needed.
+All MVP and post-MVP tasks are complete. The app is live in production. The orchestration guide is now a reference document. Future work (Paddle integration, UI polish, API integration) will be scoped in new task lists as needed.
