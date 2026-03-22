@@ -110,10 +110,6 @@ function uniqueClean(items: string[] | null | undefined, limit = 10): string[] {
   return result;
 }
 
-function normalizeOptionalText(value: unknown): string {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : "";
-}
-
 function buildQuickSummary(parsed: AnalysisResult): string {
   if (parsed.quick_summary && parsed.quick_summary.trim()) {
     return parsed.quick_summary.trim();
@@ -666,19 +662,31 @@ export async function GET() {
           continue;
         }
 
+        // Fetch company coaching context for this organization (Section 9k)
+        let coachingContext = "";
+        try {
+          const { data: orgData } = await supabase
+            .from("organizations")
+            .select("coaching_context")
+            .eq("id", organizationId)
+            .maybeSingle();
+
+          if (
+            orgData &&
+            typeof orgData.coaching_context === "string" &&
+            orgData.coaching_context.trim().length > 0
+          ) {
+            coachingContext = orgData.coaching_context.trim();
+          }
+        } catch {
+          // If coaching context fetch fails, continue without it — do not block analysis
+        }
+
         const parsedMessages = parseTranscriptMessages(transcriptText);
         const structuredTranscript = parsedMessages.length > 0
           ? buildStructuredTranscript(parsedMessages)
           : "";
         const transcriptForAI = structuredTranscript || transcriptText;
-        const { data: organizationSettings } = await supabase
-          .from("organizations")
-          .select("coaching_context")
-          .eq("id", organizationId)
-          .maybeSingle();
-        const companyCoachingContext = normalizeOptionalText(
-          organizationSettings?.coaching_context
-        );
 
         const { data: insertedConversation, error: conversationInsertError } = await supabase
           .from("conversations")
@@ -735,6 +743,20 @@ export async function GET() {
           }
         }
 
+        // Build the company coaching context section for the system prompt (Section 9k)
+        const coachingContextSection = coachingContext
+          ? `
+
+=== COMPANY COACHING CONTEXT ===
+
+The following is company-specific process knowledge provided by the manager. Treat this as ground truth for how this team operates. When coaching, reference these processes where relevant. If an agent deviates from a documented process, flag it as a coaching point. Use the company's terminology.
+
+${coachingContext}
+
+=== END COMPANY COACHING CONTEXT ===
+`
+          : "";
+
         const completion = await openai.chat.completions.create({
           model: "gpt-5.4",
           temperature: 0.2,
@@ -747,7 +769,7 @@ You are an expert support QA coach reviewing customer support chat transcripts f
 Your job is to analyze the chat and generate structured coaching feedback in the same supportive, specific, manager-like tone Johny Patrick uses when coaching support agents.
 
 Analyze the transcript and return ONLY valid JSON.
-
+${coachingContextSection}
 Return this exact structure:
 {
   "agent_name": "",
@@ -777,22 +799,6 @@ Return this exact structure:
   "product_limitation_chat": false,
   "customer_frustration_present": false,
   "escalation_done_well": false
-}
-
-${
-  companyCoachingContext
-    ? `=== COMPANY COACHING CONTEXT ===
-
-Use this organization-specific context when deciding whether the agent's explanation, guidance, and coaching opportunities align with company expectations.
-- Treat this context as additional product and process knowledge for this organization.
-- Prefer this context over generic assumptions when there is a conflict.
-- Do not invent facts that are not supported by the transcript or the context.
-- Use the context to improve topic classification, issue framing, and coaching accuracy when relevant.
-
-Organization context:
-${companyCoachingContext}
-`
-    : ""
 }
 
 === FIELD-SPECIFIC RULES ===
@@ -925,7 +931,8 @@ These rules apply to ALL text fields including copy_coaching_message, improvemen
    - NEVER use vague language like "long gaps", "several delays", "slow response", or "extended wait" without stating the exact duration.
    - Always state the specific gap in minutes and seconds (e.g., "5 minutes and 6 seconds passed between your update at 10:45 AM and your next response at 10:50 AM").
    - When referencing a delay, always include the start time, end time, and duration.
-   - Response time thresholds for live chat: a gap under 2 minutes is NORMAL and should NOT be flagged as slow or as an improvement area. Gaps of 2–4 minutes are worth noting only if the customer was actively waiting or sending messages. Gaps over 4 minutes with no agent communication should be flagged as a coaching point. Do not coach on response times that are within normal live chat expectations.
+   - Response time thresholds for live chat: a gap under 2 minutes is NORMAL and should NOT be flagged or mentioned. Gaps of 2-4 minutes are worth noting only if the customer was actively waiting or sending messages. Gaps over 4 minutes with no agent communication should be flagged as a coaching point. Do not coach on response times that are within normal live chat expectations.
+   - Only cite timestamps when timing is actually a coaching point. Do not decorate every observation with timestamps. If the agent responded in a normal timeframe, do not mention the timestamps at all. Timestamps should appear in the coaching message only when they support a specific coaching observation about delays, gaps, or missed opportunities.
 
 2. Distinguish Agent Delays from Customer Delays:
    - If the customer stopped responding, that is NOT the agent's fault. Do not frame customer silence as an agent issue.
@@ -970,10 +977,16 @@ For copy_coaching_message:
 - It must not be short.
 - It should usually be around 250 to 450 words.
 - If a chat reference number or ID appears in the transcript (e.g., "Chat #214196"), include it in the opening line. Example: "Umer — regarding chat #214196, this conversation was about..."
-- Start with the agent's name followed by an em dash or hyphen and an opening explanation of what the chat was really about.
+- Start with the agent's name and an opening that sets context for the coaching. Vary the opening style naturally — do not start every coaching message the same way. Examples of good openings:
+  - "Shakir — this was a high-stakes conversation where a customer believed the system exposed their communications incorrectly."
+  - "Muibat, nice work on this estimates chat. A few areas to tighten up."
+  - "Umer — chat #214196 involved a customer who thought financial records had disappeared from their project."
+  - "Quick coaching note for Debbie on a billing conversation that needed stronger closure."
+  - "Victor, this troubleshooting chat had solid investigation but the handoff needed work."
+- The opening should match the tone of the chat — serious for high-stakes conversations, lighter for routine ones. Do not use the same sentence pattern every time.
 - Include these sections in this exact order:
 
-AgentName — opening explanation of the chat and why it mattered
+AgentName — opening (varied, natural, context-appropriate)
 
 :white_check_mark: What You Did Well
 - Include 2 to 3 strengths with explanation.
