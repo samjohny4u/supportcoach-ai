@@ -92,6 +92,9 @@ These rules govern every response you give. Follow them without exception.
 - API routes must return proper JSON error responses with appropriate HTTP status codes (400, 401, 403, 404, 500).
 - All database operations and external API calls (OpenAI, Supabase) must be wrapped in try/catch blocks.
 
+### 1n. Pluralization
+- Always pluralize correctly when displaying counts. Use `{count === 1 ? "chat" : "chats"}` pattern. Never show "1 chats", "1 files", "1 agents", etc.
+
 ### 1i. Response Format for Code Changes
 When implementing a change, responses must follow this structure in order:
 1. **List affected files** — every file that will be created or modified.
@@ -142,14 +145,19 @@ The platform is built as a multi-tenant SaaS product with tiered pricing (see Se
 Upload transcript PDF
   ↓
 Create analysis job (analysis_jobs + analysis_job_items)
-  ↓
+  ↓  (duplicate detection via SHA-256 hash)
+  ↓  (auto-trigger worker)
 Worker processes job (GET /api/process-jobs)
   ↓
 Extract text from PDF (transcript_text stored on job_item)
   ↓
 Create conversation record + parse messages
   ↓
-AI analyzes conversation (single OpenAI call, structured JSON response)
+Build structured transcript (buildStructuredTranscript)
+  ↓
+Fetch organization coaching_context (Section 9k)
+  ↓
+AI analyzes conversation (single OpenAI call, structured JSON response, with company context injected)
   ↓
 Compute attention_priority, quick_summary, copy_coaching_message (with fallbacks)
   ↓
@@ -203,12 +211,14 @@ Every piece of data must belong to an organization.
 
 ### Row Level Security (RLS)
 
-- The AI assistant must not assume RLS policies are active unless explicitly confirmed by the user.
-- Until RLS is confirmed active on a table, every database query must manually enforce `organization_id` filtering at the application level.
+- RLS is enabled on all tables.
+- Policies restrict authenticated users to their own organization's data via `organization_memberships`.
+- Anonymous access is blocked on all tables.
+- The service role key (`SUPABASE_SERVICE_ROLE_KEY`) bypasses RLS — all server-side queries using this key are unaffected.
 - Any new query introduced in code — whether in an API route, a dashboard page, or a utility function — must explicitly include `organization_id` filtering and not rely on RLS for isolation.
-- If the user confirms RLS is enabled on specific tables, note it here and update accordingly.
+- **Application-level `organization_id` filtering must still be maintained as defense-in-depth.** Do not rely solely on RLS.
 
-**Current RLS status: Not confirmed. Treat all tables as requiring manual `organization_id` filtering.**
+**Current RLS status: ENABLED on all tables. Policies restrict authenticated users to their own organization's data. Anonymous access is blocked on all tables. The service role key bypasses RLS — all server-side queries using SUPABASE_SERVICE_ROLE_KEY are unaffected. Application-level `organization_id` filtering must still be maintained as defense-in-depth.**
 
 ---
 
@@ -226,7 +236,10 @@ supportcoach-ai/
 ├── postcss.config.mjs
 │
 ├── docs/
-│   └── supportcoach-ai-context.md          # This master context file
+│   ├── supportcoach-ai-context.md          # This master context file
+│   ├── CONTEXT.md                          # Thread handoff / current status file
+│   ├── RULES.md                            # Standing orders for AI assistants
+│   └── codex-orchestration.md              # Codex task list and statuses
 │
 ├── public/
 │   ├── pdf.worker.mjs                      # PDF.js web worker for client-side parsing
@@ -244,27 +257,34 @@ supportcoach-ai/
     │
     ├── components/
     │   ├── CopyButton.tsx                  # Reusable copy-to-clipboard button component
+    │   ├── ExcludeToggleButton.tsx          # Toggle excluded flag on chat_analyses (Section 9j)
     │   ├── TempChart.tsx                   # Recharts-based trend chart component
-    │   └── WorkerTriggerButton.tsx         # Button to manually trigger job processing
+    │   └── WorkerTriggerButton.tsx         # "Process Now" button to trigger job processing
     │
     └── app/
         ├── layout.tsx                      # Root layout
-        ├── page.tsx                        # Landing / home page
+        ├── page.tsx                        # Landing page (hero, features, pricing)
         ├── globals.css                     # Global Tailwind styles
+        ├── error.tsx                       # Global error boundary (Section 1m)
+        ├── not-found.tsx                   # Custom 404 page (Section 1m)
         ├── favicon.ico
         │
         ├── login/page.tsx                  # Login page
         ├── signup/page.tsx                 # Signup page
         ├── onboarding/page.tsx             # Org setup for new users
-        ├── upload/page.tsx                 # PDF upload interface
+        ├── upload/page.tsx                 # PDF upload interface (drag-and-drop, auto-trigger)
         │
         ├── dashboard/
         │   ├── page.tsx                    # Main manager dashboard (stats, filters, chat list)
         │   ├── report/page.tsx             # AI-generated manager report view
-        │   └── agent/[name]/page.tsx       # Single-agent detail view
+        │   ├── agent/[name]/page.tsx       # Single-agent detail view
+        │   ├── settings/page.tsx           # Company coaching context settings (Section 9k)
+        │   └── topics/
+        │       ├── page.tsx                # Topic Intelligence Dashboard (Section 9g)
+        │       └── [topic]/page.tsx        # Topic drill-down with pattern cards (Section 9g/9h)
         │
         ├── jobs/
-        │   ├── page.tsx                    # List of analysis jobs
+        │   ├── page.tsx                    # List of analysis jobs (human-readable titles)
         │   └── [id]/page.tsx              # Single job detail + progress view
         │
         ├── analysis/
@@ -274,7 +294,7 @@ supportcoach-ai/
             ├── signup/route.ts             # User registration
             ├── logout/route.ts             # Session logout
             ├── onboarding/route.ts         # Create organization for new user
-            ├── create-analysis-job/route.ts # Creates job + items from uploaded PDFs
+            ├── create-analysis-job/route.ts # Creates job + items from uploaded PDFs (with duplicate detection)
             ├── process-jobs/route.ts       # **WORKER** — processes pending jobs (main pipeline)
             ├── analyze/route.ts            # Direct single-transcript analysis (legacy/utility)
             ├── job-status/route.ts         # Poll job progress
@@ -283,7 +303,12 @@ supportcoach-ai/
             ├── manager-report/route.ts     # AI-generated manager report
             ├── manager-report-pdf/route.ts # PDF export of manager report
             ├── export/route.ts             # Data export endpoint
-            └── reclassify-topics/route.ts  # One-time chat_type re-classification (Fix 8g)
+            ├── toggle-exclude/route.ts     # Soft delete — toggle excluded flag (Section 9j)
+            ├── reclassify-topics/route.ts  # One-time chat_type re-classification (Fix 8g)
+            ├── reanalyze/route.ts          # Per-chat re-analyze (Section 9l)
+            ├── topic-stats/route.ts        # Topic-level aggregated stats (Section 9g)
+            ├── topic-agent-stats/route.ts  # Agent performance within a topic (Section 9g)
+            └── topic-coaching-stats/route.ts # Coaching insights by topic (Section 9h)
 ```
 
 ### File Placement Rules
@@ -298,6 +323,16 @@ supportcoach-ai/
 ---
 
 ## 6. Current Database Schema
+
+### organizations
+Stores tenant organizations.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | Primary key |
+| name | text | Organization display name |
+| coaching_context | text | Manager-provided company-specific process knowledge, product rules, and coaching expectations. Injected into the AI prompt during analysis. Max 5000 characters. Added by Section 9k. |
+| created_at | timestamp | |
 
 ### analysis_jobs
 Tracks background processing jobs.
@@ -407,6 +442,8 @@ One row per message. Populated by the worker during processing.
 ### 6e. Table Relationships (Foreign Key Chain)
 
 ```
+organizations
+  └── (coaching_context used by worker during processing)
 analysis_jobs
   └── analysis_job_items (via job_id)
         └── conversations (via job_item_id)
@@ -439,25 +476,28 @@ analysis_jobs
 These features are live and working. Do not break them.
 
 ### 7a. Upload Pipeline
-PDF upload → text extraction → `transcript_text` stored on `analysis_job_items` → analysis job creation. Files: `src/app/upload/page.tsx`, `src/app/api/create-analysis-job/route.ts`
+PDF upload → text extraction → `transcript_text` stored on `analysis_job_items` → duplicate detection via SHA-256 hash → analysis job creation → automatic worker trigger. Files: `src/app/upload/page.tsx`, `src/app/api/create-analysis-job/route.ts`
 
 ### 7b. Background Worker
 The worker at `src/app/api/process-jobs/route.ts` is a GET endpoint that:
 
 1. Selects one job with status `pending` or `processing`.
 2. Sets job status to `processing`.
-3. Fetches all pending items for that job.
+3. Fetches all pending items for that job (filtered by `status = 'pending'` AND `analysis_id IS NULL`).
 4. For each item:
+   - Immediately sets item status to `processing` (concurrency safety).
    - Validates `organization_id` and `transcript_text` exist.
-   - Parses transcript into messages using `parseTranscriptMessages()`.
+   - Parses transcript into messages using `parseTranscriptMessages()` (with `knownSenderNames` for misattribution fix).
    - Creates a `conversations` record with `raw_transcript_text` and `parsed_success`.
    - Stores `conversation_messages` if parsing produced results.
-   - Calls OpenAI (gpt-5.4, temperature 0.2) with a single structured JSON prompt.
+   - Builds structured transcript via `buildStructuredTranscript()` for AI input.
+   - Fetches `coaching_context` from the organization record (Section 9k).
+   - Calls OpenAI (gpt-5.4, temperature 0.2) with a single structured JSON prompt, injecting coaching context if available.
    - Parses the AI response; marks item failed if JSON parsing fails.
    - Builds `quick_summary`, `copy_coaching_message`, and `attention_priority` using AI values with local fallback functions.
    - Updates the conversation with inferred participant names and priority label.
    - Inserts `chat_analyses` linked to the conversation.
-   - Updates the job item with `analysis_id` and status.
+   - Updates the job item with `analysis_id` and status `completed`.
    - Increments `processed_files` on the job.
 5. After the loop, checks for remaining pending items. If none, sets job to `completed`.
 
@@ -514,11 +554,8 @@ File: `src/app/api/manager-report-pdf/route.ts`
 Login, Signup, Logout, Org onboarding for new users, middleware-based route protection. Files: `src/app/login/page.tsx`, `src/app/signup/page.tsx`, `src/app/onboarding/page.tsx`, `src/app/api/signup/route.ts`, `src/app/api/logout/route.ts`, `src/app/api/onboarding/route.ts`, `middleware.ts`
 
 ### 7g. Job Management Pages
-- `src/app/jobs/page.tsx` — Job list page. Displays jobs with progress bars and status badges. Does not reference item-level statuses — only job statuses (completed, processing, pending). Safe to change item status values without affecting this file.
-- `src/app/jobs/[id]/page.tsx` — Job detail page. Displays individual job items with status badges and "View Analysis →" links. This file references `item.status === "done"` in two places:
-  1. Badge styling — `"done"` maps to green emerald styling.
-  2. Fallback message — when `analysis_id` is missing on a `"done"` item, shows "Analysis link not available for older processed items."
-- If the worker's completion status is changed from `"done"` to `"completed"`, this file must be updated to match. This is a confirmed multi-file dependency.
+- `src/app/jobs/page.tsx` — Job list page. Displays jobs with human-readable titles ("Upload — Mar 12, 2026, 5:49 PM"), progress bars, and status badges. Does not reference item-level statuses — only job statuses (completed, processing, pending). Safe to change item status values without affecting this file.
+- `src/app/jobs/[id]/page.tsx` — Job detail page. Displays individual job items with status badges ("completed" = green emerald styling) and "View Analysis →" links. When `analysis_id` is missing on a `"completed"` item, shows "Analysis link not available for older processed items."
 
 ### 7h. Current API Routes
 
@@ -527,8 +564,8 @@ Login, Signup, Logout, Org onboarding for new users, middleware-based route prot
 | /api/signup | POST | User registration | ✅ Working |
 | /api/logout | POST | Session logout | ✅ Working |
 | /api/onboarding | POST | Create organization | ✅ Working |
-| /api/create-analysis-job | POST | Create job + items from PDFs | ✅ Working |
-| /api/process-jobs | GET | Worker — processes pending jobs | ✅ Working (needs fixes in Section 8) |
+| /api/create-analysis-job | POST | Create job + items from PDFs (with duplicate detection) | ✅ Working |
+| /api/process-jobs | GET | Worker — processes pending jobs | ✅ Working |
 | /api/analyze | POST | Direct single-transcript analysis | ✅ Working (legacy) |
 | /api/job-status | GET | Poll job progress | ✅ Working |
 | /api/team-summary | POST | Aggregated team stats (AI-powered) | ✅ Working |
@@ -540,35 +577,36 @@ Login, Signup, Logout, Org onboarding for new users, middleware-based route prot
 | /api/topic-agent-stats | POST | Agent performance within a topic (Section 9g) | ✅ Working |
 | /api/topic-coaching-stats | POST | Coaching insights by topic (Section 9h) | ✅ Working |
 | /api/toggle-exclude | POST | Soft delete — toggle excluded flag on chat_analyses (Section 9j) | ✅ Working |
-| /api/reclassify-topics | POST | One-time re-classification of chat_type on existing records (Fix 8g) | ✅ Built, needs to be run |
+| /api/reclassify-topics | POST | One-time re-classification of chat_type on existing records (Fix 8g) | ✅ Built |
+| /api/reanalyze | POST | Per-chat re-analyze — deletes analysis, resets job item, triggers worker (Section 9l) | ✅ Working |
 
 When adding new API routes, place them at `src/app/api/{route-name}/route.ts` and add them to this table.
 
 ---
 
-## 8. PENDING FIXES — Confirmed Issues from Code Inspection
+## 8. COMPLETED FIXES — Previously Pending Issues (Reference)
 
-The following issues were identified by inspecting the actual codebase against this document. They should be addressed in the current sprint. No SQL migrations are needed. No new files are needed.
+All fixes from this section have been applied and verified. The detailed descriptions are kept here for reference.
 
-### 8a. Add Idempotency Check to Worker (Critical)
+### 8a. Add Idempotency Check to Worker — ✅ DONE
 **File:** `src/app/api/process-jobs/route.ts`
 **Location:** Item selection query (the `.from("analysis_job_items")` call that fetches pending items for the job).
 **Current behavior:** Filters by `status = 'pending'` only.
 **Required:** Add `.is("analysis_id", null)` to the query so it selects only items where `status = 'pending'` AND `analysis_id IS NULL`. This prevents duplicate processing on retry.
 
-### 8b. Add `processing` Status Claim (Critical)
+### 8b. Add `processing` Status Claim — ✅ DONE
 **File:** `src/app/api/process-jobs/route.ts`
 **Location:** Top of the `for (const item of items)` loop, immediately after `try {` and before `const transcriptText`.
 **Current behavior:** No status update before work begins. A concurrent worker call could select the same items.
 **Required:** Immediately set `status = 'processing'` on the current item via a Supabase update before doing any other work on that item.
 
-### 8c. Fix `source_type` Value
+### 8c. Fix `source_type` Value — ✅ DONE
 **File:** `src/app/api/process-jobs/route.ts`
 **Locations:** Two places — the `conversations` insert and the `chat_analyses` insert, both containing `source_type: "chat_transcript"`.
 **Current behavior:** Uses `"chat_transcript"` which is not in the allowed enum values.
 **Required:** Change both to `"chat"`. No other files filter by `source_type` — confirmed safe by inspecting the dashboard.
 
-### 8d. Fix Item Completion Status (Multi-File)
+### 8d. Fix Item Completion Status — ✅ DONE (Multi-File)
 This is a multi-file change. Both files must be updated together.
 
 **File 1:** `src/app/api/process-jobs/route.ts`
@@ -583,27 +621,48 @@ This is a multi-file change. Both files must be updated together.
 
 No other files reference the `"done"` status value.
 
-### 8e. Improve Partial Parsing (Orphan Lines)
+**Legacy cleanup:** 61 legacy records with `"done"` status were cleaned up via manual SQL.
+
+### 8e. Improve Partial Parsing (Orphan Lines) — ✅ DONE
 **File:** `src/app/api/process-jobs/route.ts`
 **Location:** Inside the `parseTranscriptMessages` function, in the `if (!matched)` block, specifically the `else` branch (when there is no current message to append to).
 **Current behavior:** Orphan lines stored with `sender_role: "unknown"` and `message_type: "message"`.
 **Required:** Change the `else` branch to use `sender_role: "system"` and `message_type: "system"` to distinguish these as unparseable content. The `if (current)` branch (appending to a previous message) remains unchanged.
 
-### 8h. Fix Sender Misattribution from Inconsistent PDF Spacing (Parser Fix)
+### 8f. Duplicate Transcript Detection — ✅ DONE
 
-**Problem:** The `parseTranscriptMessages()` function in `src/app/api/process-jobs/route.ts` relies on 2+ spaces between a sender name and their message text to identify who sent each message. However, `pdfjs-dist` sometimes extracts text with only 1 space between the sender name and the message content. When this happens, the parser fails to extract the sender and attributes the message to the previous sender — causing the AI to coach the wrong person on the wrong content.
+**Problem:** If a user uploads the same transcript PDF twice (or the same content under a different filename), the system creates two separate job items, two separate conversations, and two separate analyses. Both feed into dashboard metrics, topic intelligence, coaching pattern cards, and manager reports — silently doubling the weight of that conversation in all aggregations. There is currently no check for duplicate content.
 
-**Evidence from chat #214494:**
-- `Fernando Arispe Mendoza   Hello Muibat, how are you?...` — 2+ spaces, parsed correctly as Fernando's message
-- `Fernando Arispe Mendoza Yes, we frequently include...` — 1 space, parser failed, attributed to Muibat (previous sender)
+**Detection approach:** Generate a content hash of the extracted `transcript_text` at upload time, before the job item is created. Check whether that hash already exists for the same organization. If it does, reject the duplicate and inform the user.
 
-**Fix:** The parser now builds a `knownSenderNames` set from successfully parsed messages. When the multi-space split fails, it checks whether the segment text starts with a known sender name. If it does, it extracts the sender and message correctly even without multi-space separation.
+**File affected:** `src/app/api/create-analysis-job/route.ts` — this is where job items are created from uploaded PDFs. The duplicate check must happen here, after text extraction but before the `analysis_job_items` insert.
 
-**Prompt-level safety net:** Factual Accuracy Rule 8 added to the AI prompt — instructs the AI to detect when a message attributed to one person reads like it was written by the other, and to treat it as likely quoted or misattributed content rather than coaching on it.
+**SQL migration applied:**
 
-**Files affected:** `src/app/api/process-jobs/route.ts` (parser fix + prompt rule)
+```sql
+-- Add content hash column for duplicate detection
+ALTER TABLE analysis_job_items ADD COLUMN IF NOT EXISTS transcript_hash text;
 
-**No schema changes needed.**
+-- Create index for fast duplicate lookups within an organization
+CREATE INDEX IF NOT EXISTS idx_job_items_org_hash 
+ON analysis_job_items (organization_id, transcript_hash);
+```
+
+**Implementation rules:**
+- Hash the `transcript_text` content using a standard algorithm (e.g., SHA-256). Do not hash the filename — different filenames can contain identical content.
+- Before inserting a new `analysis_job_items` row, query: `SELECT id, file_name FROM analysis_job_items WHERE organization_id = ? AND transcript_hash = ? LIMIT 1`.
+- If a match is found, skip that file and include it in the response as a duplicate. Do not insert a job item for it. Inform the user which file was skipped and which existing file it matched (e.g., "Skipped 'chat_feb12.pdf' — identical content already uploaded as 'chat_feb12_copy.pdf'").
+- If all files in an upload are duplicates, do not create the `analysis_jobs` record at all.
+- If some files are duplicates and some are new, create the job with only the new files. Set `total_files` to the count of non-duplicate files.
+- The hash column should be populated for all new uploads going forward. Existing rows will have `transcript_hash = NULL` — this is acceptable. Duplicate detection only applies to new uploads.
+- This check is scoped per organization — the same transcript uploaded by two different organizations is allowed (they are separate tenants).
+
+**What this does NOT do:**
+- It does not retroactively deduplicate existing data. If duplicates already exist in the database, they remain.
+- It does not detect near-duplicates or partial overlaps — only exact content matches.
+- It does not affect the worker (`process-jobs/route.ts`) — the worker processes whatever job items exist. Deduplication happens upstream at upload time.
+
+### 8g. Re-classify `chat_type` on Existing Records — ✅ DONE
 
 **Problem:** All 175+ existing `chat_analyses` records were processed with the old AI prompt that had no `chat_type` classification guidance. The resulting values are unusable for the Topic Intelligence Dashboard (Section 9g) — they include vague categories like "Support", "Technical Issue", "Unknown", "Abandoned Chat", and "Workflow Confusion" instead of module-level topics.
 
@@ -646,71 +705,44 @@ chat_type rules:
 
 **No schema changes needed.** The `chat_type` column already exists on `chat_analyses`.
 
-**Testing after implementation:**
-1. Run the re-classification route for your organization.
-2. Check `/dashboard/topics` — confirm topics now show module-level categories (e.g., "Change Orders", "Project Settings", "Feature Request") instead of vague labels like "Support" or "Unknown".
-3. Verify that all other fields on the re-classified records are unchanged (scores, coaching messages, flags).
-4. Check a few individual analysis views to confirm coaching feedback is still intact.
+### 8h. Fix Sender Misattribution from Inconsistent PDF Spacing — ✅ DONE
 
-**Problem:** If a user uploads the same transcript PDF twice (or the same content under a different filename), the system creates two separate job items, two separate conversations, and two separate analyses. Both feed into dashboard metrics, topic intelligence, coaching pattern cards, and manager reports — silently doubling the weight of that conversation in all aggregations. There is currently no check for duplicate content.
+**Problem:** The `parseTranscriptMessages()` function in `src/app/api/process-jobs/route.ts` relies on 2+ spaces between a sender name and their message text to identify who sent each message. However, `pdfjs-dist` sometimes extracts text with only 1 space between the sender name and the message content. When this happens, the parser fails to extract the sender and attributes the message to the previous sender — causing the AI to coach the wrong person on the wrong content.
 
-**Detection approach:** Generate a content hash of the extracted `transcript_text` at upload time, before the job item is created. Check whether that hash already exists for the same organization. If it does, reject the duplicate and inform the user.
+**Evidence from chat #214494:**
+- `Fernando Arispe Mendoza   Hello Muibat, how are you?...` — 2+ spaces, parsed correctly as Fernando's message
+- `Fernando Arispe Mendoza Yes, we frequently include...` — 1 space, parser failed, attributed to Muibat (previous sender)
 
-**File affected:** `src/app/api/create-analysis-job/route.ts` — this is where job items are created from uploaded PDFs. The duplicate check must happen here, after text extraction but before the `analysis_job_items` insert.
+**Fix:** The parser now builds a `knownSenderNames` set from successfully parsed messages. When the multi-space split fails, it checks whether the segment text starts with a known sender name. If it does, it extracts the sender and message correctly even without multi-space separation.
 
-**SQL migration required:**
+**Prompt-level safety net:** Factual Accuracy Rule 8 added to the AI prompt — instructs the AI to detect when a message attributed to one person reads like it was written by the other, and to treat it as likely quoted or misattributed content rather than coaching on it.
 
-```sql
--- Add content hash column for duplicate detection
-ALTER TABLE analysis_job_items ADD COLUMN IF NOT EXISTS transcript_hash text;
+**Files affected:** `src/app/api/process-jobs/route.ts` (parser fix + prompt rule)
 
--- Create index for fast duplicate lookups within an organization
-CREATE INDEX IF NOT EXISTS idx_job_items_org_hash 
-ON analysis_job_items (organization_id, transcript_hash);
-```
-
-**Implementation rules:**
-- Hash the `transcript_text` content using a standard algorithm (e.g., SHA-256). Do not hash the filename — different filenames can contain identical content.
-- Before inserting a new `analysis_job_items` row, query: `SELECT id, file_name FROM analysis_job_items WHERE organization_id = ? AND transcript_hash = ? LIMIT 1`.
-- If a match is found, skip that file and include it in the response as a duplicate. Do not insert a job item for it. Inform the user which file was skipped and which existing file it matched (e.g., "Skipped 'chat_feb12.pdf' — identical content already uploaded as 'chat_feb12_copy.pdf'").
-- If all files in an upload are duplicates, do not create the `analysis_jobs` record at all.
-- If some files are duplicates and some are new, create the job with only the new files. Set `total_files` to the count of non-duplicate files.
-- The hash column should be populated for all new uploads going forward. Existing rows will have `transcript_hash = NULL` — this is acceptable. Duplicate detection only applies to new uploads.
-- This check is scoped per organization — the same transcript uploaded by two different organizations is allowed (they are separate tenants).
-
-**What this does NOT do:**
-- It does not retroactively deduplicate existing data. If duplicates already exist in the database, they remain.
-- It does not detect near-duplicates or partial overlaps — only exact content matches.
-- It does not affect the worker (`process-jobs/route.ts`) — the worker processes whatever job items exist. Deduplication happens upstream at upload time.
-
-**Testing after implementation:**
-1. Upload a PDF and confirm the job is created normally.
-2. Upload the same PDF again — confirm the system rejects it with a clear message identifying it as a duplicate.
-3. Upload a batch of 3 PDFs where one is a duplicate of a previously uploaded file — confirm the job is created with only 2 items and `total_files = 2`.
-4. Confirm the dashboard counts have not increased from the duplicate upload attempts.
+**No schema changes needed.**
 
 ---
 
-## 9. NOT YET IMPLEMENTED — Approved Features for Current Sprint
+## 9. IMPLEMENTED — All Approved Features Complete
 
-Most of the infrastructure for the original sprint features is already built in the worker (as confirmed by code inspection). The remaining work is primarily UI integration, plus new dashboard views for topic intelligence and coaching-by-topic.
+All features from this section have been built, tested, and verified working. The detailed specifications are kept here for reference.
 
-### 9a. Conversation + Message Storage — ✅ ALREADY IMPLEMENTED IN WORKER
+### 9a. Conversation + Message Storage — ✅ DONE
 The worker already creates `conversations` records and `conversation_messages` rows. Tables are populated during processing. The fixes in Section 8 improve robustness.
 
-### 9b. 10-Second Coaching Summary — ✅ ALREADY IMPLEMENTED IN WORKER
-The worker already generates `quick_summary` via AI with a local fallback function. **Remaining work:** Surface this field in the dashboard UI and/or analysis detail view.
+### 9b. 10-Second Coaching Summary — ✅ DONE
+The worker already generates `quick_summary` via AI with a local fallback function. Surfaced in the dashboard UI and analysis detail view.
 
-### 9c. Copy Coaching Message — ✅ ALREADY IMPLEMENTED IN WORKER
-The worker already generates `copy_coaching_message` via AI with a local fallback function. **Remaining work:** Add a copy-to-clipboard button in the dashboard or analysis detail view.
+### 9c. Copy Coaching Message — ✅ DONE
+The worker already generates `copy_coaching_message` via AI with a local fallback function. Copy-to-clipboard button in the dashboard and analysis detail view.
 
-### 9d. Attention Priority — ✅ ALREADY IMPLEMENTED IN WORKER
-The worker already computes `attention_priority` using a point-scoring system with AI override. **Remaining work:** Display priority badges in the dashboard, add a "Chats Needing Attention" filtered view.
+### 9d. Attention Priority — ✅ DONE
+The worker already computes `attention_priority` using a point-scoring system with AI override. Color-coded badges displayed in the dashboard (high = red, medium = yellow, low = green).
 
-### 9e. Team Health Dashboard Enhancements
+### 9e. Team Health Dashboard Enhancements — ✅ DONE
 The dashboard already supports "All Time", "Last 7 Days", and "Last 30 Days" via the range filter. **Remaining work:** Add "This Month" and "Last Month" options if desired. Custom date ranges are not required.
 
-### 9i. Production Hardening — Job UX (MVP Required)
+### 9i. Production Hardening — Job UX — ✅ DONE
 
 **These items must be addressed before launch. They are not new features — they are polish items that prevent the product from appearing unfinished to paying customers.**
 
@@ -733,7 +765,7 @@ For MVP, Option A is sufficient. The manual trigger button in `WorkerTriggerButt
 
 **Dependencies:** None. Can be built independently of other sprint items.
 
-### 9j. Soft Delete — Exclude Analysis from Reports (MVP Required)
+### 9j. Soft Delete — Exclude Analysis from Reports — ✅ DONE
 
 **Purpose:** Allow managers to exclude individual chat analyses from all dashboard stats, reports, topic intelligence, and coaching insights without permanently deleting the data.
 
@@ -782,7 +814,7 @@ Every query that aggregates or displays `chat_analyses` data must add `.eq('excl
 
 **Dependencies:** None. Can be built independently.
 
-### 9f. Error Handling for Parsing Failures
+### 9f. Error Handling for Parsing Failures — ✅ DONE
 
 The worker already handles parsing at a basic level.
 The worker already handles parsing at a basic level. The parsing logic should be understood as producing one of three outcomes:
@@ -809,7 +841,7 @@ The worker already handles parsing at a basic level. The parsing logic should be
 
 In all cases, the raw transcript text is stored in `conversations.raw_transcript_text` as a fallback.
 
-### 9g. Topic / Module Intelligence Dashboard (NEW — Professional Tier Feature)
+### 9g. Topic / Module Intelligence Dashboard — ✅ DONE (Professional Tier Feature)
 
 **Purpose:** Automatically categorize support chats by issue topic so managers can understand what customers are contacting support about most often and how well agents handle those issues.
 
@@ -859,7 +891,7 @@ The system identifies (from aggregated boolean flags and scores):
 
 **Dependencies:** None. Reads from existing schema. Should be built after Section 8 fixes are applied.
 
-### 9h. Coaching Insights by Topic (NEW — Professional Tier Feature)
+### 9h. Coaching Insights by Topic — ✅ DONE (Professional Tier Feature)
 
 **Purpose:** Allow managers to understand how well agents handle specific types of issues at a strategic level, rather than reviewing chats individually.
 
@@ -973,6 +1005,71 @@ Pattern cards should be sortable by: confidence level, occurrence count, agent n
 
 **Dependencies:** Should be built after or alongside Feature 9g, since they share data and potentially UI structure.
 
+### 9k. Company Coaching Context — ✅ DONE
+
+**Purpose:** Allow managers to provide company-specific process knowledge, product rules, and coaching expectations that the AI uses when analyzing chats. This transforms the coaching output from generic QA feedback into feedback that reflects how the specific team actually operates.
+
+**Why this matters:** Without company context, the AI gives generic advice like "offer to call the customer" when the company doesn't offer phone support. With context, the AI coaches agents using the company's actual processes (e.g., "offer a 15-minute Zoom session with Chris" or "escalate cancellation requests to the assigned CSM"). This is the difference between a generic AI tool and a coaching tool that knows your team.
+
+**SQL migration (applied):**
+```sql
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS coaching_context text;
+```
+
+**Settings page:** `src/app/dashboard/settings/page.tsx`
+- Textarea for manager to enter coaching context (5000 character limit)
+- Save button that updates `organizations.coaching_context`
+- Accessible at `/dashboard/settings` (also works at `/settings`)
+- Shows helper text explaining what belongs here: product workflows, known limitations, coaching standards, company terminology
+
+**Worker integration:** `src/app/api/process-jobs/route.ts`
+- Before the OpenAI call, fetches the org's `coaching_context` from the `organizations` table
+- If `coaching_context` exists and is non-empty, injects it into the system prompt as a dedicated section
+- The injected context instructs the AI to: reference these processes in coaching feedback, flag when agents deviate from documented processes, use the company's terminology, and treat context as ground truth for how the team operates
+- If no coaching context exists, the prompt proceeds without it (backward compatible)
+
+**Example coaching context:**
+```
+We do not offer phone support. For troubleshooting, agents can offer a 15-minute Zoom session with Chris.
+If the customer has a question that would take over 30 minutes to answer, then the call me feature can be used to have a trainer help them and this is also a 15 minute call.
+If the customer wants to cancel then we escalate it to their CSMs. Each customer has a CSM assigned to them. They will de-escalate.
+```
+
+**Verified impact:** Before company context, the AI gave generic advice about callbacks. After adding the context above and re-analyzing the same chat, the AI specifically referenced Zoom sessions, CSM escalation, and the company's actual support channels. The coaching output went from "generic AI QA tool" to "coaching that knows how your team works."
+
+**Dependencies:** None. Works with existing schema and worker pipeline.
+
+**Files:** `src/app/dashboard/settings/page.tsx`, `src/app/api/process-jobs/route.ts` (modified)
+
+### 9l. Per-Chat Re-Analyze — ✅ DONE
+
+**Purpose:** Allow managers to re-run the AI analysis on a specific chat without re-uploading the transcript. This is the companion feature to 9k — after updating company coaching context, managers can re-analyze existing chats to get coaching that reflects the new context.
+
+**Why this matters:** Without re-analyze, updating company context only affects future uploads. Managers would need to re-upload transcripts to see the improved coaching, which is confusing and creates duplicates. The re-analyze button makes the coaching context feature immediately useful for existing data.
+
+**API route:** `src/app/api/reanalyze/route.ts` — POST endpoint that:
+1. Accepts `analysis_id` and validates `organization_id`
+2. Looks up the `chat_analyses` record to find the linked `conversation_id`
+3. Looks up the `conversations` record to find the linked `job_item_id`
+4. Deletes the existing `chat_analyses` record
+5. Resets the `analysis_job_items` row: sets `status = 'pending'` and `analysis_id = NULL`
+6. Fires a fetch call to `/api/process-jobs` to trigger the worker
+7. Returns success — the worker will reprocess the item with current company context
+
+**Analysis page button:** `src/app/analysis/[id]/page.tsx`
+- "Re-Analyze" button near the Exclude/Include button
+- Confirmation prompt before executing (prevents accidental re-analysis)
+- After clicking, redirects to the job or shows a processing state
+- The re-analyzed chat will reflect any company coaching context currently saved
+
+**Design decision:** One chat at a time, no bulk — intentional cost control.
+
+**Idempotency:** Safe to click multiple times — if the analysis is already deleted and the job item is already pending, the worker simply reprocesses it once.
+
+**Dependencies:** Works best alongside Section 9k (company coaching context), but functions independently. Can re-analyze for any reason (prompt improvements, testing, etc.).
+
+**Files:** `src/app/api/reanalyze/route.ts` (new), `src/app/analysis/[id]/page.tsx` (modified)
+
 ---
 
 ## 10. NOT YET IMPLEMENTED — Future Roadmap (Not Current Sprint)
@@ -1038,6 +1135,8 @@ Different helpdesk platforms use different rating systems. The integration layer
 | Storage cost | Trivial — metadata is ~5 KB per chat |
 
 **The customer never chooses between "all chats" and "coaching only."** The system does both automatically — lightweight ingest for everything, deep analysis for what matters. One price per agent. No configuration needed.
+
+**Estimated build time:** 10-14 days. Estimated infrastructure cost per customer: ~$60-145/month at 4,000 chats/month.
 
 **Do not build any part of this until the user explicitly approves API integration for development. This section documents design intent only.**
 
@@ -1264,7 +1363,7 @@ This will become important as Features 9g and 9h are used in production with lar
 The worker uses a single OpenAI call per conversation with:
 - **Model:** gpt-5.4
 - **Temperature:** 0.2
-- **System message:** Instructs the AI to act as a support QA coach and return only valid JSON with a defined structure.
+- **System message:** Instructs the AI to act as a support QA coach and return only valid JSON with a defined structure. Includes company coaching context if available (Section 9k).
 - **User message:** The transcript text — either pre-formatted structured transcript (when parsing succeeds) or raw transcript text (fallback when parsing fails).
 
 **Transcript Pre-Formatting:**
@@ -1279,6 +1378,13 @@ Each line has a timestamp, sender role (AGENT, CUSTOMER, SYSTEM), sender name, a
 When parsing fails (`parsedMessages.length === 0`), the worker falls back to sending the raw `transcript_text`. The system prompt includes a fallback instruction telling the AI to construct a timeline manually from raw text before analyzing.
 
 This approach reduces token usage (structured text strips PDF noise like visitor details, browser info, and formatting artifacts) and improves coaching accuracy (the AI no longer misattributes timestamps to wrong messages).
+
+**Company Coaching Context Injection (Section 9k):**
+When the organization has `coaching_context` set, the worker injects it into the system prompt as a dedicated section before the AI call. The AI is instructed to:
+- Reference these processes when coaching on related situations
+- Flag when agents deviate from documented company processes
+- Use the company's terminology in coaching feedback
+- Treat the coaching context as ground truth for how the team operates
 
 The AI is asked to return:
 - `agent_name`, `customer_name`, `chat_type`, `issue_summary`
@@ -1310,7 +1416,7 @@ The system prompt includes the following quality and accuracy rules. These are c
 **Churn Risk Criteria:**
 - Explicit definitions for high, medium, and low churn risk based on customer signals and resolution outcome.
 
-**Factual Accuracy Rules (7 rules):**
+**Factual Accuracy Rules (8 rules):**
 1. Timestamp and Response Time Analysis — must calculate and cite exact gaps in minutes and seconds. Never use vague terms like "long gaps" without stating duration. Response time thresholds: under 2 minutes is normal and must not be flagged; 2–4 minutes is notable only if the customer was actively waiting; over 4 minutes with no agent communication should be flagged as a coaching point.
 2. Distinguish Agent Delays from Customer Delays — do not blame agents for customer silence.
 3. Quote the Transcript — every coaching observation must reference specific messages.
@@ -1318,12 +1424,15 @@ The system prompt includes the following quality and accuracy rules. These are c
 5. Credit Before Coaching — acknowledge what the agent did right in an area before coaching on what they missed.
 6. Connect Timing to Outcome — if a customer disengaged after a delay, explicitly connect the two.
 7. Truncated Message Handling — if a message appears cut off, note it rather than judging incomplete text.
+8. Misattributed Message Detection — detect when a message attributed to one person reads like it was written by the other, and treat it as likely quoted or misattributed content rather than coaching on it.
 
 **Coaching Message Format:**
 - 250–450 words, specific section order (What You Did Well → Where to Improve → What This Chat Really Was → Summary).
 - Must include chat reference number/ID if present in transcript.
 - Improvement points must cite specific timestamps, durations, and message quotes.
 - Summary bullet points must be specific, not vague generalities.
+- Coaching openings must vary naturally — no repetitive "this chat was really about" pattern.
+- Timestamps only cited when timing is actually a coaching point — not as decoration.
 
 ### Rules for Modifying the OpenAI Integration
 - Use a single OpenAI call per conversation unless the developer explicitly requests otherwise.
@@ -1341,96 +1450,61 @@ The system prompt includes the following quality and accuracy rules. These are c
 
 ## 12. Current Development Phase
 
-### What was confirmed by code inspection
+### What is confirmed working
 
-The worker (`src/app/api/process-jobs/route.ts`) already implements:
-- ✅ Conversation creation
-- ✅ Message parsing and storage
-- ✅ AI analysis with structured JSON prompt
-- ✅ `quick_summary` generation (AI + fallback)
-- ✅ `copy_coaching_message` generation (AI + fallback)
-- ✅ `attention_priority` computation (AI + point-scoring fallback)
-- ✅ Participant name inference
+**Worker (`src/app/api/process-jobs/route.ts`):**
+- ✅ Fix 8a: Idempotency check
+- ✅ Fix 8b: Processing status claim per item
+- ✅ Fix 8c: source_type fix (0 records with old value)
+- ✅ Fix 8d: Item completion status — new records use "completed", legacy cleaned up
+- ✅ Fix 8e: Orphan line parsing improvement
+- ✅ Fix 8h: Sender misattribution fix (knownSenderNames)
+- ✅ Structured transcript pre-formatting (buildStructuredTranscript)
+- ✅ Full coaching prompt with scoring rubric, boolean criteria, factual accuracy rules
+- ✅ Company coaching context injection (Section 9k)
+- ✅ Coaching opening variety (no repetitive patterns)
+- ✅ Reduced timestamp obsession (only cited when coaching-relevant)
 
-The worker still needs these fixes (detailed in Section 8):
-- ✅ Fix 8a: Idempotency check — confirmed applied in current codebase
-- ✅ Fix 8b: Immediate `processing` status claim per item — confirmed applied
-- ✅ Fix 8c: `source_type` fix — confirmed applied (0 records with old value)
-- ⚠️ Fix 8d: Item status fix — partially applied. New records use "completed" but 61 legacy records had "done" (manual SQL cleanup needed). UI file `src/app/jobs/[id]/page.tsx` status TBD.
-- ✅ Fix 8e: Partial parsing improvement — confirmed applied in current parser
-- ⚠️ Fix 8f: Duplicate transcript detection — SQL migration done (`transcript_hash` column exists), but implementation in `create-analysis-job/route.ts` needs verification
-- ❌ Fix 8g: Re-classify `chat_type` on existing records — route exists but needs to be run
-- ✅ Fix 8h: Sender misattribution fix — `knownSenderNames` set confirmed in current parser
+**Features:**
+- ✅ All MVP tasks (0-9) from orchestration guide
+- ✅ Section 9k: Company Coaching Context — settings page + worker injection
+- ✅ Section 9l: Per-Chat Re-Analyze — API route + analysis page button
+- ✅ RLS enabled on all tables
+- ✅ Landing page with hero, features, and pricing
+- ✅ Pluralization fix across all pages
+- ✅ Upload page polish (click to upload, drag-and-drop, centered button)
+- ✅ Encoding fix (dashboard garbled Unicode → clean ASCII)
 
-### Immediate Next Task
+### Remaining Before Production Launch
 
-Apply the six fixes listed in Section 8. This is a multi-file change affecting:
+| Item | Effort | Status |
+|---|---|---|
+| UI design polish | 1 day (light) to 1 week (full) | Not started — user exploring shadcn/ui |
+| Stripe billing integration | 2-3 days | Not started |
+| Production deployment | Half a day | Not started |
 
-| File | Fixes |
-|---|---|
-| `src/app/api/process-jobs/route.ts` | 8a, 8b, 8c, 8d, 8e |
-| `src/app/jobs/[id]/page.tsx` | 8d only (two string replacements) |
-| `src/app/api/create-analysis-job/route.ts` | 8f (duplicate detection) |
-| `src/app/api/reclassify-topics/route.ts` | 8g (new file — one-time migration) |
+The product is functionally complete. All remaining work is launch preparation, not product development.
 
-SQL migration needed for Fix 8f only (add `transcript_hash` column + index to `analysis_job_items`).
+### Future Phase: Zoho SalesIQ API Integration
 
-**Implementation order:**
-1. Back up both files before making changes.
-2. Update `src/app/api/process-jobs/route.ts` with all five fixes.
-3. Update `src/app/jobs/[id]/page.tsx` with the two `"done"` → `"completed"` replacements.
-4. Test.
-
-**Testing after implementation:**
-1. Upload a new PDF transcript and create a job.
-2. Trigger the worker.
-3. Go to `/jobs/{id}` — confirm items show "completed" with green badges.
-4. Confirm "View Analysis →" links appear on completed items.
-5. Go to `/dashboard` — confirm the new analysis appears with scores and coaching data.
-6. Trigger the worker again — confirm no duplicate conversations or analyses are created (idempotency check).
-7. Upload the same PDF again — confirm the system rejects it as a duplicate with a clear message (duplicate detection check).
-8. Upload a batch where one file is new and one is a duplicate — confirm only the new file creates a job item.
-
-### After Fixes — Remaining Sprint Work
-
-Once the Section 8 fixes are applied, the remaining sprint work is:
-
-**UI surfacing (from original sprint):**
-- Surface `quick_summary` in the dashboard and/or analysis detail view.
-- Add copy-to-clipboard for `copy_coaching_message`.
-- Display `attention_priority` badges in the dashboard.
-- Optionally add a "Chats Needing Attention" filtered view.
-- Optionally add "This Month" / "Last Month" date range options.
-
-**New feature builds (approved for current sprint):**
-- Feature 9g: Topic / Module Intelligence Dashboard — new API routes + dashboard page.
-- Feature 9h: Coaching Insights by Topic — new API routes (or extensions of 9g routes) + dashboard UI.
-
-**Recommended build order for new features:**
-1. Build the `/api/topic-stats` route first — this validates the data aggregation approach.
-2. Build the topic overview UI page.
-3. Add agent-by-topic drill-down (may extend the API or add `/api/topic-agent-stats`).
-4. Add coaching insights (9h) — either as an extension of the topic page or as a separate tab/page.
-5. Add pattern detection logic (comparing topic rates to org averages).
+The API integration described in Section 10c is the next major development phase after launch. It has been scoped at approximately 10-14 days of work and includes: Zoho OAuth connector, scheduled sync job, two-layer processing (metadata ingest + selective AI analysis), unfair rating detection (Section 10h), and dashboard Team Health section. This is documented for planning purposes only — do not build until explicitly approved.
 
 ---
 
 ## 13. Goal of This Thread
 
-**SCOPE IS LOCKED. MVP TARGET: 2 WEEKS.**
+**SCOPE IS LOCKED. THE PRODUCT IS FEATURE-COMPLETE.**
 
-This master document defines the complete, final scope of work for the MVP. Do not suggest, design, or build anything outside of what is documented here. If the user wants to add or change scope, they will provide an updated master prompt or explicitly approve the change.
+This master document defines the complete scope of the product as built. Do not suggest, design, or build anything outside of what is documented here. If the user wants to add or change scope, they will provide an updated master prompt or explicitly approve the change.
 
 Continue development from this architecture forward. Do not redesign the system unless the user explicitly requests it. Focus exclusively on:
 
-1. Applying the confirmed fixes in Section 8.
-2. Surfacing the already-implemented features (`quick_summary`, `copy_coaching_message`, `attention_priority`) in the dashboard UI.
-3. Building the Topic Intelligence Dashboard (9g) and Coaching Insights by Topic with Pattern Cards (9h) as new Professional-tier features.
-4. Preserving every existing working feature in Section 7.
+1. Launch preparation: UI polish, Stripe billing, production deployment.
+2. Preserving every existing working feature.
 
 Do not build roadmap items from Section 10 (including FAQ Suggestions, helpdesk integrations, coaching history, observability, topic normalization, manual benchmarks, or unfair rating detection) unless the user explicitly requests them. These are documented for future reference only.
 
-**Every response should move toward shipping the MVP. Do not expand scope. Do not suggest enhancements. Build what is specified, test it, and move to the next task.**
+**Every response should move toward shipping. Do not expand scope. Do not suggest enhancements. Build what is specified, test it, and move to the next task.**
 
 ---
 
@@ -1460,6 +1534,8 @@ Included features:
 - CSV data export
 - Job management pages (Section 7g)
 - Auth, onboarding, and org management (Section 7f)
+- Company coaching context (Section 9k)
+- Per-chat re-analyze (Section 9l)
 - Manual benchmark input for team health context (Section 10g, when built) — available at all tiers
 
 **Professional — $59/agent/month**

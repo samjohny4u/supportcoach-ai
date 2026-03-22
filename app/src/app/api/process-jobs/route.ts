@@ -662,7 +662,7 @@ export async function GET() {
           continue;
         }
 
-        // Fetch company coaching context for this organization (Section 9k)
+        // --- Section 9k: Fetch company coaching context for this organization ---
         let coachingContext = "";
         try {
           const { data: orgData } = await supabase
@@ -681,6 +681,7 @@ export async function GET() {
         } catch {
           // If coaching context fetch fails, continue without it — do not block analysis
         }
+        // --- End Section 9k fetch ---
 
         const parsedMessages = parseTranscriptMessages(transcriptText);
         const structuredTranscript = parsedMessages.length > 0
@@ -743,7 +744,7 @@ export async function GET() {
           }
         }
 
-        // Build the company coaching context section for the system prompt (Section 9k)
+        // --- Section 9k: Build coaching context section for the system prompt ---
         const coachingContextSection = coachingContext
           ? `
 
@@ -751,11 +752,14 @@ export async function GET() {
 
 The following is company-specific process knowledge provided by the manager. Treat this as ground truth for how this team operates. When coaching, reference these processes where relevant. If an agent deviates from a documented process, flag it as a coaching point. Use the company's terminology.
 
+IMPORTANT: The company context provides process knowledge, but you must still follow ALL the coaching quality rules below — especially the factual accuracy rules, the evidence-based coaching requirements, and the timestamp citation rules. Do not soften the coaching detail or skip transcript evidence just because company context is available. The context supplements your analysis; it does not replace it.
+
 ${coachingContext}
 
 === END COMPANY COACHING CONTEXT ===
 `
           : "";
+        // --- End Section 9k prompt injection ---
 
         const completion = await openai.chat.completions.create({
           model: "gpt-5.4",
@@ -977,13 +981,20 @@ For copy_coaching_message:
 - It must not be short.
 - It should usually be around 250 to 450 words.
 - If a chat reference number or ID appears in the transcript (e.g., "Chat #214196"), include it in the opening line. Example: "Umer — regarding chat #214196, this conversation was about..."
-- Start with the agent's name and an opening that sets context for the coaching. Vary the opening style naturally — do not start every coaching message the same way. Examples of good openings:
+- Start with the agent's name and an opening that sets context for the coaching.
+
+CRITICAL — OPENING VARIETY RULE:
+- You MUST vary the opening sentence of every coaching message. DO NOT use the phrase "this chat was really about" or "this was really about" in the opening. DO NOT start with a sentence that frames "what the chat was really about." That phrasing is BANNED from the opening line.
+- Instead, open with the agent's name and a natural, context-appropriate sentence that sets up the coaching. Match the tone to the situation — serious for high-stakes, lighter for routine. Examples of good openings:
   - "Shakir — this was a high-stakes conversation where a customer believed the system exposed their communications incorrectly."
   - "Muibat, nice work on this estimates chat. A few areas to tighten up."
   - "Umer — chat #214196 involved a customer who thought financial records had disappeared from their project."
   - "Quick coaching note for Debbie on a billing conversation that needed stronger closure."
   - "Victor, this troubleshooting chat had solid investigation but the handoff needed work."
-- The opening should match the tone of the chat — serious for high-stakes conversations, lighter for routine ones. Do not use the same sentence pattern every time.
+  - "Sujan — this invoicing chat started as a 1-cent discrepancy but quickly became about customer trust in the numbers."
+  - "Hey Arjuna, solid effort on this permissions issue. A couple of spots where tighter ownership would have helped."
+- Do NOT repeat the same opening pattern across different chats. Each coaching message should feel like it was written fresh for that specific conversation.
+
 - Include these sections in this exact order:
 
 AgentName — opening (varied, natural, context-appropriate)

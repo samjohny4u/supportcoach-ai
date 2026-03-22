@@ -14,6 +14,7 @@ You are building a SaaS product called SupportCoach AI. Before starting any task
 - Rule 1g: Do not redesign or refactor working code.
 - Rule 1j: Do not suggest features, enhancements, or scope changes. Build only what is specified. When a task is done, say "Done" and stop.
 - Rule 1k: Use defensive string handling: `typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback`
+- Rule 1n: Always pluralize correctly when displaying counts. Use `{count === 1 ? "chat" : "chats"}` pattern.
 - All database queries must filter by `organization_id` for tenant isolation.
 - All queries on `chat_analyses` must include `.eq('excluded', false)` unless the query is specifically for managing exclusions.
 - Database changes must use `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` and `CREATE TABLE IF NOT EXISTS`. Never drop columns or tables.
@@ -40,9 +41,11 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 **Database:**
 - `transcript_hash` column on `analysis_job_items`: EXISTS
 - `excluded` column on `chat_analyses`: EXISTS
+- `coaching_context` column on `organizations`: EXISTS
 - Legacy items with `status = 'done'`: Cleaned up (all now 'completed')
 - Records with `source_type = 'chat_transcript'`: 0 (fully fixed)
 - Total analyses: ~52 active records + ~175 from earlier batches
+- RLS: ENABLED on all 7 tables
 
 **Worker (`src/app/api/process-jobs/route.ts`):**
 - ✅ Idempotency check (8a)
@@ -54,10 +57,13 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - ✅ Structured transcript pre-formatting — buildStructuredTranscript()
 - ✅ Full coaching prompt with scoring rubric, boolean criteria, factual accuracy rules, response time thresholds
 - ✅ Misattributed message detection (Rule 8 in prompt)
+- ✅ Company coaching context injection (9k)
+- ✅ Coaching opening variety
+- ✅ Reduced timestamp obsession
 
 **Working features:**
-- ✅ Upload pipeline
-- ✅ Worker processing with structured transcript
+- ✅ Upload pipeline with duplicate detection and auto-trigger
+- ✅ Worker processing with structured transcript and company context
 - ✅ AI analysis with refined prompt
 - ✅ Dashboard with filters, attention view, agent filtering, date ranges
 - ✅ Topic Intelligence Dashboard (`/dashboard/topics`)
@@ -67,19 +73,22 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - ✅ CSV export
 - ✅ Exclude/include from reports (toggle-exclude + ExcludeToggleButton)
 - ✅ Auth flow (login, signup, onboarding, middleware)
-- ✅ Job management pages
-- ✅ Reclassify topics route (exists, needs to be run)
-
-**Exists but must be REMOVED:**
-- ❌ `src/app/api/manager-insights/route.ts` — duplicates existing routes, no org security, unnecessary AI cost
-- ❌ Manager Coaching Insights panel in `src/app/dashboard/page.tsx` — powered by the above route
+- ✅ Job management pages (human-readable titles, "completed" badges)
+- ✅ Reclassify topics route (exists, has been run)
+- ✅ Company coaching context settings page (`/dashboard/settings`)
+- ✅ Per-chat re-analyze button + API route
+- ✅ Global error boundary + 404 page
+- ✅ Landing page with hero, features, pricing
+- ✅ RLS policies on all tables
+- ✅ Pluralization fix across all pages
+- ✅ Worker trigger button ("Process Now" with states)
 
 ---
 
-## TASK LIST — Execute In Order
+## TASK LIST — ALL TASKS COMPLETE
 
 ### TASK 0: Remove manager-insights (cleanup)
-STATUS: NOT STARTED
+STATUS: ✅ DONE
 
 **Delete:** `src/app/api/manager-insights/route.ts` — remove the entire file.
 
@@ -99,14 +108,14 @@ Do NOT touch anything else in the dashboard file.
 ---
 
 ### TASK 1: Run topic reclassification
-STATUS: NOT STARTED
+STATUS: ✅ DONE
 
-This is not a code task. The route exists at `/api/reclassify-topics`. The user will trigger it manually. Skip to Task 2.
+This is not a code task. The route exists at `/api/reclassify-topics`. The user triggered it manually.
 
 ---
 
 ### TASK 2: Verify duplicate detection in create-analysis-job
-STATUS: NOT STARTED
+STATUS: ✅ DONE
 
 **Read:** `src/app/api/create-analysis-job/route.ts`
 
@@ -129,7 +138,7 @@ If any are missing → implement per Section 8f of the master prompt. Edit only 
 ---
 
 ### TASK 3: Production hardening — Job display names (Section 9i)
-STATUS: NOT STARTED
+STATUS: ✅ DONE
 
 **Read:** `src/app/jobs/page.tsx` and `src/app/jobs/[id]/page.tsx`
 
@@ -144,7 +153,7 @@ Also verify `src/app/jobs/[id]/page.tsx` uses `"completed"` not `"done"` for ite
 ---
 
 ### TASK 4: Production hardening — Worker trigger (Section 9i)
-STATUS: NOT STARTED
+STATUS: ✅ DONE
 
 **Read:** `src/components/WorkerTriggerButton.tsx`
 
@@ -166,7 +175,7 @@ Add automatic worker trigger — a fire-and-forget fetch to `/api/process-jobs` 
 ---
 
 ### TASK 5: Verify excluded filter coverage (Section 9j)
-STATUS: NOT STARTED
+STATUS: ✅ DONE
 
 The exclude feature is built. This task verifies ALL queries respect the `excluded` flag.
 
@@ -194,7 +203,7 @@ Report status of each file. Only edit files missing the filter.
 ---
 
 ### TASK 6: Pattern Cards UI (Section 9h)
-STATUS: NOT STARTED
+STATUS: ✅ DONE
 
 **Read:** `src/app/dashboard/topics/[topic]/page.tsx`
 
@@ -215,7 +224,7 @@ If missing or incomplete → implement per Section 9h "Pattern Cards" specificat
 ---
 
 ### TASK 7: Surface quick_summary and copy coaching message (Section 9b, 9c)
-STATUS: DONE (already implemented, no code changes needed)
+STATUS: ✅ DONE (already implemented, no code changes needed)
 
 **Read:** `src/app/dashboard/page.tsx` — check if `quick_summary` is shown on chat cards.
 **Read:** `src/app/analysis/[id]/page.tsx` — check if copy-to-clipboard exists for `copy_coaching_message`.
@@ -229,7 +238,7 @@ Only build what's missing. Skip what already exists.
 ---
 
 ### TASK 8: Attention priority badges (Section 9d)
-STATUS: DONE (already implemented, no code changes needed)
+STATUS: ✅ DONE (already implemented, no code changes needed)
 
 **Read:** `src/app/dashboard/page.tsx` — check if priority badges exist on chat cards.
 
@@ -243,7 +252,7 @@ If missing → add color-coded badges: high = red, medium = yellow, low = green.
 ---
 
 ### TASK 9: Global error boundary — no white screens
-STATUS: NOT STARTED
+STATUS: ✅ DONE
 
 **Create:** `src/app/error.tsx` — a Next.js App Router error boundary. This catches runtime errors on any page and shows a user-friendly message instead of a white screen.
 
@@ -262,15 +271,63 @@ The error page should:
 
 ---
 
-## AFTER ALL TASKS
+## POST-MVP TASKS (COMPLETED)
 
-When Tasks 0–9 are complete, report final status. Do not build anything else. Remaining work (deployment, landing page, Stripe, RLS policies) is outside current scope.
+### Section 9k: Company Coaching Context
+STATUS: ✅ DONE
+- SQL migration applied: `coaching_context` column on `organizations`
+- Settings page: `src/app/dashboard/settings/page.tsx`
+- Worker integration: coaching context injected into OpenAI system prompt
+- Tested with Shakir/Jake chat — coaching now references company-specific processes
+
+### Section 9l: Per-Chat Re-Analyze
+STATUS: ✅ DONE
+- API route: `src/app/api/reanalyze/route.ts`
+- Analysis page button with confirmation prompt
+- One chat at a time, no bulk — intentional cost control
+- Tested — re-analyzed chats reflect updated coaching context
+
+### RLS Security Policies
+STATUS: ✅ DONE
+- Enabled on all 7 tables (organizations, organization_memberships, analysis_jobs, analysis_job_items, conversations, conversation_messages, chat_analyses)
+- Authenticated users restricted to own org data
+- Anonymous access blocked
+- Service role key bypasses (worker unaffected)
+
+### Landing Page
+STATUS: ✅ DONE
+- Hero section, feature highlights, three-tier pricing
+- Built by Codex at `src/app/page.tsx`
+
+### Pluralization Fix
+STATUS: ✅ DONE
+- All count displays use correct singular/plural pattern across all pages
+
+### Encoding Fix
+STATUS: ✅ DONE
+- Dashboard garbled Unicode characters replaced with clean ASCII
+
+### Upload Page Polish
+STATUS: ✅ DONE
+- Click to Upload with drag-and-drop, centered Upload and Analyze button
+
+### Prompt Improvements
+STATUS: ✅ DONE
+- Coaching opening variety (no more repetitive "this chat was really about")
+- Reduced timestamp obsession (only cite timing when it's a coaching point)
+
+---
+
+## REMAINING WORK (NOT CODEX TASKS YET)
+
+| Item | Effort | Owner |
+|---|---|---|
+| UI design polish | 1 day – 1 week | User decision on shadcn/ui direction pending |
+| Stripe billing integration | 2-3 days | Requires Stripe account setup first |
+| Production deployment | Half a day | Vercel or similar |
 
 ---
 
 ## SCOPE LOCK
 
-This document defines the complete task list. Do not add tasks, suggest improvements, propose refactors, or recommend features. Execute tasks in order. When done, say "Done" and stop.
-
-
-
+All MVP and post-MVP tasks are complete. The orchestration guide is now a reference document. Future work (UI polish, Stripe, deployment, API integration) will be scoped in new task lists as needed.

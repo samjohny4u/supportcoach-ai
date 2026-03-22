@@ -53,6 +53,9 @@ OpenAI, TypeScript, Tailwind CSS.
 29. Report: what file was changed, what the error is, and what the previous state was.
 30. The user can revert with: `git checkout HEAD~1 -- path/to/file`
 
+### Pluralization
+31. Always pluralize correctly when displaying counts. Use `{count === 1 ? "chat" : "chats"}` pattern. Never show "1 chats", "1 files", "1 agents", etc.
+
 ## PAST MISTAKES TO AVOID
 These happened during development and must not be repeated:
 
