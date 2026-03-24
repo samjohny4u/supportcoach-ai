@@ -83,7 +83,6 @@ export default function SelectPlanPage() {
   const [seats, setSeats] = useState(1);
   const [loading, setLoading] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [paddleReady, setPaddleReady] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
@@ -100,8 +99,6 @@ export default function SelectPlanPage() {
           setPageLoading(false);
           return;
         }
-
-        setUserEmail(user.email || null);
 
         // Get org membership
         const { data: membership } = await supabase
@@ -209,18 +206,17 @@ export default function SelectPlanPage() {
         displayMode: "overlay",
         theme: "dark",
         locale: "en",
+        allowLogout: false,
         successUrl: `${window.location.origin}/dashboard?subscribed=true`,
       },
     };
 
-    // Pre-fill email if available
-    if (userEmail) {
-      checkoutSettings.customer = {
-        email: userEmail,
-      };
+    try {
+      window.Paddle.Checkout.open(checkoutSettings);
+    } catch (err) {
+      console.error("Paddle checkout error:", err);
+      alert("Could not open checkout. Please try again.");
     }
-
-    window.Paddle.Checkout.open(checkoutSettings);
     setLoading(false);
   };
 
