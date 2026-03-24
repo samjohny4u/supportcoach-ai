@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 declare global {
   interface Window {
@@ -82,29 +83,75 @@ export default function SelectPlanPage() {
   const [seats, setSeats] = useState(1);
   const [loading, setLoading] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [paddleReady, setPaddleReady] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const [pageLoading, setPageLoading] = useState(true);
 
-  // Load org info and subscription status
+  // Load org info directly from Supabase browser client
   useEffect(() => {
-    async function loadStatus() {
+    async function loadOrgInfo() {
       try {
-        const res = await fetch("/api/subscription-status");
-        if (res.ok) {
-          const data = await res.json();
-          setOrgId(data.organization_id);
-          setCurrentPlan(data.plan);
-          // If already on an active paid plan, redirect to dashboard
-          if (data.status === "active" && data.plan !== "trial") {
-            router.push("/dashboard");
-            return;
-          }
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          setPageLoading(false);
+          return;
+        }
+
+        setUserEmail(user.email || null);
+
+        // Get org membership
+        const { data: membership } = await supabase
+          .from("organization_memberships")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .single();
+
+        if (!membership) {
+          setPageLoading(false);
+          return;
+        }
+
+        setOrgId(membership.organization_id);
+
+        // Get org plan info
+        const { data: org } = await supabase
+          .from("organizations")
+          .select("plan")
+          .eq("id", membership.organization_id)
+          .single();
+
+        if (org) {
+          setCurrentPlan(org.plan || "trial");
+        }
+
+        // Check for active subscription
+        const { data: subscription } = await supabase
+          .from("subscriptions")
+          .select("status, plan")
+          .eq("organization_id", membership.organization_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (
+          subscription &&
+          subscription.status === "active" &&
+          subscription.plan !== "trial"
+        ) {
+          router.push("/dashboard");
+          return;
         }
       } catch {
         // Ignore — user may not be fully onboarded yet
+      } finally {
+        setPageLoading(false);
       }
     }
-    loadStatus();
+    loadOrgInfo();
   }, [router]);
 
   // Initialize Paddle.js
@@ -166,11 +213,26 @@ export default function SelectPlanPage() {
       },
     };
 
+    // Pre-fill email if available
+    if (userEmail) {
+      checkoutSettings.customer = {
+        email: userEmail,
+      };
+    }
+
     window.Paddle.Checkout.open(checkoutSettings);
     setLoading(false);
   };
 
   const savingsPercent = 17; // ~2 months free on annual
+
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center">
+        <p className="text-gray-400">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
