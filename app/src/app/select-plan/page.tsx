@@ -191,13 +191,6 @@ export default function SelectPlanPage() {
     const planPrices = PLAN_PRICES[planKey as keyof typeof PLAN_PRICES];
     const priceInfo = planPrices[billingInterval];
 
-    console.log("Paddle checkout attempt:", {
-      priceId: priceInfo.priceId,
-      quantity: seats,
-      paddleReady,
-      paddleExists: !!window.Paddle,
-    });
-
     try {
       window.Paddle.Checkout.open({
         items: [
@@ -206,6 +199,15 @@ export default function SelectPlanPage() {
             quantity: seats,
           },
         ],
+        customData: {
+          organization_id: orgId,
+        },
+        settings: {
+          displayMode: "overlay",
+          theme: "dark",
+          locale: "en",
+          successUrl: `${window.location.origin}/dashboard?subscribed=true`,
+        },
       });
     } catch (err) {
       console.error("Paddle checkout error:", err);
