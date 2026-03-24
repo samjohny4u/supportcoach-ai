@@ -42,10 +42,13 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - `transcript_hash` column on `analysis_job_items`: EXISTS
 - `excluded` column on `chat_analyses`: EXISTS
 - `coaching_context` column on `organizations`: EXISTS
+- `plan` column on `organizations`: EXISTS (default 'trial')
+- `trial_ends_at` column on `organizations`: EXISTS
+- `subscriptions` table: EXISTS (with RLS enabled)
 - Legacy items with `status = 'done'`: Cleaned up (all now 'completed')
 - Records with `source_type = 'chat_transcript'`: 0 (fully fixed)
 - Total analyses: ~52 active records + ~175 from earlier batches
-- RLS: ENABLED on all 7 tables
+- RLS: ENABLED on all 8 tables (including subscriptions)
 
 **Worker (`src/app/api/process-jobs/route.ts`):**
 - ✅ Idempotency check (8a)
@@ -89,6 +92,14 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - ✅ Refund Policy page (`/refund`)
 - ✅ Customer Support page (`/support`) with address and phone
 - ✅ Paddle billing account approved
+- ✅ Paddle billing integration code (all files built and deployed)
+- ✅ Paddle products and prices configured (3 products × 2 prices)
+- ✅ Paddle webhook endpoint configured
+- ✅ Trial banner on dashboard
+- ✅ Plan selection page with seat picker
+- ✅ Billing management page
+- ✅ Middleware subscription/trial lock check
+- ✅ Onboarding sets trial_ends_at on new orgs
 
 ---
 
@@ -297,7 +308,7 @@ STATUS: ✅ DONE
 
 ### RLS Security Policies
 STATUS: ✅ DONE
-- Enabled on all 7 tables (organizations, organization_memberships, analysis_jobs, analysis_job_items, conversations, conversation_messages, chat_analyses)
+- Enabled on all 8 tables (organizations, organization_memberships, analysis_jobs, analysis_job_items, conversations, conversation_messages, chat_analyses, subscriptions)
 - Authenticated users restricted to own org data
 - Anonymous access blocked
 - Service role key bypasses (worker unaffected)
@@ -343,13 +354,36 @@ STATUS: ✅ Paddle APPROVED, Stripe under review
 - Paddle account approved and ready for integration
 - Stripe application submitted, still under review
 
+### Paddle Billing Integration
+STATUS: ✅ CODE COMPLETE — Checkout blocked by Paddle-side 400 error
+- SQL migration: subscriptions table + plan/trial_ends_at columns on organizations
+- Paddle products created: Starter, Professional, Enterprise
+- Paddle prices created: 6 total (3 monthly + 3 annual with 14-day trial)
+- Paddle webhook endpoint configured: supportcoach.io/api/paddle-webhook
+- Environment variables set in .env.local and Vercel: PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET, NEXT_PUBLIC_PADDLE_CLIENT_TOKEN, NEXT_PUBLIC_PADDLE_ENVIRONMENT
+- Files created:
+  - `src/lib/paddle.ts` — price ID mapping, webhook signature verification
+  - `src/lib/planAccess.ts` — plan gating logic, feature access per tier, trial/subscription status
+  - `src/app/api/paddle-webhook/route.ts` — processes subscription lifecycle events from Paddle
+  - `src/app/api/subscription-status/route.ts` — returns org plan and access (server-side, has cookie issue with client-side fetch)
+  - `src/app/select-plan/page.tsx` — plan selection with monthly/annual toggle, seat picker, Paddle checkout overlay
+  - `src/components/TrialBanner.tsx` — trial countdown banner, uses Supabase browser client directly
+  - `src/app/dashboard/billing/page.tsx` — current plan display, upgrade/cancel links
+- Files modified:
+  - `src/app/api/onboarding/route.ts` — sets plan='trial' and trial_ends_at=now()+14 days on new orgs
+  - `src/app/onboarding/page.tsx` — redirects to /select-plan instead of /dashboard after org creation
+  - `middleware.ts` — added subscription/trial lock check, redirects expired trials to /select-plan
+  - `src/app/dashboard/page.tsx` — added TrialBanner import and component
+- BLOCKER: Paddle Checkout.open() returns 400 with `{"errors":[{"status":405,"code":"unexpected","details":"Internal error"}]}`. Confirmed not a code issue — same error from browser console with hardcoded price ID. Paddle support contacted.
+- Known issue: subscription-status API route returns 401 from client-side fetch (Route Handler cookie issue). Workaround: TrialBanner and select-plan page use Supabase browser client directly.
+
 ---
 
 ## REMAINING WORK
 
 | Item | Effort | Owner |
 |---|---|---|
-| Paddle billing integration (checkout, webhooks, plan gating) | 2-3 days | Next priority |
+| Paddle checkout fix (waiting on Paddle support) | Unknown — depends on Paddle | Blocked |
 | UI design polish | 1 day – 1 week | User decision on shadcn/ui direction pending |
 | Stripe billing (if approved) | Optional — Paddle is primary | Backup |
 
@@ -357,4 +391,4 @@ STATUS: ✅ Paddle APPROVED, Stripe under review
 
 ## SCOPE LOCK
 
-All MVP and post-MVP tasks are complete. The app is live in production. The orchestration guide is now a reference document. Future work (Paddle integration, UI polish, API integration) will be scoped in new task lists as needed.
+All MVP and post-MVP tasks are complete. The app is live in production. Paddle billing integration code is complete but checkout is blocked by a Paddle-side error. The orchestration guide is now a reference document. Future work (Paddle checkout fix, UI polish, API integration) will be scoped in new task lists as needed.

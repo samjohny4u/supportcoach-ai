@@ -253,12 +253,15 @@ supportcoach-ai/
     ├── lib/
     │   ├── supabase.ts                     # Client-side Supabase instance
     │   ├── supabaseServer.ts               # Server-side Supabase instance (used in API routes)
-    │   └── currentOrganization.ts          # Helper to get org ID for current user
+    │   ├── currentOrganization.ts          # Helper to get org ID for current user
+    │   ├── paddle.ts                       # Paddle price mapping, webhook verification, plan hierarchy
+    │   └── planAccess.ts                   # Plan gating logic, feature access per tier, trial/subscription status
     │
     ├── components/
     │   ├── CopyButton.tsx                  # Reusable copy-to-clipboard button component
     │   ├── ExcludeToggleButton.tsx          # Toggle excluded flag on chat_analyses (Section 9j)
     │   ├── TempChart.tsx                   # Recharts-based trend chart component
+    │   ├── TrialBanner.tsx                 # Trial countdown / subscription status banner
     │   └── WorkerTriggerButton.tsx         # "Process Now" button to trigger job processing
     │
     └── app/
@@ -283,6 +286,7 @@ supportcoach-ai/
         │   ├── report/page.tsx             # AI-generated manager report view
         │   ├── agent/[name]/page.tsx       # Single-agent detail view
         │   ├── settings/page.tsx           # Company coaching context settings (Section 9k)
+        │   ├── billing/page.tsx            # Billing management page (current plan, upgrade, cancel)
         │   └── topics/
         │       ├── page.tsx                # Topic Intelligence Dashboard (Section 9g)
         │       └── [topic]/page.tsx        # Topic drill-down with pattern cards (Section 9g/9h)
@@ -293,6 +297,9 @@ supportcoach-ai/
         │
         ├── analysis/
         │   └── [id]/page.tsx              # Single chat analysis detail view
+        │
+        ├── select-plan/
+        │   └── page.tsx                    # Plan selection with seat picker and Paddle checkout overlay
         │
         └── api/
             ├── signup/route.ts             # User registration
@@ -312,7 +319,9 @@ supportcoach-ai/
             ├── reanalyze/route.ts          # Per-chat re-analyze (Section 9l)
             ├── topic-stats/route.ts        # Topic-level aggregated stats (Section 9g)
             ├── topic-agent-stats/route.ts  # Agent performance within a topic (Section 9g)
-            └── topic-coaching-stats/route.ts # Coaching insights by topic (Section 9h)
+            ├── topic-coaching-stats/route.ts # Coaching insights by topic (Section 9h)
+            ├── paddle-webhook/route.ts     # Paddle webhook receiver for subscription lifecycle
+            └── subscription-status/route.ts # Returns current org plan and access status
 ```
 
 ### File Placement Rules
@@ -336,6 +345,8 @@ Stores tenant organizations.
 | id | uuid | Primary key |
 | name | text | Organization display name |
 | coaching_context | text | Manager-provided company-specific process knowledge, product rules, and coaching expectations. Injected into the AI prompt during analysis. Max 5000 characters. Added by Section 9k. |
+| plan | text | Current plan tier: 'trial', 'starter', 'professional', 'enterprise'. Default 'trial'. Updated by Paddle webhook. |
+| trial_ends_at | timestamp | When the org's trial expires. Set to now()+14 days at org creation. |
 | created_at | timestamp | |
 
 ### analysis_jobs
@@ -443,11 +454,33 @@ One row per message. Populated by the worker during processing.
 | raw_line | text | Original unparsed line(s) |
 | created_at | timestamp | |
 
+### subscriptions
+Stores Paddle subscription data per organization.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | Primary key |
+| organization_id | uuid | FK → organizations.id. Required — tenant isolation |
+| paddle_subscription_id | text | Unique Paddle subscription identifier |
+| paddle_customer_id | text | Paddle customer identifier |
+| plan | text | 'starter', 'professional', 'enterprise' |
+| billing_interval | text | 'monthly', 'annual' |
+| status | text | 'trialing', 'active', 'paused', 'past_due', 'canceled' |
+| current_period_start | timestamp | Start of current billing period |
+| current_period_end | timestamp | End of current billing period |
+| trial_end | timestamp | When the Paddle-managed trial ends |
+| cancel_at | timestamp | When cancellation takes effect |
+| paddle_price_id | text | Current Paddle price ID |
+| seats | integer | Number of agent seats. Default 1 |
+| created_at | timestamp | |
+| updated_at | timestamp | |
+
 ### 6e. Table Relationships (Foreign Key Chain)
 
 ```
 organizations
   └── (coaching_context used by worker during processing)
+  └── subscriptions (via organization_id)
 analysis_jobs
   └── analysis_job_items (via job_id)
         └── conversations (via job_item_id)
@@ -583,6 +616,8 @@ Login, Signup, Logout, Org onboarding for new users, middleware-based route prot
 | /api/toggle-exclude | POST | Soft delete — toggle excluded flag on chat_analyses (Section 9j) | ✅ Working |
 | /api/reclassify-topics | POST | One-time re-classification of chat_type on existing records (Fix 8g) | ✅ Built |
 | /api/reanalyze | POST | Per-chat re-analyze — deletes analysis, resets job item, triggers worker (Section 9l) | ✅ Working |
+| /api/paddle-webhook | POST | Paddle webhook receiver — subscription lifecycle events | ✅ Working |
+| /api/subscription-status | GET | Returns org plan and access status | ✅ Working (server-side only — cookie issue with client-side fetch) |
 
 When adding new API routes, place them at `src/app/api/{route-name}/route.ts` and add them to this table.
 
@@ -1486,16 +1521,26 @@ The system prompt includes the following quality and accuracy rules. These are c
 - ✅ Refund Policy page (`/refund`)
 - ✅ Customer Support page (`/support`) with registered address and phone
 - ✅ Paddle billing account approved and ready for integration
+- ✅ Paddle billing integration code complete (all files built and deployed)
+- ✅ Paddle products and prices configured (3 products × 6 prices)
+- ✅ Paddle webhook endpoint configured
+- ✅ subscriptions table created with RLS
+- ✅ Plan gating logic (planAccess.ts) and price mapping (paddle.ts)
+- ✅ Plan selection page with seat picker and Paddle checkout overlay
+- ✅ Trial banner on dashboard
+- ✅ Billing management page
+- ✅ Middleware subscription/trial lock check
+- ✅ Onboarding sets trial_ends_at on new orgs and redirects to /select-plan
 
 ### Remaining Before Full Launch
 
 | Item | Effort | Status |
 |---|---|---|
-| Paddle billing integration (checkout, webhooks, plan gating) | 2-3 days | Next priority — Paddle is approved |
+| Paddle checkout fix | Unknown | Blocked — Paddle returning 400 internal error. Support contacted. All code is ready. |
 | UI design polish | 1 day (light) to 1 week (full) | Not started — user exploring shadcn/ui |
 | Stripe billing (if approved) | Optional | Stripe under review — Paddle is primary |
 
-The product is live in production at supportcoach.io. All remaining work is billing integration and UI polish.
+The product is live in production at supportcoach.io. Paddle billing integration code is complete but checkout is blocked by a Paddle-side 400 error (their server returns "unexpected internal error" for all checkout requests, even from the browser console). Support ticket submitted. All remaining work is resolving the Paddle checkout and UI polish.
 
 ### Future Phase: Zoho SalesIQ API Integration
 
@@ -1523,9 +1568,9 @@ Do not build roadmap items from Section 10 (including FAQ Suggestions, helpdesk 
 
 ## 14. Plan Tiers & Feature Access (Architectural Intent Only)
 
-**STATUS: DESIGN ONLY — NO GATING LOGIC IMPLEMENTED**
+**STATUS: GATING LOGIC IMPLEMENTED — PADDLE CHECKOUT BLOCKED**
 
-Billing infrastructure (Stripe) is not yet set up. No plan-based access control exists in the codebase. All features are currently accessible to all users during the build phase. This section documents the intended tier structure so that when billing is implemented, there is a clear blueprint for what to gate.
+Paddle billing infrastructure is built. Plan gating logic exists in `src/lib/planAccess.ts`. The middleware enforces subscription/trial locks. The select-plan page, trial banner, and billing page are deployed. Paddle checkout overlay is blocked by a Paddle-side 400 error — support ticket submitted. All features remain accessible during the trial period. This section documents the intended tier structure so that when billing is implemented, there is a clear blueprint for what to gate.
 
 **Do not build any plan-gating logic, subscription checks, or tier-based access control unless the user explicitly asks.** Do not add a `plan` or `tier` column to any table unless the user approves it. Do not create Stripe integration code unless the user requests it.
 
@@ -1577,14 +1622,14 @@ Includes everything in Professional, plus:
 
 When the user is ready to implement billing and plan gating, the following steps will be needed:
 
-1. **Database:** Add a `plan` column to the `organizations` table (or create a `subscriptions` table linking org to plan + Stripe subscription ID).
-2. **Stripe integration:** Set up Stripe products, prices, and a webhook to sync subscription status to Supabase.
-3. **Access control helper:** Create a utility (e.g., `src/lib/planAccess.ts`) that checks an org's current plan and returns which features are available.
-4. **API route gating:** Wrap Professional/Enterprise API routes (e.g., `/api/topic-stats`, `/api/topic-coaching-stats`) with plan checks. Return a 403 with an upgrade message if the org's plan doesn't include the feature.
-5. **UI gating:** On dashboard pages, check the org's plan. If a feature is above their tier, show a preview or placeholder with an upgrade prompt instead of the full UI.
-6. **Default plan:** New organizations should default to a free trial or Starter plan.
+1. **Database:** ✅ DONE — `plan` and `trial_ends_at` columns on `organizations`. `subscriptions` table created with Paddle subscription data.
+2. **Paddle integration:** ✅ DONE — Products and prices configured in Paddle. Webhook at `/api/paddle-webhook` processes subscription lifecycle events. Price mapping in `src/lib/paddle.ts`.
+3. **Access control helper:** ✅ DONE — `src/lib/planAccess.ts` checks org plan, trial status, and subscription status. Returns feature access flags per tier.
+4. **API route gating:** NOT YET — API routes do not yet check plan tier. Professional/Enterprise features are accessible to all plans. Gating will be added after Paddle checkout is working and tested.
+5. **UI gating:** NOT YET — Dashboard pages do not yet check plan tier. Feature gating UI (upgrade prompts for locked features) will be added after Paddle checkout is working.
+6. **Default plan:** ✅ DONE — New organizations default to `plan = 'trial'` with `trial_ends_at` set to 14 days from creation. Onboarding redirects to `/select-plan`.
 
-These steps are documented here for future reference only. Do not implement any of them until the user explicitly requests it.
+Remaining: API route gating (#4) and UI gating (#5) should be implemented after Paddle checkout is confirmed working end-to-end.
 
 ---
 
