@@ -49,11 +49,8 @@ export default function BillingPage() {
   // Initialize Paddle for portal access
   const initPaddle = useCallback(() => {
     if (window.Paddle) {
-      const environment =
-        process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT || "production";
       window.Paddle.Initialize({
         token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
-        environment,
       });
       setPaddleReady(true);
     }

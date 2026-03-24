@@ -82,7 +82,6 @@ export default function SelectPlanPage() {
   const [seats, setSeats] = useState(1);
   const [loading, setLoading] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [paddleReady, setPaddleReady] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
 
@@ -104,48 +103,15 @@ export default function SelectPlanPage() {
       } catch {
         // Ignore — user may not be fully onboarded yet
       }
-
-      // Get user email for Paddle checkout
-      try {
-        const res = await fetch("/api/subscription-status");
-        if (res.ok) {
-          const data = await res.json();
-          setOrgId(data.organization_id);
-        }
-      } catch {
-        // Ignore
-      }
     }
     loadStatus();
   }, [router]);
 
-  // Load user email from Supabase auth
-  useEffect(() => {
-    async function getEmail() {
-      try {
-        const { createClient } = await import("@supabase/supabase-js");
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        );
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user?.email) setUserEmail(user.email);
-      } catch {
-        // Ignore
-      }
-    }
-    getEmail();
-  }, []);
-
   // Initialize Paddle.js
   const initPaddle = useCallback(() => {
     if (window.Paddle) {
-      const environment = process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT || "production";
       window.Paddle.Initialize({
         token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
-        environment,
       });
       setPaddleReady(true);
     }
@@ -199,13 +165,6 @@ export default function SelectPlanPage() {
         successUrl: `${window.location.origin}/dashboard?subscribed=true`,
       },
     };
-
-    // Pre-fill email if available
-    if (userEmail) {
-      checkoutSettings.customer = {
-        email: userEmail,
-      };
-    }
 
     window.Paddle.Checkout.open(checkoutSettings);
     setLoading(false);
