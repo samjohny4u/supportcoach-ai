@@ -3,7 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getCurrentOrganization } from "@/lib/currentOrganization";
+import { createSupabaseServer } from "@/lib/supabaseServer";
 import { getOrgAccess } from "@/lib/planAccess";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -11,16 +11,33 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET() {
   try {
-    // Get authenticated user and org using existing helper
-    let orgInfo;
-    try {
-      orgInfo = await getCurrentOrganization();
-    } catch {
+    // Get authenticated user via Supabase SSR client (handles cookies in Route Handlers)
+    const supabaseAuth = await createSupabaseServer();
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const orgId = orgInfo.organizationId;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get org membership
+    const { data: membership } = await supabase
+      .from("organization_memberships")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: "No organization found" },
+        { status: 404 }
+      );
+    }
+
+    const orgId = membership.organization_id;
 
     // Get organization
     const { data: org } = await supabase
