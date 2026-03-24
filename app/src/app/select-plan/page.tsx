@@ -199,9 +199,6 @@ export default function SelectPlanPage() {
           quantity: seats,
         },
       ],
-      customData: {
-        organization_id: orgId,
-      },
       settings: {
         displayMode: "overlay",
         theme: "dark",
