@@ -36,7 +36,8 @@ export default function OnboardingPage() {
       return;
     }
 
-    window.location.href = "/dashboard";
+    // Redirect to plan selection — trial starts after they pick a plan
+    window.location.href = "/select-plan";
   }
 
   return (

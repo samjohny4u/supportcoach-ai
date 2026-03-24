@@ -74,11 +74,17 @@ export async function POST(req: Request) {
     const baseSlug = slugifyCompanyName(companyName);
     const slug = buildUniqueSlug(baseSlug);
 
+    // Set trial_ends_at to 14 days from now
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+
     const { data: organization, error: organizationError } = await supabaseAdmin
       .from("organizations")
       .insert({
         name: companyName,
         slug,
+        plan: "trial",
+        trial_ends_at: trialEndsAt.toISOString(),
       })
       .select("id")
       .single();

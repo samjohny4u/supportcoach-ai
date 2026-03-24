@@ -4,6 +4,7 @@ import { createSupabaseServer } from "../../lib/supabaseServer";
 import { getCurrentOrganization } from "../../lib/currentOrganization";
 import TrendChart from "../../components/TempChart";
 import CopyButton from "../../components/CopyButton";
+import TrialBanner from "../../components/TrialBanner";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -558,8 +559,9 @@ export default async function DashboardPage({
     : "Use the view filter to focus only on high-priority chats.";
 
   return (
-    <main className="px-6 py-16">
-      <div className="mx-auto max-w-6xl">
+    <main className="px-6 py-0">
+      <TrialBanner />
+      <div className="mx-auto max-w-6xl pt-16">
         <div className="mb-10">
           <div className="mb-3 inline-flex items-center rounded-full border border-indigo-400/20 bg-indigo-400/10 px-3 py-1 text-xs font-medium text-indigo-300">
             {isSingleAgentView ? "Agent Coaching View" : "Support Intelligence Dashboard"}
