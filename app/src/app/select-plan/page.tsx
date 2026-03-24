@@ -191,25 +191,22 @@ export default function SelectPlanPage() {
     const planPrices = PLAN_PRICES[planKey as keyof typeof PLAN_PRICES];
     const priceInfo = planPrices[billingInterval];
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const checkoutSettings: any = {
-      items: [
-        {
-          priceId: priceInfo.priceId,
-          quantity: seats,
-        },
-      ],
-      settings: {
-        displayMode: "overlay",
-        theme: "dark",
-        locale: "en",
-        allowLogout: false,
-        successUrl: `${window.location.origin}/dashboard?subscribed=true`,
-      },
-    };
+    console.log("Paddle checkout attempt:", {
+      priceId: priceInfo.priceId,
+      quantity: seats,
+      paddleReady,
+      paddleExists: !!window.Paddle,
+    });
 
     try {
-      window.Paddle.Checkout.open(checkoutSettings);
+      window.Paddle.Checkout.open({
+        items: [
+          {
+            priceId: priceInfo.priceId,
+            quantity: seats,
+          },
+        ],
+      });
     } catch (err) {
       console.error("Paddle checkout error:", err);
       alert("Could not open checkout. Please try again.");
