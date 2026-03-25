@@ -2,7 +2,7 @@
 # Last updated: March 25, 2026
 
 ## PROJECT STATUS
-- **Phase:** Live in Production — Paddle checkout blocked by Paddle-side error, landing page polish complete
+- **Phase:** Live in Production — Paddle checkout blocked by Paddle-side error, landing page and nav complete
 - **All MVP features are DONE**
 - **RLS security is ENABLED on all tables**
 - **Production deployment is LIVE at supportcoach.io**
@@ -63,6 +63,15 @@
   - FAQ section added with 9 accordion questions — DONE
   - Footer added with Terms, Privacy, Refund, Support links and copyright — DONE
   - src/app/page.tsx converted to "use client" for toggle state — DONE
+- Auth-aware nav (March 25, 2026) — DONE
+  - Landing page (/) has its own nav built in — logged-out shows Features/Pricing/Login/Get Started, logged-in shows Dashboard/Logout
+  - Logo on landing page links to / when logged out, /dashboard when logged in
+  - src/components/AppNav.tsx created — app-wide nav shown on all pages except /
+  - AppNav shows Upload/Dashboard/Settings/Logout on all interior pages
+  - Logo in AppNav always links to /dashboard
+  - Settings link points to /settings (not /dashboard/settings)
+  - src/app/layout.tsx updated to use AppNav
+  - Fixed multiple GoTrueClient instances bug — landing page now uses shared supabase client from src/lib/supabase.ts instead of creating a new instance
 
 ## CURRENT TASK
 - Waiting on Paddle support to resolve checkout 400 error
@@ -77,6 +86,7 @@
 - First save on settings page shows NEXT_REDIRECT before working on second click — minor, not blocking
 - subscription-status API route returns 401 when called from client-side fetch due to Route Handler cookie handling — TrialBanner and select-plan page use Supabase browser client directly as workaround
 - Supabase RLS returns 406 on client-side subscriptions query — non-blocking, page works without it
+- VS Code shows false TypeScript error "Cannot find module @/components/AppNav" — this is a stale cache issue, does not affect Vercel build
 
 ## KEY DECISIONS MADE
 - Manager-insights route removed (duplicated existing routes)
@@ -100,7 +110,9 @@
 - Paddle billing: new signups start on trial with all features unlocked, pick plan at signup, features gate to plan tier after trial
 - Paddle billing: Paddle checkout overlay (popup on site) not redirect
 - Paddle billing: TrialBanner and select-plan page use Supabase browser client directly (not subscription-status API route) due to Route Handler cookie issues
-- Landing page: src/app/page.tsx is "use client" — required for annual/monthly toggle state
+- Landing page: src/app/page.tsx is "use client" — required for annual/monthly toggle state and auth-aware nav
+- Landing page nav: uses shared supabase client from src/lib/supabase.ts — never create a second Supabase client instance on the landing page
+- Nav architecture: AppNav (src/components/AppNav.tsx) renders on all pages except / — landing page handles its own nav internally
 
 ## FILES THAT MUST NOT BREAK
 - `src/app/api/process-jobs/route.ts` — the core worker
@@ -111,6 +123,8 @@
 - `src/lib/paddle.ts` — Paddle price mapping and webhook verification
 - `src/lib/planAccess.ts` — plan gating logic
 - `src/app/page.tsx` — public landing page
+- `src/components/AppNav.tsx` — app-wide nav for all interior pages
+- `src/app/layout.tsx` — root layout, imports AppNav
 
 ## DOCUMENTS TO READ ON NEW THREAD
 1. `docs/RULES.md` — standing orders (read first, always)
@@ -119,5 +133,17 @@
 4. `docs/supportcoach-ai-context.md` — full master prompt
 
 ## NEW THREAD STARTER MESSAGE
-"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing integration code is complete but checkout is blocked by a Paddle-side 400 error — waiting on their support. Landing page is complete. Remaining work: Paddle checkout fix and dashboard UI polish."
+"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing integration code is complete but checkout is blocked by a Paddle-side 400 error — waiting on their support. Landing page is complete. Auth-aware nav is complete. Remaining work: Paddle checkout fix and dashboard UI polish."
 ```
+
+---
+
+Push it:
+```
+git add docs/CONTEXT.md
+```
+```
+git commit -m "docs: update CONTEXT.md with landing page polish and nav fix"
+```
+```
+git push
