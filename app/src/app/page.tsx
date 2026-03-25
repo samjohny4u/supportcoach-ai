@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 const features = [
   {
@@ -21,8 +24,11 @@ const features = [
 const tiers = [
   {
     name: "Starter",
-    price: "$29",
+    monthlyPrice: "$29",
+    annualPrice: "$290",
+    annualMonthly: "$24",
     audience: "For small support teams that need fast AI-powered QA.",
+    highlighted: false,
     features: [
       "PDF upload and transcript analysis",
       "Quick summary, coaching message, and attention priority",
@@ -34,8 +40,11 @@ const tiers = [
   },
   {
     name: "Professional",
-    price: "$59",
+    monthlyPrice: "$59",
+    annualPrice: "$590",
+    annualMonthly: "$49",
     audience: "For support managers who need operational visibility by topic.",
+    highlighted: true,
     features: [
       "Everything in Starter",
       "Topic Intelligence Dashboard with volume, scores, flags, and agent breakdowns",
@@ -46,8 +55,11 @@ const tiers = [
   },
   {
     name: "Enterprise",
-    price: "$99",
+    monthlyPrice: "$99",
+    annualPrice: "$990",
+    annualMonthly: "$83",
     audience: "For larger organizations scaling support insights across systems.",
+    highlighted: false,
     features: [
       "Everything in Professional",
       "AI-generated FAQ suggestions from chat data",
@@ -59,11 +71,14 @@ const tiers = [
 ];
 
 export default function Home() {
+  const [annual, setAnnual] = useState(false);
+
   return (
     <main className="min-h-screen overflow-hidden bg-black text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(99,102,241,0.16),_transparent_30%),linear-gradient(180deg,_#04070d_0%,_#050816_45%,_#000000_100%)]" />
 
       <div className="relative">
+        {/* Hero */}
         <section className="px-6 pb-20 pt-24 sm:px-8 lg:px-12">
           <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div>
@@ -88,7 +103,6 @@ export default function Home() {
                 >
                   Get Started
                 </Link>
-
                 <div className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-sm text-gray-300">
                   Built for modern support managers
                 </div>
@@ -118,7 +132,6 @@ export default function Home() {
                       manager-ready coaching message.
                     </p>
                   </div>
-
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-sm text-gray-400">Team visibility</p>
                     <p className="mt-2 text-3xl font-semibold text-white">3 layers</p>
@@ -139,6 +152,7 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Features */}
         <section className="px-6 py-20 sm:px-8 lg:px-12">
           <div className="mx-auto max-w-6xl">
             <div className="mb-10 max-w-3xl">
@@ -167,6 +181,7 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Pricing */}
         <section className="px-6 pb-24 pt-8 sm:px-8 lg:px-12">
           <div className="mx-auto max-w-6xl rounded-[2rem] border border-white/10 bg-[#050b18] p-8 sm:p-10 lg:p-12">
             <div className="mb-10 max-w-3xl">
@@ -177,24 +192,67 @@ export default function Home() {
                 Plans for every stage of support team growth
               </h2>
               <p className="mt-4 text-gray-300">
-                All pricing is billed per agent, per month.
+                All pricing is billed per agent.
               </p>
+            </div>
+
+            {/* Billing toggle */}
+            <div className="mb-10 flex items-center gap-4">
+              <span className={`text-sm font-medium ${!annual ? "text-white" : "text-gray-400"}`}>
+                Monthly
+              </span>
+              <button
+                onClick={() => setAnnual(!annual)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  annual ? "bg-emerald-400" : "bg-white/20"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    annual ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+              <span className={`text-sm font-medium ${annual ? "text-white" : "text-gray-400"}`}>
+                Annual
+              </span>
+              {annual && (
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+                  2 months free
+                </span>
+              )}
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
               {tiers.map((tier) => (
                 <div
                   key={tier.name}
-                  className="flex h-full flex-col rounded-3xl border border-white/10 bg-black/30 p-8"
+                  className={`flex h-full flex-col rounded-3xl border p-8 ${
+                    tier.highlighted
+                      ? "border-emerald-400/40 bg-emerald-400/5 shadow-[0_0_40px_rgba(52,211,153,0.08)]"
+                      : "border-white/10 bg-black/30"
+                  }`}
                 >
                   <div className="mb-6">
-                    <h3 className="text-2xl font-semibold text-white">{tier.name}</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-2xl font-semibold text-white">{tier.name}</h3>
+                      {tier.highlighted && (
+                        <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+                          Most Popular
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-4 text-4xl font-semibold text-white">
-                      {tier.price}
+                      {annual ? tier.annualMonthly : tier.monthlyPrice}
                       <span className="text-base font-medium text-gray-400">
                         /agent/month
                       </span>
                     </p>
+                    {annual && (
+                      <p className="mt-1 text-sm text-gray-400">
+                        Billed {tier.annualPrice}/agent/year
+                      </p>
+                    )}
                     <p className="mt-4 text-sm leading-6 text-gray-300">
                       {tier.audience}
                     </p>
@@ -203,7 +261,7 @@ export default function Home() {
                   <ul className="space-y-3 text-sm leading-6 text-gray-300">
                     {tier.features.map((feature) => (
                       <li key={feature} className="flex gap-3">
-                        <span className="mt-1 h-2 w-2 rounded-full bg-indigo-400" />
+                        <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400" />
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -212,7 +270,11 @@ export default function Home() {
                   <div className="mt-8">
                     <Link
                       href="/signup"
-                      className="inline-flex w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-emerald-400/40 hover:bg-emerald-400/10"
+                      className={`inline-flex w-full items-center justify-center rounded-xl px-5 py-3 text-sm font-semibold transition ${
+                        tier.highlighted
+                          ? "bg-emerald-400 text-black hover:bg-emerald-300"
+                          : "border border-white/10 bg-white/5 text-white hover:border-emerald-400/40 hover:bg-emerald-400/10"
+                      }`}
                     >
                       Get Started
                     </Link>
@@ -222,6 +284,21 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* Footer */}
+        <footer className="border-t border-white/10 px-6 py-10 sm:px-8 lg:px-12">
+          <div className="mx-auto max-w-6xl flex flex-col items-center justify-between gap-6 sm:flex-row">
+            <p className="text-sm text-gray-500">
+              &copy; {new Date().getFullYear()} SupportCoach AI. All rights reserved.
+            </p>
+            <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-400">
+              <Link href="/terms" className="hover:text-white transition">Terms of Service</Link>
+              <Link href="/privacy" className="hover:text-white transition">Privacy Policy</Link>
+              <Link href="/refund" className="hover:text-white transition">Refund Policy</Link>
+              <Link href="/support" className="hover:text-white transition">Support</Link>
+            </div>
+          </div>
+        </footer>
       </div>
     </main>
   );
