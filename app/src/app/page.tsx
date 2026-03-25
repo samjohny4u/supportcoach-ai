@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const features = [
   {
@@ -118,15 +124,84 @@ const faqs = [
   },
 ];
 
+function LoggedInNav() {
+  return (
+    <div className="flex items-center gap-3">
+      <Link
+        href="/dashboard"
+        className="rounded-lg border border-white/10 px-4 py-2 text-gray-300 transition hover:border-white/20 hover:bg-white/5 hover:text-white"
+      >
+        Dashboard
+      </Link>
+      <form action="/api/logout" method="post">
+        <button
+          type="submit"
+          className="rounded-lg px-4 py-2 text-gray-400 transition hover:text-white"
+        >
+          Logout
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function LoggedOutNav() {
+  return (
+    <div className="flex items-center gap-3">
+      <a href="#features" className="px-4 py-2 text-gray-400 transition hover:text-white">
+        Features
+      </a>
+      <a href="#pricing" className="px-4 py-2 text-gray-400 transition hover:text-white">
+        Pricing
+      </a>
+      <Link
+        href="/login"
+        className="rounded-lg border border-white/10 px-4 py-2 text-gray-300 transition hover:border-white/20 hover:bg-white/5 hover:text-white"
+      >
+        Login
+      </Link>
+      <Link
+        href="/signup"
+        className="rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-black transition hover:bg-emerald-300"
+      >
+        Get Started
+      </Link>
+    </div>
+  );
+}
+
 export default function Home() {
   const [annual, setAnnual] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setLoggedIn(!!data.session);
+    });
+  }, []);
 
   return (
     <main className="min-h-screen overflow-hidden bg-black text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(99,102,241,0.16),_transparent_30%),linear-gradient(180deg,_#04070d_0%,_#050816_45%,_#000000_100%)]" />
 
       <div className="relative">
+
+        {/* Nav */}
+        <header className="sticky top-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+            <Link
+              href={loggedIn ? "/dashboard" : "/"}
+              className="text-xl font-bold tracking-tight text-white"
+            >
+              SupportCoach AI
+            </Link>
+            <nav>
+              {loggedIn === true && <LoggedInNav />}
+              {loggedIn === false && <LoggedOutNav />}
+            </nav>
+          </div>
+        </header>
 
         {/* Hero */}
         <section className="px-6 pb-20 pt-24 sm:px-8 lg:px-12">
@@ -194,7 +269,7 @@ export default function Home() {
         </section>
 
         {/* Features */}
-        <section className="px-6 py-20 sm:px-8 lg:px-12">
+        <section id="features" className="px-6 py-20 sm:px-8 lg:px-12">
           <div className="mx-auto max-w-6xl">
             <div className="mb-10 max-w-3xl">
               <p className="text-sm font-semibold uppercase tracking-[0.22em] text-indigo-300">
@@ -222,9 +297,8 @@ export default function Home() {
         </section>
 
         {/* Pricing */}
-        <section className="px-6 pb-24 pt-8 sm:px-8 lg:px-12">
+        <section id="pricing" className="px-6 pb-24 pt-8 sm:px-8 lg:px-12">
           <div className="mx-auto max-w-6xl rounded-[2rem] border border-white/10 bg-[#050b18] p-8 sm:p-10 lg:p-12">
-
             <div className="mb-10 max-w-3xl">
               <p className="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-300">
                 Pricing
@@ -241,7 +315,9 @@ export default function Home() {
                 The ROI case
               </p>
               <p className="mb-6 text-sm text-gray-300">
-                Manual QA covers 5% of chats at <span className="text-white font-medium">$2,000–$4,000/mo</span>. SupportCoach AI covers 100% — in minutes.
+                Manual QA covers 5% of chats at{" "}
+                <span className="font-medium text-white">$2,000–$4,000/mo</span>.
+                SupportCoach AI covers 100% — in minutes.
               </p>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="rounded-xl border border-white/10 bg-black/30 p-4">
@@ -269,14 +345,10 @@ export default function Home() {
               </span>
               <button
                 onClick={() => setAnnual(!annual)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                  annual ? "bg-emerald-400" : "bg-white/20"
-                }`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${annual ? "bg-emerald-400" : "bg-white/20"}`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                    annual ? "translate-x-6" : "translate-x-1"
-                  }`}
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${annual ? "translate-x-6" : "translate-x-1"}`}
                 />
               </button>
               <span className={`text-sm font-medium ${annual ? "text-white" : "text-gray-400"}`}>
@@ -359,7 +431,6 @@ export default function Home() {
                 Common questions
               </h2>
             </div>
-
             <div className="divide-y divide-white/10">
               {faqs.map((faq, index) => (
                 <div key={index} className="py-5">
@@ -368,7 +439,7 @@ export default function Home() {
                     className="flex w-full items-center justify-between gap-4 text-left"
                   >
                     <span className="text-base font-medium text-white">{faq.question}</span>
-                    <span className={`flex-shrink-0 text-emerald-400 text-xl font-light transition-transform ${openFaq === index ? "rotate-45" : ""}`}>
+                    <span className={`flex-shrink-0 text-xl font-light text-emerald-400 transition-transform ${openFaq === index ? "rotate-45" : ""}`}>
                       +
                     </span>
                   </button>
@@ -383,15 +454,15 @@ export default function Home() {
 
         {/* Footer */}
         <footer className="border-t border-white/10 px-6 py-10 sm:px-8 lg:px-12">
-          <div className="mx-auto max-w-6xl flex flex-col items-center justify-between gap-6 sm:flex-row">
+          <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
             <p className="text-sm text-gray-500">
               &copy; {new Date().getFullYear()} SupportCoach AI. All rights reserved.
             </p>
             <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-400">
-              <Link href="/terms" className="hover:text-white transition">Terms of Service</Link>
-              <Link href="/privacy" className="hover:text-white transition">Privacy Policy</Link>
-              <Link href="/refund" className="hover:text-white transition">Refund Policy</Link>
-              <Link href="/support" className="hover:text-white transition">Support</Link>
+              <Link href="/terms" className="transition hover:text-white">Terms of Service</Link>
+              <Link href="/privacy" className="transition hover:text-white">Privacy Policy</Link>
+              <Link href="/refund" className="transition hover:text-white">Refund Policy</Link>
+              <Link href="/support" className="transition hover:text-white">Support</Link>
             </div>
           </div>
         </footer>
