@@ -2,11 +2,11 @@
 # Last updated: March 25, 2026
 
 ## PROJECT STATUS
-- **Phase:** Live in Production — Paddle checkout blocked by Paddle-side error, landing page and nav complete
+- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete
 - **All MVP features are DONE**
 - **RLS security is ENABLED on all tables**
 - **Production deployment is LIVE at supportcoach.io**
-- **Paddle billing integration is BUILT — checkout blocked by Paddle 400 error (their side)**
+- **Paddle billing is FULLY WORKING — checkout, webhooks, database updates all verified**
 - **Codebase:** GitHub repo, committed and pushed, auto-deploys via Vercel
 
 ## COMPLETED TASKS
@@ -54,7 +54,14 @@
   - middleware.ts — subscription/trial lock check, redirects expired trials to /select-plan — DONE
   - src/app/dashboard/page.tsx — TrialBanner component added — DONE
   - Paddle products and prices created in dashboard (3 products × 2 prices each) — DONE
-  - Paddle webhook endpoint configured pointing to /api/paddle-webhook — DONE
+  - Paddle webhook endpoint configured pointing to https://www.supportcoach.io/api/paddle-webhook — DONE
+- Paddle billing end-to-end verified (March 25, 2026) — DONE
+  - Root cause of 400 error: default payment link URL was not saved in Paddle dashboard
+  - Fix: set default payment link to https://www.supportcoach.io/select-plan in Paddle Checkout Settings
+  - Root cause of webhook failures: webhook URL was set to non-www (https://supportcoach.io) causing 308 redirect — Paddle does not follow redirects
+  - Fix: updated webhook URL to https://www.supportcoach.io/api/paddle-webhook (with www)
+  - Full flow verified: checkout overlay → card processed → webhook delivered → organizations.plan updated to 'starter' → subscriptions table populated
+  - Test subscription cancelled before April 8th charge date
 - Landing page polish (March 25, 2026) — DONE
   - Annual/monthly pricing toggle with "2 months free" badge — DONE
   - Professional plan highlighted with green border and "Most Popular" badge — DONE
@@ -74,19 +81,22 @@
   - Fixed multiple GoTrueClient instances bug — landing page now uses shared supabase client from src/lib/supabase.ts instead of creating a new instance
 
 ## CURRENT TASK
-- Waiting on Paddle support to resolve checkout 400 error
+- No active blockers. Product is fully live with working billing.
 
 ## REMAINING BEFORE FULL LAUNCH
-1. **Paddle checkout fix** — Paddle returning 400 "unexpected internal error" on Checkout.open(). Support ticket submitted. All code is ready — once Paddle resolves, checkout will work end-to-end.
-2. **UI design polish** — dashboard interior pages (fonts, colors, theme consistency — user exploring shadcn/ui). Landing page is complete.
+1. **UI design polish** — dashboard interior pages (fonts, colors, theme consistency). Landing page is complete.
+2. **Plan gating enforcement** — API routes and dashboard pages do not yet check plan tier. Professional/Enterprise features accessible to all plans. Gating to be added after billing is confirmed stable.
+3. **Password change flow** — Phase 2 item, post-Bangkok
+4. **Self-signup improvements** — Phase 2 item, post-Bangkok
+5. **Agent management** — Phase 2 item, post-Bangkok
 
 ## KNOWN ISSUES / BLOCKERS
-- **BLOCKER: Paddle checkout returns 400** — `POST checkout-service.paddle.com/transaction-checkout` returns `{"errors":[{"status":405,"code":"unexpected","details":"Internal error"}]}`. Confirmed not a code issue — same error when calling Paddle.Checkout.open() directly from browser console with a hardcoded price ID. Paddle support contacted.
+- No active blockers
 - AI team summary may still produce Unicode bullet characters — the API route strips them but the prompt also instructs plain ASCII
 - First save on settings page shows NEXT_REDIRECT before working on second click — minor, not blocking
 - subscription-status API route returns 401 when called from client-side fetch due to Route Handler cookie handling — TrialBanner and select-plan page use Supabase browser client directly as workaround
 - Supabase RLS returns 406 on client-side subscriptions query — non-blocking, page works without it
-- VS Code shows false TypeScript error "Cannot find module @/components/AppNav" — this is a stale cache issue, does not affect Vercel build
+- VS Code shows false TypeScript error "Cannot find module @/components/AppNav" — stale cache issue, does not affect Vercel build
 
 ## KEY DECISIONS MADE
 - Manager-insights route removed (duplicated existing routes)
@@ -110,6 +120,8 @@
 - Paddle billing: new signups start on trial with all features unlocked, pick plan at signup, features gate to plan tier after trial
 - Paddle billing: Paddle checkout overlay (popup on site) not redirect
 - Paddle billing: TrialBanner and select-plan page use Supabase browser client directly (not subscription-status API route) due to Route Handler cookie issues
+- Paddle billing: webhook URL must use www (https://www.supportcoach.io) — non-www causes 308 redirect which Paddle does not follow
+- Paddle billing: default payment link must be set in Paddle Checkout Settings before checkout will work
 - Landing page: src/app/page.tsx is "use client" — required for annual/monthly toggle state and auth-aware nav
 - Landing page nav: uses shared supabase client from src/lib/supabase.ts — never create a second Supabase client instance on the landing page
 - Nav architecture: AppNav (src/components/AppNav.tsx) renders on all pages except / — landing page handles its own nav internally
@@ -125,6 +137,7 @@
 - `src/app/page.tsx` — public landing page
 - `src/components/AppNav.tsx` — app-wide nav for all interior pages
 - `src/app/layout.tsx` — root layout, imports AppNav
+- `src/app/api/paddle-webhook/route.ts` — Paddle webhook receiver
 
 ## DOCUMENTS TO READ ON NEW THREAD
 1. `docs/RULES.md` — standing orders (read first, always)
@@ -133,7 +146,7 @@
 4. `docs/supportcoach-ai-context.md` — full master prompt
 
 ## NEW THREAD STARTER MESSAGE
-"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing integration code is complete but checkout is blocked by a Paddle-side 400 error — waiting on their support. Landing page is complete. Auth-aware nav is complete. Remaining work: Paddle checkout fix and dashboard UI polish."
+"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates all verified March 25, 2026. Remaining work: dashboard UI polish and plan gating enforcement."
 ```
 
 ---
@@ -143,7 +156,7 @@ Push it:
 git add docs/CONTEXT.md
 ```
 ```
-git commit -m "docs: update CONTEXT.md with landing page polish and nav fix"
+git commit -m "docs: update CONTEXT.md — Paddle billing fully verified, all blockers resolved"
 ```
 ```
 git push
