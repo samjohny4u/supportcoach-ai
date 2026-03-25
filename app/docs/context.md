@@ -1,8 +1,8 @@
 # SUPPORTCOACH AI — CONTEXT FILE
-# Last updated: March 24, 2026
+# Last updated: March 25, 2026
 
 ## PROJECT STATUS
-- **Phase:** Live in Production — Paddle checkout blocked by Paddle-side error, UI polish remaining
+- **Phase:** Live in Production — Paddle checkout blocked by Paddle-side error, landing page polish complete
 - **All MVP features are DONE**
 - **RLS security is ENABLED on all tables**
 - **Production deployment is LIVE at supportcoach.io**
@@ -55,13 +55,21 @@
   - src/app/dashboard/page.tsx — TrialBanner component added — DONE
   - Paddle products and prices created in dashboard (3 products × 2 prices each) — DONE
   - Paddle webhook endpoint configured pointing to /api/paddle-webhook — DONE
+- Landing page polish (March 25, 2026) — DONE
+  - Annual/monthly pricing toggle with "2 months free" badge — DONE
+  - Professional plan highlighted with green border and "Most Popular" badge — DONE
+  - All pricing card bullet dots changed to consistent teal — DONE
+  - ROI stats bar added above pricing toggle ($40,000+/mo, 1,000+ hrs, 40x ROI) — DONE
+  - FAQ section added with 9 accordion questions — DONE
+  - Footer added with Terms, Privacy, Refund, Support links and copyright — DONE
+  - src/app/page.tsx converted to "use client" for toggle state — DONE
 
 ## CURRENT TASK
 - Waiting on Paddle support to resolve checkout 400 error
 
 ## REMAINING BEFORE FULL LAUNCH
 1. **Paddle checkout fix** — Paddle returning 400 "unexpected internal error" on Checkout.open(). Support ticket submitted. All code is ready — once Paddle resolves, checkout will work end-to-end.
-2. **UI design polish** — fonts, colors, theme consistency (user exploring shadcn/ui)
+2. **UI design polish** — dashboard interior pages (fonts, colors, theme consistency — user exploring shadcn/ui). Landing page is complete.
 
 ## KNOWN ISSUES / BLOCKERS
 - **BLOCKER: Paddle checkout returns 400** — `POST checkout-service.paddle.com/transaction-checkout` returns `{"errors":[{"status":405,"code":"unexpected","details":"Internal error"}]}`. Confirmed not a code issue — same error when calling Paddle.Checkout.open() directly from browser console with a hardcoded price ID. Paddle support contacted.
@@ -92,6 +100,7 @@
 - Paddle billing: new signups start on trial with all features unlocked, pick plan at signup, features gate to plan tier after trial
 - Paddle billing: Paddle checkout overlay (popup on site) not redirect
 - Paddle billing: TrialBanner and select-plan page use Supabase browser client directly (not subscription-status API route) due to Route Handler cookie issues
+- Landing page: src/app/page.tsx is "use client" — required for annual/monthly toggle state
 
 ## FILES THAT MUST NOT BREAK
 - `src/app/api/process-jobs/route.ts` — the core worker
@@ -101,6 +110,7 @@
 - `middleware.ts` — auth + subscription lock check
 - `src/lib/paddle.ts` — Paddle price mapping and webhook verification
 - `src/lib/planAccess.ts` — plan gating logic
+- `src/app/page.tsx` — public landing page
 
 ## DOCUMENTS TO READ ON NEW THREAD
 1. `docs/RULES.md` — standing orders (read first, always)
@@ -109,4 +119,5 @@
 4. `docs/supportcoach-ai-context.md` — full master prompt
 
 ## NEW THREAD STARTER MESSAGE
-"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing integration code is complete but checkout is blocked by a Paddle-side 400 error — waiting on their support. Remaining work: Paddle checkout fix and UI design polish."
+"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing integration code is complete but checkout is blocked by a Paddle-side 400 error — waiting on their support. Landing page is complete. Remaining work: Paddle checkout fix and dashboard UI polish."
+```
