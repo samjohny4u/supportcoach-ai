@@ -1,4 +1,5 @@
 import "./globals.css";
+import AppNav from "@/components/AppNav";
 
 export const metadata = {
   title: "SupportCoach AI",
@@ -14,6 +15,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-black text-white antialiased">
         <div className="min-h-screen">
+          <AppNav />
           {children}
         </div>
       </body>
