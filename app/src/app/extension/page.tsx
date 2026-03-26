@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const featureCards = [
   {
@@ -19,22 +19,16 @@ const featureCards = [
     num: "03",
     title: "Pre-Send Safety Check",
     description:
-      "One click scores the reply across 8 dimensions before it reaches the customer. Full rewrite included.",  
+      "One click scores the reply across 8 dimensions before it reaches the customer. Full rewrite included.",
   },
-];
-
-const workflowSteps = [
-  "Agent types a reply in Chrome.",
-  "Support Coach detects coaching risk in real time.",  
-  "A stronger rewrite appears before the message goes out.",
 ];
 
 const platforms = ["Zendesk", "Intercom", "Zoho SalesIQ", "More coming soon"];
 
 const teamSizes = [
-  "1â€“5 agents",
-  "6â€“15 agents",
-  "16â€“50 agents",
+  "1-5 agents",
+  "6-15 agents",
+  "16-50 agents",
   "50+ agents",
 ];
 
@@ -42,11 +36,16 @@ export default function ExtensionPage() {
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
   const [teamSize, setTeamSize] = useState("");
-  const [submitted, setSubmitted] = useState(false);    
-  const [loading, setLoading] = useState(false);        
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {     
+  useEffect(() => {
+    document.body.classList.add("hide-dashboard-nav");
+    return () => document.body.classList.remove("hide-dashboard-nav");
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (!email || !company || !teamSize) {
@@ -61,7 +60,7 @@ export default function ExtensionPage() {
         body: JSON.stringify({ email, company_name: company, team_size: teamSize }),
       });
       const data = await res.json();
-      if (data.error === "already_registered") {        
+      if (data.error === "already_registered") {
         setError("This email is already on the waitlist.");
       } else if (data.ok) {
         setSubmitted(true);
@@ -69,17 +68,15 @@ export default function ExtensionPage() {
         setError("Something went wrong. Please try again.");
       }
     } catch {
-      setError("Could not connect. Please try again."); 
+      setError("Could not connect. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main
-      className="relative min-h-screen overflow-hidden text-white bg-black"
-    >
-      {/* Background gradient â€” matches main site exactly */}
+    <main className="relative min-h-screen overflow-hidden text-white bg-black">
+      {/* Background gradient - matches main site exactly */}
       <div
         style={{
           position: "absolute",
@@ -93,9 +90,7 @@ export default function ExtensionPage() {
 
         {/* NAV */}
         <nav className="mb-16 flex items-center justify-between">
-          <span
-            style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.3em", color: "#6ee7b7" }}
-          >
+          <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.3em", color: "#6ee7b7" }}>
             SUPPORTCOACH
           </span>
           <a
@@ -107,26 +102,23 @@ export default function ExtensionPage() {
               borderRadius: "999px",
               padding: "8px 20px",
               textDecoration: "none",
-              background: "rgba(255,255,255,0.04)",     
+              background: "rgba(255,255,255,0.04)",
             }}
           >
-            Manager Dashboard â†’
+            Manager Dashboard &rarr;
           </a>
         </nav>
 
         {/* HERO */}
-        <section
-          className="grid items-center gap-16 pb-24 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]"
-        >
+        <section className="grid items-center gap-16 pb-24 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
           <div>
-            {/* Badge */}
             <div
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 borderRadius: "999px",
                 border: "1px solid rgba(110,231,183,0.25)",
-                background: "rgba(110,231,183,0.08)",   
+                background: "rgba(110,231,183,0.08)",
                 padding: "8px 16px",
                 fontSize: "11px",
                 fontWeight: 700,
@@ -135,12 +127,12 @@ export default function ExtensionPage() {
                 marginBottom: "24px",
               }}
             >
-              CHROME EXTENSION FOR SUPPORT TEAMS        
+              CHROME EXTENSION FOR SUPPORT TEAMS
             </div>
 
             <h1
               style={{
-                fontSize: "clamp(40px, 6vw, 72px)",     
+                fontSize: "clamp(40px, 6vw, 72px)",
                 fontWeight: 700,
                 lineHeight: 1.02,
                 color: "#ffffff",
@@ -151,7 +143,7 @@ export default function ExtensionPage() {
             </h1>
 
             <p style={{ fontSize: "18px", lineHeight: 1.7, color: "rgba(255,255,255,0.6)", maxWidth: "520px", marginBottom: "36px" }}>
-              Support Coach AI watches your agents&apos; drafts in real time, detects risky replies, and suggests a complete rewrite â€” before the customer ever sees it.
+              Support Coach AI watches your agents&apos; drafts in real time, detects risky replies, and suggests a complete rewrite &mdash; before the customer ever sees it.
             </p>
 
             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
@@ -180,7 +172,7 @@ export default function ExtensionPage() {
                   justifyContent: "center",
                   borderRadius: "999px",
                   border: "1px solid rgba(255,255,255,0.15)",
-                  background: "rgba(255,255,255,0.05)", 
+                  background: "rgba(255,255,255,0.05)",
                   color: "#ffffff",
                   fontWeight: 600,
                   fontSize: "14px",
@@ -194,13 +186,13 @@ export default function ExtensionPage() {
           </div>
 
           {/* MOCK COACHING CARD */}
-          <div style={{ position: "relative" }}>        
+          <div style={{ position: "relative" }}>
             <div
               style={{
                 position: "absolute",
                 inset: "-8px",
                 borderRadius: "36px",
-                background: "rgba(52,211,153,0.07)",    
+                background: "rgba(52,211,153,0.07)",
                 filter: "blur(24px)",
               }}
             />
@@ -217,15 +209,15 @@ export default function ExtensionPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "16px", marginBottom: "20px" }}>
                 <div>
                   <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.28em", color: "#6ee7b7", marginBottom: "6px" }}>LIVE COACH</p>
-                  <p style={{ fontSize: "16px", fontWeight: 600, color: "#ffffff" }}>Reply Risk Check</p>       
+                  <p style={{ fontSize: "16px", fontWeight: 600, color: "#ffffff" }}>Reply Risk Check</p>
                 </div>
                 <span style={{ fontSize: "11px", fontWeight: 600, color: "#fcd34d", background: "rgba(252,211,77,0.1)", border: "1px solid rgba(252,211,77,0.2)", borderRadius: "999px", padding: "4px 12px" }}>
                   Medium Risk
                 </span>
               </div>
 
-              <div style={{ borderRadius: "16px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.2)", padding: "16px", marginBottom: "12px" }}>  
-                <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.22em", color: "rgba(255,255,255,0.4)", marginBottom: "10px" }}>ORIGINAL REPLY</p>      
+              <div style={{ borderRadius: "16px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.2)", padding: "16px", marginBottom: "12px" }}>
+                <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.22em", color: "rgba(255,255,255,0.4)", marginBottom: "10px" }}>ORIGINAL REPLY</p>
                 <p style={{ fontSize: "14px", lineHeight: 1.6, color: "rgba(255,255,255,0.6)" }}>
                   We can&apos;t do that, and it&apos;s not currently supported. You&apos;ll need to handle it manually.
                 </p>
@@ -254,7 +246,7 @@ export default function ExtensionPage() {
         <section id="how-it-works" style={{ paddingBottom: "96px" }}>
           <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.3em", color: "#6ee7b7", marginBottom: "12px" }}>3 LAYERS OF COACHING</p>
           <h2 style={{ fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 700, color: "#ffffff", marginBottom: "48px", maxWidth: "600px" }}>
-            Coaching that runs before the reply is sent 
+            Coaching that runs before the reply is sent
           </h2>
           <div style={{ display: "grid", gap: "20px", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
             {featureCards.map((card) => (
@@ -263,7 +255,7 @@ export default function ExtensionPage() {
                 style={{
                   borderRadius: "24px",
                   border: "1px solid rgba(255,255,255,0.08)",
-                  background: "rgba(255,255,255,0.03)", 
+                  background: "rgba(255,255,255,0.03)",
                   padding: "28px",
                 }}
               >
@@ -278,7 +270,7 @@ export default function ExtensionPage() {
         </section>
 
         {/* PLATFORMS */}
-        <section style={{ paddingBottom: "96px" }}>     
+        <section style={{ paddingBottom: "96px" }}>
           <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.3em", color: "#6ee7b7", marginBottom: "12px" }}>COMPATIBILITY</p>
           <h2 style={{ fontSize: "clamp(24px, 3vw, 36px)", fontWeight: 700, color: "#ffffff", marginBottom: "32px" }}>
             Works on major support platforms
@@ -290,7 +282,7 @@ export default function ExtensionPage() {
                 style={{
                   borderRadius: "999px",
                   border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(255,255,255,0.05)", 
+                  background: "rgba(255,255,255,0.05)",
                   padding: "10px 20px",
                   fontSize: "14px",
                   fontWeight: 500,
@@ -304,16 +296,16 @@ export default function ExtensionPage() {
         </section>
 
         {/* VIDEO PLACEHOLDER */}
-        <section style={{ paddingBottom: "96px" }}>     
+        <section style={{ paddingBottom: "96px" }}>
           <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.3em", color: "#6ee7b7", marginBottom: "12px" }}>SEE IT IN ACTION</p>
           <h2 style={{ fontSize: "clamp(24px, 3vw, 36px)", fontWeight: 700, color: "#ffffff", marginBottom: "32px" }}>
-            Watch it catch a bad reply in real time     
+            Watch it catch a bad reply in real time
           </h2>
           <div
             style={{
               borderRadius: "24px",
               border: "1px solid rgba(255,255,255,0.08)",
-              background: "rgba(255,255,255,0.03)",     
+              background: "rgba(255,255,255,0.03)",
               aspectRatio: "16/9",
               display: "flex",
               flexDirection: "column",
@@ -322,7 +314,7 @@ export default function ExtensionPage() {
               gap: "12px",
             }}
           >
-            <span style={{ fontSize: "40px", opacity: 0.3 }}>â–¶</span>
+            <span style={{ fontSize: "40px", opacity: 0.3 }}>&#9654;</span>
             <p style={{ fontSize: "16px", fontWeight: 500, color: "rgba(255,255,255,0.4)" }}>Demo video coming soon</p>
             <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.25)", textAlign: "center", maxWidth: "360px" }}>
               We&apos;re finishing our internal beta. A full walkthrough will be posted here shortly.
@@ -336,8 +328,8 @@ export default function ExtensionPage() {
             style={{
               borderRadius: "28px",
               border: "1px solid rgba(52,211,153,0.15)",
-              background: "rgba(52,211,153,0.04)",      
-              padding: "clamp(32px, 5vw, 64px)",        
+              background: "rgba(52,211,153,0.04)",
+              padding: "clamp(32px, 5vw, 64px)",
               maxWidth: "600px",
               margin: "0 auto",
             }}
@@ -352,20 +344,20 @@ export default function ExtensionPage() {
 
             {submitted ? (
               <div style={{ borderRadius: "16px", border: "1px solid rgba(52,211,153,0.25)", background: "rgba(52,211,153,0.08)", padding: "24px", textAlign: "center" }}>
-                <p style={{ fontSize: "18px", fontWeight: 600, color: "#34d399", marginBottom: "8px" }}>You&apos;re on the list! ðŸŽ‰</p>
+                <p style={{ fontSize: "18px", fontWeight: 600, color: "#34d399", marginBottom: "8px" }}>You&apos;re on the list! &#127881;</p>
                 <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.55)" }}>We&apos;ll be in touch soon.</p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>  
+              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: "8px", letterSpacing: "0.05em" }}> 
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: "8px", letterSpacing: "0.05em" }}>
                     WORK EMAIL *
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@company.com"       
+                    placeholder="you@company.com"
                     style={{
                       width: "100%",
                       borderRadius: "12px",
@@ -380,7 +372,7 @@ export default function ExtensionPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: "8px", letterSpacing: "0.05em" }}> 
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: "8px", letterSpacing: "0.05em" }}>
                     COMPANY NAME *
                   </label>
                   <input
@@ -402,7 +394,7 @@ export default function ExtensionPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: "8px", letterSpacing: "0.05em" }}> 
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: "8px", letterSpacing: "0.05em" }}>
                     SUPPORT TEAM SIZE *
                   </label>
                   <select
@@ -461,7 +453,7 @@ export default function ExtensionPage() {
               Already using the dashboard?
             </h2>
             <p style={{ fontSize: "15px", color: "rgba(255,255,255,0.5)", marginBottom: "28px", maxWidth: "480px", margin: "0 auto 28px" }}>
-              Support Coach AI Live Agent Coach works alongside the manager dashboard â€” the same platform, two layers of coaching.
+              Support Coach AI Live Agent Coach works alongside the manager dashboard &mdash; the same platform, two layers of coaching.
             </p>
             <a
               href="/"

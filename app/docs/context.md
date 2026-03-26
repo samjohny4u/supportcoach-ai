@@ -1,5 +1,5 @@
 # SUPPORTCOACH AI — CONTEXT FILE
-# Last updated: March 25, 2026
+# Last updated: March 26, 2026
 
 ## PROJECT STATUS
 - **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete
@@ -79,6 +79,13 @@
   - Settings link points to /settings (not /dashboard/settings)
   - src/app/layout.tsx updated to use AppNav
   - Fixed multiple GoTrueClient instances bug — landing page now uses shared supabase client from src/lib/supabase.ts instead of creating a new instance
+- Extension landing page added to Manager Dashboard repo (March 26, 2026) — DONE
+  - src/app/extension/page.tsx — public-facing marketing landing page for the Chrome Extension product, lives at supportcoach.io/extension
+  - src/app/api/extension-waitlist/route.ts — public POST endpoint, inserts into extension_waitlist Supabase table
+  - Supabase table: extension_waitlist (id, email unique, company_name, team_size, created_at) — RLS enabled, service role only
+  - Page is fully self-contained — no shared nav, no dashboard auth, no shared components
+  - Page contains: hero, mock coaching card, 3 layers feature section, platform compatibility, demo video placeholder, waitlist form, footer CTA to /
+  - These files are ISOLATED — do not modify unless explicitly asked
 
 ## CURRENT TASK
 - No active blockers. Product is fully live with working billing.
@@ -97,6 +104,10 @@
 - subscription-status API route returns 401 when called from client-side fetch due to Route Handler cookie handling — TrialBanner and select-plan page use Supabase browser client directly as workaround
 - Supabase RLS returns 406 on client-side subscriptions query — non-blocking, page works without it
 - VS Code shows false TypeScript error "Cannot find module @/components/AppNav" — stale cache issue, does not affect Vercel build
+
+## ISOLATED FILES — DO NOT TOUCH UNLESS EXPLICITLY ASKED
+- `src/app/extension/page.tsx` — Chrome Extension marketing page, not part of the Manager Dashboard product
+- `src/app/api/extension-waitlist/route.ts` — Chrome Extension waitlist API, not part of the Manager Dashboard product
 
 ## KEY DECISIONS MADE
 - Manager-insights route removed (duplicated existing routes)
@@ -125,6 +136,7 @@
 - Landing page: src/app/page.tsx is "use client" — required for annual/monthly toggle state and auth-aware nav
 - Landing page nav: uses shared supabase client from src/lib/supabase.ts — never create a second Supabase client instance on the landing page
 - Nav architecture: AppNav (src/components/AppNav.tsx) renders on all pages except / — landing page handles its own nav internally
+- Extension landing page: hosted at /extension within the Manager Dashboard repo — two separate products sharing one Next.js app and one Supabase project
 
 ## FILES THAT MUST NOT BREAK
 - `src/app/api/process-jobs/route.ts` — the core worker
@@ -138,6 +150,8 @@
 - `src/components/AppNav.tsx` — app-wide nav for all interior pages
 - `src/app/layout.tsx` — root layout, imports AppNav
 - `src/app/api/paddle-webhook/route.ts` — Paddle webhook receiver
+- `src/app/extension/page.tsx` — Chrome Extension marketing page (isolated)
+- `src/app/api/extension-waitlist/route.ts` — Chrome Extension waitlist API (isolated)
 
 ## DOCUMENTS TO READ ON NEW THREAD
 1. `docs/RULES.md` — standing orders (read first, always)
@@ -146,17 +160,5 @@
 4. `docs/supportcoach-ai-context.md` — full master prompt
 
 ## NEW THREAD STARTER MESSAGE
-"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates all verified March 25, 2026. Remaining work: dashboard UI polish and plan gating enforcement."
+"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates all verified March 25, 2026. Extension landing page lives at /extension and is isolated. Remaining work: dashboard UI polish and plan gating enforcement."
 ```
-
----
-
-Push it:
-```
-git add docs/CONTEXT.md
-```
-```
-git commit -m "docs: update CONTEXT.md — Paddle billing fully verified, all blockers resolved"
-```
-```
-git push
