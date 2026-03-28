@@ -162,3 +162,7 @@
 ## NEW THREAD STARTER MESSAGE
 "I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates all verified March 25, 2026. Extension landing page lives at /extension and is isolated. Remaining work: dashboard UI polish and plan gating enforcement."
 ```
+- Live Agent Coach nav link added to homepage (March 28, 2026) — DONE
+  - LoggedOutNav: "Live Agent Coach" link added between Pricing and Login, points to /extension
+  - LoggedInNav: "Live Agent Coach" link added before Dashboard, points to /extension
+  - src/app/page.tsx updated — no other changes made to this file
