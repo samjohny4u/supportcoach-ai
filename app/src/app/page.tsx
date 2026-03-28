@@ -90,7 +90,7 @@ const faqs = [
   {
     question: "How long does analysis take per chat?",
     answer:
-      "Most transcripts are fully analyzed within 30–60 seconds of upload. You get a complete coaching breakdown, scorecard, churn risk signal, and manager-ready coaching message for every chat.",
+      "Most transcripts are fully analyzed within 30–60 seconds of upload. You get a complete coaching breakdown, scorecard, churn risk signal, and manager-ready coaching message every chat.",
   },
   {
     question: "Does it work with our helpdesk?",
@@ -123,6 +123,12 @@ function LoggedInNav() {
   return (
     <div className="flex items-center gap-3">
       <Link
+        href="/extension"
+        className="rounded-lg border border-white/10 px-4 py-2 text-gray-300 transition hover:border-white/20 hover:bg-white/5 hover:text-white"
+      >
+        Live Agent Coach
+      </Link>
+      <Link
         href="/dashboard"
         className="rounded-lg border border-white/10 px-4 py-2 text-gray-300 transition hover:border-white/20 hover:bg-white/5 hover:text-white"
       >
@@ -148,6 +154,9 @@ function LoggedOutNav() {
       </a>
       <a href="#pricing" className="px-4 py-2 text-gray-400 transition hover:text-white">
         Pricing
+      </a>
+      <a href="/extension" className="px-4 py-2 text-gray-400 transition hover:text-white">
+        Live Agent Coach
       </a>
       <Link
         href="/login"
