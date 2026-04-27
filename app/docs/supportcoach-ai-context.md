@@ -700,6 +700,7 @@ ON analysis_job_items (organization_id, transcript_hash);
 - It does not retroactively deduplicate existing data. If duplicates already exist in the database, they remain.
 - It does not detect near-duplicates or partial overlaps — only exact content matches.
 - It does not affect the worker (`process-jobs/route.ts`) — the worker processes whatever job items exist. Deduplication happens upstream at upload time.
+**Pending enhancement (approved, not yet built):** When a duplicate is detected, the upload page should show a "View Analysis →" link pointing to `/analysis/[id]` for the existing analysis. Small change to `src/app/upload/page.tsx` and `src/app/api/create-analysis-job/route.ts`.
 
 ### 8g. Re-classify `chat_type` on Existing Records — ✅ DONE
 
@@ -1417,6 +1418,26 @@ When an agent has the same improvement area flagged 3+ times AND coaching was de
 
 **Database changes needed:**
 ```sql
+ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_delivered boolean DEFAULT false;
+ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_delivered_at timestamptz;
+ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_notes text;
+```
+
+**New API route needed:**
+- `src/app/api/update-coaching-delivery/route.ts` — POST endpoint accepting `analysis_id`, `coaching_delivered` (boolean), and optional `coaching_notes`. Updates `chat_analyses`. Must filter by `organization_id`.
+
+**UI changes needed:**
+- `src/components/CopyButton.tsx` — fire silent call to `update-coaching-delivery` on click, setting `coaching_delivered = true` and `coaching_delivered_at = now()`
+- `src/app/analysis/[id]/page.tsx` — manual `coaching_delivered` toggle + `coaching_notes` text field
+- `src/app/dashboard/agent/[name]/page.tsx` — coaching history tab: chronological list of all coaching delivered, improvement areas flagged per chat, scores at time of coaching, repeat pattern flags
+- `src/app/settings/page.tsx` — org-level toggle: "Auto-mark coaching as delivered when copying message" (default: on)
+
+**Key design decisions:**
+- Auto-check on copy is the right default — managers can disable it
+- The repeated coaching flag is informational only — no assumptions about what action the manager takes
+- This is distinct from Pattern Cards (Section 9h): Pattern Cards are team/topic level; this is agent-level longitudinal coaching history
+
+**Do not build any part of this feature until the user explicitly starts this task in a new thread.**
 
 ---
 
@@ -1561,11 +1582,11 @@ The system prompt includes the following quality and accuracy rules. These are c
 
 | Item | Effort | Status |
 |---|---|---|
-| Paddle checkout fix | Unknown | Blocked — Paddle returning 400 internal error. Support contacted. All code is ready. |
-| UI design polish | 1 day (light) to 1 week (full) | Not started — user exploring shadcn/ui |
-| Stripe billing (if approved) | Optional | Stripe under review — Paddle is primary |
+| UI design polish — dashboard interior | 1 day (light) to 1 week (full) | Not started |
+| Plan gating enforcement | 1–2 days | Not started — gating logic exists, needs enforcement |
+| Duplicate PDF link to existing analysis | 1–2 hours | Approved, not yet built |
 
-The product is live in production at supportcoach.io. Paddle billing integration code is complete but checkout is blocked by a Paddle-side 400 error (their server returns "unexpected internal error" for all checkout requests, even from the browser console). Support ticket submitted. All remaining work is resolving the Paddle checkout and UI polish.
+The product is live in production at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates verified March 25, 2026. Remaining work: dashboard UI polish, plan gating enforcement, and duplicate PDF link.
 
 ### Future Phase: Zoho SalesIQ API Integration
 
@@ -1581,9 +1602,10 @@ This master document defines the complete scope of the product as built. The app
 
 Continue development from this architecture forward. Do not redesign the system unless the user explicitly requests it. Focus exclusively on:
 
-1. Paddle billing integration: checkout flow, webhooks, plan gating.
-2. UI design polish.
-3. Preserving every existing working feature.
+1. UI design polish — dashboard interior pages.
+2. Plan gating enforcement.
+3. Duplicate PDF link to existing analysis (Section 8f).
+4. Preserving every existing working feature.
 
 Do not build roadmap items from Section 10 (including FAQ Suggestions, helpdesk integrations, coaching history, observability, topic normalization, manual benchmarks, or unfair rating detection) unless the user explicitly requests them. These are documented for future reference only.
 
