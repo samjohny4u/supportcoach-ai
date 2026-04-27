@@ -100,13 +100,56 @@
 
 ## CURRENT TASK
 - No active blockers. Product is fully live with working billing.
+- Trial extended to 30 days via SQL for Bangkok travel (April 6–17, 2026)
 
 ## REMAINING BEFORE FULL LAUNCH
 1. **UI design polish** — dashboard interior pages (fonts, colors, theme consistency). Landing page is complete.
 2. **Plan gating enforcement** — API routes and dashboard pages do not yet check plan tier. Professional/Enterprise features accessible to all plans. Gating to be added after billing is confirmed stable.
-3. **Password change flow** — Phase 2 item, post-Bangkok
-4. **Self-signup improvements** — Phase 2 item, post-Bangkok
-5. **Agent management** — Phase 2 item, post-Bangkok
+3. **Duplicate PDF link** — when upload detects a duplicate, show a "View Analysis →" link to the existing analysis detail page. Small change to upload/page.tsx and create-analysis-job/route.ts. Approved for build post-Bangkok.
+4. **Password change flow** — Phase 2 item, post-Bangkok
+5. **Self-signup improvements** — Phase 2 item, post-Bangkok
+6. **Agent management** — Phase 2 item, post-Bangkok
+
+## APPROVED FUTURE FEATURES (Documented — Not Yet Built)
+
+### Coaching Effectiveness Tracker
+**Status:** Fully designed, approved for Phase 2. Do not build until user explicitly starts this task.
+**Reference:** Also documented in Section 10k of supportcoach-ai-context.md.
+
+**What it is:** A system for tracking whether coaching is being delivered, whether agents are improving, and surfacing when the same coaching points are being repeated with no improvement in scores.
+
+**Four layers:**
+
+**Layer 1 — Coaching History per Agent**
+A view on `/dashboard/agent/[name]` showing every coaching message ever delivered to that agent — dates, which chat it came from, improvement areas flagged, and scores at time of coaching. Data already exists in `chat_analyses` but no per-agent longitudinal view exists yet.
+
+**Layer 2 — Repeat Pattern Detection**
+Compare improvement areas across an agent's analyzed chats over time. Flag when the same weakness appears repeatedly (e.g., empathy flagged in 8 of 10 chats over 3 months). Threshold: 3+ occurrences = pattern flag. This is agent-level longitudinal tracking, distinct from the team-level Pattern Cards (Section 9h of master context).
+
+**Layer 3 — Coaching Delivery Tracking**
+Auto-check `coaching_delivered = true` when the manager clicks "Copy Message" in `CopyButton.tsx`. Fire a silent API call to update the record at that moment. Add a setting in `/settings` to disable auto-check for managers who prefer manual control. Managers can also manually toggle delivery status on the analysis detail page.
+
+**Layer 4 — Repeated Coaching Flag**
+When an agent has the same improvement area flagged 3+ times AND coaching was delivered each time with no measurable score improvement, surface a flag: "Repeated coaching with no improvement." The manager decides what to do with this information — no assumptions are made about what action they should take (e.g., incentives, warnings, additional training). This flag is informational only.
+
+**Database changes needed:**
+```sql
+ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_delivered boolean DEFAULT false;
+ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_delivered_at timestamptz;
+ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_notes text;
+```
+
+**UI changes needed:**
+- `src/components/CopyButton.tsx` — fire silent API call to set coaching_delivered = true on click
+- `src/app/analysis/[id]/page.tsx` — manual coaching_delivered toggle + coaching_notes field
+- `src/app/dashboard/agent/[name]/page.tsx` — coaching history tab with chronological list and repeat pattern flags
+- `src/app/settings/page.tsx` — toggle for auto-check behavior on/off per org
+- New API route: `src/app/api/update-coaching-delivery/route.ts`
+
+**Key design decisions:**
+- Auto-check on copy is the right default — the copy moment is the highest-intent signal that coaching is about to happen
+- The repeated coaching flag is informational only — no assumptions about what the manager does with it
+- This is different from Pattern Cards (Section 9h) which are team/topic level — this is agent-level longitudinal coaching tracking
 
 ## KNOWN ISSUES / BLOCKERS
 - No active blockers
@@ -115,6 +158,7 @@
 - subscription-status API route returns 401 when called from client-side fetch due to Route Handler cookie handling — TrialBanner and select-plan page use Supabase browser client directly as workaround
 - Supabase RLS returns 406 on client-side subscriptions query — non-blocking, page works without it
 - VS Code shows false TypeScript error "Cannot find module @/components/AppNav" — stale cache issue, does not affect Vercel build
+- To reset testing account after cancelling a subscription: run `UPDATE organizations SET plan='trial', trial_ends_at=now()+interval '14 days' WHERE id='8e71dc46-e674-4131-8709-506223a35d7e';` and `DELETE FROM subscriptions WHERE organization_id='8e71dc46-e674-4131-8709-506223a35d7e';`
 
 ## ISOLATED FILES — DO NOT TOUCH UNLESS EXPLICITLY ASKED
 - `src/app/extension/page.tsx` — Chrome Extension marketing page, not part of the Manager Dashboard product
@@ -152,6 +196,7 @@
 - Landing page nav: uses shared supabase client from src/lib/supabase.ts — never create a second Supabase client instance on the landing page
 - Nav architecture: AppNav (src/components/AppNav.tsx) renders on all pages except / — landing page handles its own nav internally
 - Extension landing page: hosted at /extension within the Manager Dashboard repo — two separate products sharing one Next.js app and one Supabase project
+- Coaching Effectiveness Tracker: auto-check coaching_delivered on Copy Message click is correct default — managers can disable in settings. Repeated coaching flag is informational only — no assumptions about what action the manager takes.
 
 ## FILES THAT MUST NOT BREAK
 - `src/app/api/process-jobs/route.ts` — the core worker
@@ -176,4 +221,4 @@
 4. `docs/supportcoach-ai-context.md` — full master prompt
 
 ## NEW THREAD STARTER MESSAGE
-"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates all verified March 25, 2026. Extension landing page lives at /extension and is isolated. AI prompt was last enhanced April 27, 2026 with abandoned chat detection, screen sharing detection, transcript completeness awareness, and a hard limit of 2-3 timestamp citations per coaching message — applied to both process-jobs and reanalyze routes. Remaining work: dashboard UI polish and plan gating enforcement."
+"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates all verified March 25, 2026. Extension landing page lives at /extension and is isolated. AI prompt was last enhanced April 27, 2026 with abandoned chat detection, screen sharing detection, transcript completeness awareness, and a hard limit of 2-3 timestamp citations per coaching message. Coaching Effectiveness Tracker is fully designed in CONTEXT.md and supportcoach-ai-context.md Section 10k — approved for Phase 2. Remaining work: dashboard UI polish, plan gating enforcement, duplicate PDF link, and Coaching Effectiveness Tracker."
