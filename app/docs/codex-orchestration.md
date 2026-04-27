@@ -50,7 +50,7 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - Total analyses: ~52 active records + ~175 from earlier batches
 - RLS: ENABLED on all 8 tables (including subscriptions)
 
-**Worker (`src/app/api/process-jobs/route.ts`):**
+**Worker (`src/app/api/process-jobs/route.ts`) and Re-Analyze (`src/app/api/reanalyze/route.ts`):**
 - ✅ Idempotency check (8a)
 - ✅ Processing status claim (8b)
 - ✅ source_type fix (8c)
@@ -64,6 +64,10 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - ✅ Coaching opening variety — "this chat was really about" pattern explicitly banned
 - ✅ Reduced timestamp obsession
 - ✅ Evidence preservation instruction — maintains detailed coaching even when company context is present
+- ✅ Abandoned chat detection (April 27, 2026) — all scores set to 7, attention low, brief no-coaching message when customer never replies after agent connects
+- ✅ Screen sharing / remote session detection (April 27, 2026) — session URL + 5+ minute gap is treated as live session, gap not coached
+- ✅ Transcript completeness awareness (April 27, 2026) — incomplete transcripts (remote session, channel switch, bot pre-answered, invisible handoff) acknowledged in coaching, only visible portions coached
+- ✅ Hard timestamp citation limit (April 27, 2026) — max 2-3 timestamp citations per coaching message, only when timing is the actual coaching point
 
 **Working features:**
 - ✅ Upload pipeline with duplicate detection and auto-trigger
@@ -95,6 +99,7 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - ✅ Paddle billing integration code (all files built and deployed)
 - ✅ Paddle products and prices configured (3 products × 2 prices)
 - ✅ Paddle webhook endpoint configured
+- ✅ Paddle billing fully verified end-to-end (March 25, 2026) — checkout, webhooks, database updates all working
 - ✅ Trial banner on dashboard
 - ✅ Plan selection page with seat picker
 - ✅ Billing management page
@@ -335,6 +340,10 @@ STATUS: ✅ DONE
 - Coaching opening variety (no more repetitive "this chat was really about" — pattern explicitly banned in prompt)
 - Reduced timestamp obsession (only cite timing when it's a coaching point)
 - Evidence preservation instruction (maintain detailed evidence-based coaching even when company context is present)
+- Abandoned chat detection (April 27, 2026): when customer sends initial question, agent connects and responds, customer never replies — all scores set to 7, attention set to low, brief "no coaching needed" message generated, array fields kept minimal. Applied to both process-jobs and reanalyze routes.
+- Screen sharing / remote session detection (April 27, 2026): when transcript contains a remote session URL (join.zoho.com, zoom.us, meet.google.com, teamviewer.com, anydesk.com) followed by a 5+ minute gap, the gap is treated as a live session and not coached on. Applied to both process-jobs and reanalyze routes.
+- Transcript completeness awareness (April 27, 2026): when transcript is incomplete (remote session, channel switch to email/phone, bot answered before agent connected, invisible handoff), the AI explicitly acknowledges incompleteness in the coaching message and only coaches on visible portions. Applied to both process-jobs and reanalyze routes.
+- Hard timestamp citation limit (April 27, 2026): max 2-3 timestamp citations per coaching message, only when timing is the actual coaching point. Quotes about content, tone, phrasing, empathy, or clarity must be without timestamps. Updated What You Did Well and Where to Improve subsections of the COPY COACHING MESSAGE FORMAT to enforce this. Applied to both process-jobs and reanalyze routes.
 
 ### Production Deployment
 STATUS: ✅ DONE
@@ -350,16 +359,17 @@ STATUS: ✅ DONE
 - Customer Support: `src/app/support/page.tsx` → supportcoach.io/support (includes registered address and phone number)
 
 ### Billing Provider
-STATUS: ✅ Paddle APPROVED, Stripe under review
-- Paddle account approved and ready for integration
-- Stripe application submitted, still under review
+STATUS: ✅ Paddle APPROVED and LIVE, Stripe under review
+- Paddle account approved, integration verified end-to-end, customers can subscribe
+- Stripe application submitted, still under review (backup only)
 
 ### Paddle Billing Integration
-STATUS: ✅ CODE COMPLETE — Checkout blocked by Paddle-side 400 error
+STATUS: ✅ DONE — Fully verified end-to-end (March 25, 2026)
 - SQL migration: subscriptions table + plan/trial_ends_at columns on organizations
 - Paddle products created: Starter, Professional, Enterprise
 - Paddle prices created: 6 total (3 monthly + 3 annual with 14-day trial)
-- Paddle webhook endpoint configured: supportcoach.io/api/paddle-webhook
+- Paddle webhook endpoint configured: https://www.supportcoach.io/api/paddle-webhook (with www — non-www causes 308 redirect that Paddle does not follow)
+- Default payment link configured in Paddle Checkout Settings: https://www.supportcoach.io/select-plan
 - Environment variables set in .env.local and Vercel: PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET, NEXT_PUBLIC_PADDLE_CLIENT_TOKEN, NEXT_PUBLIC_PADDLE_ENVIRONMENT
 - Files created:
   - `src/lib/paddle.ts` — price ID mapping, webhook signature verification
@@ -374,8 +384,10 @@ STATUS: ✅ CODE COMPLETE — Checkout blocked by Paddle-side 400 error
   - `src/app/onboarding/page.tsx` — redirects to /select-plan instead of /dashboard after org creation
   - `middleware.ts` — added subscription/trial lock check, redirects expired trials to /select-plan
   - `src/app/dashboard/page.tsx` — added TrialBanner import and component
-- BLOCKER: Paddle Checkout.open() returns 400 with `{"errors":[{"status":405,"code":"unexpected","details":"Internal error"}]}`. Confirmed not a code issue — same error from browser console with hardcoded price ID. Paddle support contacted.
-- Known issue: subscription-status API route returns 401 from client-side fetch (Route Handler cookie issue). Workaround: TrialBanner and select-plan page use Supabase browser client directly.
+- Resolution of earlier 400 error: default payment link URL was not saved in Paddle dashboard. Fix: set default payment link in Paddle Checkout Settings.
+- Resolution of earlier webhook failures: webhook URL was set to non-www causing 308 redirect. Fix: switched to https://www.supportcoach.io/api/paddle-webhook.
+- Full flow verified: checkout overlay → card processed → webhook delivered → organizations.plan updated to 'starter' → subscriptions table populated. Test subscription cancelled before April 8th charge date.
+- Known issue: subscription-status API route returns 401 from client-side fetch (Route Handler cookie issue). Workaround in place: TrialBanner and select-plan page use Supabase browser client directly.
 
 ---
 
@@ -383,12 +395,12 @@ STATUS: ✅ CODE COMPLETE — Checkout blocked by Paddle-side 400 error
 
 | Item | Effort | Owner |
 |---|---|---|
-| Paddle checkout fix (waiting on Paddle support) | Unknown — depends on Paddle | Blocked |
 | UI design polish | 1 day – 1 week | User decision on shadcn/ui direction pending |
+| Plan gating enforcement | 1-2 days | Scheduled after UI polish per agreed roadmap |
 | Stripe billing (if approved) | Optional — Paddle is primary | Backup |
 
 ---
 
 ## SCOPE LOCK
 
-All MVP and post-MVP tasks are complete. The app is live in production. Paddle billing integration code is complete but checkout is blocked by a Paddle-side error. The orchestration guide is now a reference document. Future work (Paddle checkout fix, UI polish, API integration) will be scoped in new task lists as needed.
+All MVP and post-MVP tasks are complete. The app is live in production with Paddle billing fully working end-to-end. The orchestration guide is now a reference document. Future work (UI polish, plan gating enforcement, API integration) will be scoped in new task lists as needed.
