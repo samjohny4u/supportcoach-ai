@@ -1,5 +1,5 @@
 # SUPPORTCOACH AI — CONTEXT FILE
-# Last updated: March 26, 2026
+# Last updated: April 27, 2026
 
 ## PROJECT STATUS
 - **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete
@@ -86,6 +86,17 @@
   - Page is fully self-contained — no shared nav, no dashboard auth, no shared components
   - Page contains: hero, mock coaching card, 3 layers feature section, platform compatibility, demo video placeholder, waitlist form, footer CTA to /
   - These files are ISOLATED — do not modify unless explicitly asked
+- Live Agent Coach nav link added to homepage (March 28, 2026) — DONE
+  - LoggedOutNav: "Live Agent Coach" link added between Pricing and Login, points to /extension
+  - LoggedInNav: "Live Agent Coach" link added before Dashboard, points to /extension
+  - src/app/page.tsx updated — no other changes made to this file
+- Prompt enhancements (April 27, 2026) — DONE
+  - Abandoned chat detection: customer sends initial question, agent connects and responds, customer never replies — all scores set to 7, attention set to low, brief "no coaching needed" message instead of full coaching, array fields kept minimal
+  - Screen sharing / remote session detection: when transcript contains a remote session URL (join.zoho.com, zoom.us, meet.google.com, teamviewer.com, anydesk.com) followed by a 5+ minute gap, assume live session and do not coach on the gap
+  - Transcript completeness awareness: when transcript is incomplete (remote session, channel switch to email/phone, bot answered before agent connected, invisible handoff), explicitly acknowledge it and only coach on visible portions
+  - Hard timestamp citation limit: max 2-3 timestamp citations per coaching message, only when timing is the actual coaching point — quotes about content/tone/phrasing/empathy/clarity must be without timestamps
+  - Updates applied to both src/app/api/process-jobs/route.ts and src/app/api/reanalyze/route.ts
+  - Only affects new analyses going forward — existing analyses keep old coaching messages until re-analyzed via per-chat button
 
 ## CURRENT TASK
 - No active blockers. Product is fully live with working billing.
@@ -115,6 +126,10 @@
 - Template-based pattern card narratives, not AI-generated (v1)
 - Response time threshold: under 2 min = normal, 2-4 min = notable, over 4 min = coaching point
 - Timestamps only cited when timing is actually a coaching point — not as decoration
+- Hard limit on timestamp citations: max 2-3 per coaching message, only when timing is the actual coaching point — quotes about content, tone, phrasing, empathy, or clarity must be without timestamps
+- Abandoned chats (customer never replies after agent connects): all scores set to 7, attention set to low, brief "no coaching needed" message instead of full coaching — agent did not have enough interaction to fairly evaluate
+- Remote session detection: a session URL (Zoho/Zoom/Meet/TeamViewer/AnyDesk) followed by a 5+ minute gap is treated as a live session — do not coach on the gap, do not count toward response time analysis
+- Transcript completeness: incomplete transcripts (remote session, channel switch, bot pre-answered, invisible handoff) must be explicitly acknowledged in the coaching message, with coaching limited to visible portions only
 - Coaching openings must vary naturally — "this chat was really about" pattern is explicitly banned
 - Pre-formatted structured transcripts sent to AI instead of raw PDF text
 - knownSenderNames set for handling inconsistent PDF spacing
@@ -140,6 +155,7 @@
 
 ## FILES THAT MUST NOT BREAK
 - `src/app/api/process-jobs/route.ts` — the core worker
+- `src/app/api/reanalyze/route.ts` — per-chat re-analyze worker
 - `src/app/dashboard/page.tsx` — main dashboard
 - `src/app/api/create-analysis-job/route.ts` — upload pipeline
 - `src/lib/currentOrganization.ts` — org resolution for multi-tenancy
@@ -160,9 +176,4 @@
 4. `docs/supportcoach-ai-context.md` — full master prompt
 
 ## NEW THREAD STARTER MESSAGE
-"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates all verified March 25, 2026. Extension landing page lives at /extension and is isolated. Remaining work: dashboard UI polish and plan gating enforcement."
-```
-- Live Agent Coach nav link added to homepage (March 28, 2026) — DONE
-  - LoggedOutNav: "Live Agent Coach" link added between Pricing and Login, points to /extension
-  - LoggedInNav: "Live Agent Coach" link added before Dashboard, points to /extension
-  - src/app/page.tsx updated — no other changes made to this file
+"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates all verified March 25, 2026. Extension landing page lives at /extension and is isolated. AI prompt was last enhanced April 27, 2026 with abandoned chat detection, screen sharing detection, transcript completeness awareness, and a hard limit of 2-3 timestamp citations per coaching message — applied to both process-jobs and reanalyze routes. Remaining work: dashboard UI polish and plan gating enforcement."
