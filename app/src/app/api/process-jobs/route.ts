@@ -902,6 +902,55 @@ product_limitation_chat:
 - Set to true if the customer's issue was caused by a limitation, bug, or missing feature in the product itself — not by user error, user configuration, or lack of knowledge.
 - The key question is: could the agent have fully resolved this issue, or was the product itself the blocker?
 
+=== ABANDONED CHAT DETECTION ===
+
+Some chats are abandoned by the customer before any real interaction takes place. These chats should not be coached as if they were normal conversations.
+
+A chat is ABANDONED when ALL of the following are true:
+- The customer sent their initial question or message.
+- The agent connected and responded (e.g., greeted the customer, asked a clarifying question, or attempted to engage).
+- The customer never responded after the agent connected — there is no further customer message in the transcript after the agent's first response.
+- There is no evidence of a channel switch, screen sharing session, or other reason that would explain the customer's absence (see the next two sections).
+
+When a chat is abandoned:
+- Set ALL scores (empathy, clarity, ownership, resolution_quality, professionalism) to 7. Do not score lower or higher — the agent did not have enough interaction to fairly evaluate.
+- Set attention_priority to "low".
+- Do NOT generate a full coaching message with all sections. Instead, generate a brief "no coaching needed" message in copy_coaching_message that explains the chat was abandoned by the customer and there is nothing meaningful to coach on.
+- Example brief message: "AgentName — this chat was abandoned by the customer before any real interaction took place. The customer sent their initial question, you connected and responded, but they never replied after that. There's nothing meaningful to coach on here — this is a low-priority chat that doesn't reflect on your performance."
+- Keep what_you_did_well, improvement_areas, how_this_could_be_handled, summary_strengths, and summary_improvements minimal or empty. Do not invent coaching points to fill these fields.
+- Set issue_summary normally based on the customer's initial question.
+- Set chat_type normally based on the customer's initial question.
+
+=== SCREEN SHARING / REMOTE SESSION DETECTION ===
+
+Some chats include a remote session — screen sharing, a Zoom call, or another live channel. When this happens, much of the actual support interaction takes place outside the chat transcript, and the chat will appear to have a long silent gap.
+
+Detect a remote session when the transcript contains:
+- A remote session URL such as join.zoho.com, zoom.us, meet.google.com, teamviewer.com, anydesk.com, or similar remote-support / video-call URLs.
+- Followed by a 5-minute or longer gap in the chat with no messages from either side.
+
+When a remote session is detected:
+- Assume the agent and customer were in a live session during the gap and continued working on the issue outside the chat.
+- Do NOT coach on the silent gap. Do NOT flag it as a delay, slow response, or missed update.
+- Do NOT count the gap toward response time analysis.
+- In your coaching, acknowledge that part of the interaction happened in a live session and is not visible in the transcript.
+- Coach only on what IS visible: how the agent set up the session, how they brought the customer back into the chat afterward, how they confirmed resolution after the session ended, etc.
+
+=== TRANSCRIPT COMPLETENESS AWARENESS ===
+
+Some transcripts are incomplete — meaning part of the actual support interaction happened outside the visible chat. Treat the transcript as incomplete when ANY of the following apply:
+- A remote session URL is shared (see screen sharing detection above).
+- The conversation was switched to another channel (e.g., "let's continue this over email", "I'll call you", "let's hop on a quick call").
+- A bot or automation answered the customer's question before the human agent connected, and the agent's role was limited to confirming or closing.
+- The transcript shows clear handoff to another team or person whose interaction is not visible.
+
+When the transcript is incomplete:
+- Explicitly acknowledge in the coaching message that part of the interaction is not visible in the transcript and that the coaching is based only on the visible portions.
+- Do NOT invent or assume what happened during the invisible portion.
+- Do NOT penalize the agent for things that may have been handled in the invisible portion (e.g., confirming resolution, explaining root cause).
+- Coach only on what IS visible: how the agent transitioned to the other channel, how they set expectations before the handoff, how they followed up in the chat after returning, etc.
+- If the visible portion is too thin to support meaningful coaching, say so plainly rather than padding with generic advice.
+
 === CHURN RISK ASSESSMENT ===
 
 churn_risk must be one of: low, medium, high. Apply these criteria:
@@ -937,6 +986,7 @@ These rules apply to ALL text fields including copy_coaching_message, improvemen
    - When referencing a delay, always include the start time, end time, and duration.
    - Response time thresholds for live chat: a gap under 2 minutes is NORMAL and should NOT be flagged or mentioned. Gaps of 2-4 minutes are worth noting only if the customer was actively waiting or sending messages. Gaps over 4 minutes with no agent communication should be flagged as a coaching point. Do not coach on response times that are within normal live chat expectations.
    - Only cite timestamps when timing is actually a coaching point. Do not decorate every observation with timestamps. If the agent responded in a normal timeframe, do not mention the timestamps at all. Timestamps should appear in the coaching message only when they support a specific coaching observation about delays, gaps, or missed opportunities.
+   - HARD LIMIT: Use no more than 2-3 timestamp citations in the entire coaching message, and only when timing is the actual coaching point. When you are quoting a message about its content, tone, phrasing, empathy, clarity, or any non-timing reason, quote the message WITHOUT the timestamp. Timestamps decorate the message only when the duration, gap, or timing is the thing being coached. Strip timestamps from quotes that exist for any other reason.
 
 2. Distinguish Agent Delays from Customer Delays:
    - If the customer stopped responding, that is NOT the agent's fault. Do not frame customer silence as an agent issue.
@@ -1002,13 +1052,14 @@ AgentName — opening (varied, natural, context-appropriate)
 :white_check_mark: What You Did Well
 - Include 2 to 3 strengths with explanation.
 - Quote specific messages from the transcript that demonstrate each strength.
-- Include timestamps when available.
+- Quote messages WITHOUT timestamps when the praise is about content, tone, phrasing, empathy, or clarity. Only attach a timestamp when the strength is about timing itself (e.g., a fast acknowledgment, a well-timed proactive update). Do not decorate every quoted strength with a timestamp.
 
 :warning: Where the Experience Could Improve
 - Include numbered coaching points with explanation.
-- ALWAYS include specific timestamps, durations, and message quotes to support each point.
+- Include specific timestamps and durations ONLY when the coaching point is about timing (delays, gaps, missed-opportunity windows). For all other coaching points — content, tone, phrasing, ownership, clarity, confirmation — quote the relevant message WITHOUT a timestamp.
 - When referencing response time issues, state the exact gap with start time, end time, and duration.
 - When referencing unanswered messages, state how many messages the customer sent and over what time period.
+- Apply the hard limit from Factual Accuracy Rule #1: no more than 2-3 timestamp citations across the entire coaching message.
 - Do not make vague claims — every coaching point must reference specific transcript evidence.
 - Frame improvements constructively: acknowledge what the agent did, then explain what additional step would have improved the outcome.
 
