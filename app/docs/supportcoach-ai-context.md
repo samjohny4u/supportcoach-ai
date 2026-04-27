@@ -1393,6 +1393,31 @@ Normalize to 0–100. Display as a column on the topic table with severity indic
 
 This will become important as Features 9g and 9h are used in production with larger data volumes. Do not implement until the user requests it or until topic fragmentation becomes a reported problem.
 
+### 10k. Coaching Effectiveness Tracker (Phase 2 — Approved for Design, Not Yet Built)
+
+**Status:** Fully designed and approved for Phase 2. Do not build until user explicitly starts this task.
+
+**Purpose:** Track whether coaching is being delivered, whether agents are improving over time, and surface when the same coaching points are being repeated with no improvement in scores.
+
+**Why this matters:** Currently the coaching message gets generated and copied — but there is no record of whether the manager sent it, no way to track if the agent improved, and no connection between past coaching and future chats from the same agent. The coaching loop is broken after the copy button. This feature closes that loop.
+
+**Four layers:**
+
+**Layer 1 — Coaching History per Agent**
+A view on `/dashboard/agent/[name]` showing every coaching message ever delivered to that agent — chronological list with dates, which chat it came from, improvement areas flagged, and scores at time of coaching. Data already exists in `chat_analyses` but no per-agent longitudinal view exists yet. This is distinct from Pattern Cards (Section 9h) which are team/topic level — this is agent-level longitudinal tracking over time.
+
+**Layer 2 — Repeat Pattern Detection**
+Compare improvement areas across an agent's analyzed chats over time. Flag when the same weakness appears repeatedly (threshold: 3+ occurrences = pattern flag). Example: empathy flagged in 8 of 10 chats over 3 months signals a persistent gap, not a one-time miss.
+
+**Layer 3 — Coaching Delivery Tracking**
+Auto-check `coaching_delivered = true` when the manager clicks "Copy Message" in `CopyButton.tsx`. Fire a silent API call to update the record at that moment — no UI friction added. Add a setting in `/settings` to disable auto-check for managers who prefer full manual control. Managers can also manually toggle delivery status on the analysis detail page and add optional coaching notes.
+
+**Layer 4 — Repeated Coaching Flag**
+When an agent has the same improvement area flagged 3+ times AND coaching was delivered each time with no measurable score improvement, surface a flag: "Repeated coaching with no improvement." This is informational only — no assumptions are made about what action the manager should take. The flag is intentionally neutral and company-agnostic.
+
+**Database changes needed:**
+```sql
+
 ---
 
 ## 11. OpenAI Integration Details
