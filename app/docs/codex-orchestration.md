@@ -45,10 +45,11 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - `plan` column on `organizations`: EXISTS (default 'trial')
 - `trial_ends_at` column on `organizations`: EXISTS
 - `subscriptions` table: EXISTS (with RLS enabled)
+- `extension_waitlist` table: EXISTS (with RLS enabled, service role only)
 - Legacy items with `status = 'done'`: Cleaned up (all now 'completed')
 - Records with `source_type = 'chat_transcript'`: 0 (fully fixed)
 - Total analyses: ~52 active records + ~175 from earlier batches
-- RLS: ENABLED on all 8 tables (including subscriptions)
+- RLS: ENABLED on all 9 tables (including subscriptions and extension_waitlist)
 
 **Worker (`src/app/api/process-jobs/route.ts`) and Re-Analyze (`src/app/api/reanalyze/route.ts`):**
 - ✅ Idempotency check (8a)
@@ -86,7 +87,17 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - ✅ Company coaching context settings page (`/dashboard/settings`)
 - ✅ Per-chat re-analyze button + API route
 - ✅ Global error boundary + 404 page
-- ✅ Landing page with hero, features, pricing
+- ✅ Landing page with hero, features, pricing, FAQ, footer
+- ✅ Annual/monthly pricing toggle on landing page with "2 months free" badge
+- ✅ "Most Popular" badge on Professional plan with green border highlight
+- ✅ ROI stats bar on landing page ($40,000+/mo, 1,000+ hrs, 40x ROI)
+- ✅ FAQ section on landing page (9 accordion questions)
+- ✅ Footer with Terms, Privacy, Refund, Support links
+- ✅ Auth-aware nav on landing page (logged-out vs logged-in views)
+- ✅ AppNav component (`src/components/AppNav.tsx`) on all interior pages
+- ✅ Live Agent Coach nav link on landing page (points to /extension)
+- ✅ Extension marketing page at /extension (isolated from manager dashboard)
+- ✅ Extension waitlist API at /api/extension-waitlist (isolated from manager dashboard)
 - ✅ RLS policies on all tables
 - ✅ Pluralization fix across all pages
 - ✅ Worker trigger button ("Process Now" with states)
@@ -313,7 +324,7 @@ STATUS: ✅ DONE
 
 ### RLS Security Policies
 STATUS: ✅ DONE
-- Enabled on all 8 tables (organizations, organization_memberships, analysis_jobs, analysis_job_items, conversations, conversation_messages, chat_analyses, subscriptions)
+- Enabled on all 9 tables (organizations, organization_memberships, analysis_jobs, analysis_job_items, conversations, conversation_messages, chat_analyses, subscriptions, extension_waitlist)
 - Authenticated users restricted to own org data
 - Anonymous access blocked
 - Service role key bypasses (worker unaffected)
@@ -389,18 +400,280 @@ STATUS: ✅ DONE — Fully verified end-to-end (March 25, 2026)
 - Full flow verified: checkout overlay → card processed → webhook delivered → organizations.plan updated to 'starter' → subscriptions table populated. Test subscription cancelled before April 8th charge date.
 - Known issue: subscription-status API route returns 401 from client-side fetch (Route Handler cookie issue). Workaround in place: TrialBanner and select-plan page use Supabase browser client directly.
 
+### Landing Page Polish (March 25, 2026)
+STATUS: ✅ DONE
+- Annual/monthly pricing toggle with "2 months free" badge
+- Professional plan highlighted with green border and "Most Popular" badge
+- All pricing card bullet dots changed to consistent teal
+- ROI stats bar added above pricing toggle ($40,000+/mo, 1,000+ hrs, 40x ROI)
+- FAQ section added with 9 accordion questions
+- Footer added with Terms, Privacy, Refund, Support links and copyright
+- `src/app/page.tsx` converted to "use client" for toggle state
+
+### Auth-Aware Nav (March 25, 2026)
+STATUS: ✅ DONE
+- Landing page (/) has its own nav built in — logged-out shows Features/Pricing/Login/Get Started, logged-in shows Dashboard/Logout
+- Logo on landing page links to / when logged out, /dashboard when logged in
+- `src/components/AppNav.tsx` created — app-wide nav shown on all pages except /
+- AppNav shows Upload/Dashboard/Settings/Logout on all interior pages
+- Logo in AppNav always links to /dashboard
+- Settings link points to /settings (not /dashboard/settings)
+- `src/app/layout.tsx` updated to use AppNav
+- Fixed multiple GoTrueClient instances bug — landing page now uses shared supabase client from `src/lib/supabase.ts` instead of creating a new instance
+
+### Extension Landing Page (March 26, 2026)
+STATUS: ✅ DONE
+- `src/app/extension/page.tsx` — public-facing marketing landing page for the Chrome Extension product, lives at supportcoach.io/extension
+- `src/app/api/extension-waitlist/route.ts` — public POST endpoint, inserts into extension_waitlist Supabase table
+- Supabase table: `extension_waitlist` (id, email unique, company_name, team_size, created_at) — RLS enabled, service role only
+- Page is fully self-contained — no shared nav, no dashboard auth, no shared components
+- Page contains: hero, mock coaching card, 3 layers feature section, platform compatibility, demo video placeholder, waitlist form, footer CTA to /
+- **These files are ISOLATED — do not modify unless explicitly asked**
+
+### Live Agent Coach Nav Link (March 28, 2026)
+STATUS: ✅ DONE
+- LoggedOutNav: "Live Agent Coach" link added between Pricing and Login, points to /extension
+- LoggedInNav: "Live Agent Coach" link added before Dashboard, points to /extension
+- `src/app/page.tsx` updated — no other changes made to this file
+
+### Trial Extension for Bangkok Travel
+STATUS: ✅ DONE
+- Trial extended to 30 days via SQL to cover Bangkok travel (April 6–17, 2026)
+- SQL used: `UPDATE organizations SET plan='trial', trial_ends_at=now()+interval '30 days' WHERE id='8e71dc46-e674-4131-8709-506223a35d7e';`
+
 ---
 
 ## REMAINING WORK
 
 | Item | Effort | Owner |
 |---|---|---|
-| UI design polish | 1 day – 1 week | User decision on shadcn/ui direction pending |
+| Dashboard UI polish (interior pages) | 1 day – 1 week | User decision on shadcn/ui direction pending |
 | Plan gating enforcement | 1-2 days | Scheduled after UI polish per agreed roadmap |
+| Duplicate PDF link to existing analysis (Section 8f) | 0.5 day | Approved for build post-Bangkok |
+| Coaching Effectiveness Tracker (Phase 2) | 3-5 days | See Phase 2 task list below |
+| Password change flow | 1 day | Phase 2, post-Bangkok |
+| Self-signup improvements | 1-2 days | Phase 2, post-Bangkok |
+| Agent management | 2-3 days | Phase 2, post-Bangkok |
 | Stripe billing (if approved) | Optional — Paddle is primary | Backup |
+
+---
+
+## PHASE 2 TASKS
+
+These tasks are scoped, designed, and approved for build. Reference Section 10k of `docs/supportcoach-ai-context.md` and the Coaching Effectiveness Tracker section in `docs/CONTEXT.md` for full design rationale.
+
+**Architectural overview:** The Coaching Effectiveness Tracker is a 4-layer system that tracks whether coaching is being delivered, whether agents are improving, and surfaces when the same coaching points are being repeated with no improvement. Layers must be built in order — each builds on the previous.
+
+**Build order:**
+1. Phase 2 Task 1 — Database schema + auto-check on Copy
+2. Phase 2 Task 2 — Manual delivery toggle + coaching notes on analysis page
+3. Phase 2 Task 3 — Settings toggle for auto-check behavior
+4. Phase 2 Task 4 — Coaching history view per agent
+5. Phase 2 Task 5 — Repeat pattern detection + repeated coaching flag
+
+---
+
+### PHASE 2 TASK 1: Database schema + Copy auto-check (Layer 3 foundation)
+STATUS: ⏳ NOT STARTED
+
+**Why this is first:** Every other Phase 2 task depends on the `coaching_delivered` column existing and being populated. This task adds the column and starts populating it from the highest-intent signal (the Copy Message click).
+
+**SQL migration to run in Supabase SQL Editor:**
+
+```sql
+ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_delivered boolean DEFAULT false;
+ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_delivered_at timestamptz;
+ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_notes text;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS auto_mark_coaching_delivered boolean DEFAULT true;
+```
+
+**Create:** `src/app/api/update-coaching-delivery/route.ts`
+
+A POST endpoint that:
+- Accepts JSON body: `{ analysis_id: string, delivered: boolean, notes?: string }`
+- Verifies the user is authenticated
+- Verifies the analysis belongs to the user's organization (resolve org via `currentOrganization.ts`)
+- Updates `chat_analyses` row with: `coaching_delivered`, `coaching_delivered_at` (set to now() when delivered=true, null when delivered=false), `coaching_notes` (only if provided)
+- Returns JSON: `{ success: true }` or `{ error: string }` with appropriate status codes
+- Wraps DB call in try/catch
+- NEVER logs PII
+
+**Edit:** `src/components/CopyButton.tsx`
+
+Read the full file first. Then:
+- After successful clipboard copy, fire a silent fetch POST to `/api/update-coaching-delivery` with `{ analysis_id, delivered: true }`
+- The analysis_id needs to be passed as a prop to CopyButton — check the parent (`src/app/analysis/[id]/page.tsx`) and add the prop where CopyButton is used
+- Auto-check ONLY fires if the org's `auto_mark_coaching_delivered` setting is true — fetch this from the org row before firing. If you cannot resolve org client-side cleanly, fire the call always and let the API route check the org setting and silently no-op if disabled.
+- The fetch is fire-and-forget (no await needed for UI). Wrap in try/catch so a failed call doesn't break the copy action.
+- Do NOT change the existing copy behavior or UI — this is purely additive.
+
+**Test:**
+1. Run the SQL migration in Supabase. Verify all 4 columns exist.
+2. Open an analysis page. Click Copy Message.
+3. Check the `chat_analyses` row in Supabase — `coaching_delivered` should be true, `coaching_delivered_at` should have a timestamp.
+4. Verify the existing copy-to-clipboard still works visually (toast/check mark).
+5. Verify nothing breaks if the user is logged out (the API route should reject the call cleanly).
+
+**Files modified:** Approximately 2 (CopyButton.tsx, analysis page) + 1 created (API route).
+
+**Commit:** `git commit -m "Phase 2 Task 1: Coaching delivery tracking schema and Copy auto-check"`
+
+---
+
+### PHASE 2 TASK 2: Manual delivery toggle + coaching notes on analysis page (Layer 3 completion)
+STATUS: ⏳ NOT STARTED
+
+**Why this is second:** Managers who don't use the Copy button (e.g. they coach verbally or use their own template) need a way to manually mark coaching as delivered. They also need a place to add notes about what they actually said.
+
+**Edit:** `src/app/analysis/[id]/page.tsx`
+
+Read the full file first. Add a new section near the existing coaching message area:
+
+- A checkbox or toggle labeled "Coaching delivered" — bound to `coaching_delivered` from the analysis row
+- A timestamp display: "Delivered on [date]" if `coaching_delivered_at` is set
+- A textarea labeled "Coaching notes (optional)" — bound to `coaching_notes`
+- A "Save" button that POSTs to `/api/update-coaching-delivery` with the current toggle and notes value
+- After save, show a brief confirmation ("Saved")
+- Match existing dark theme styling
+
+**Test:**
+1. Open an analysis page. Toggle "Coaching delivered" on. Click Save. Reload page — toggle stays on, timestamp shows.
+2. Add notes. Click Save. Reload — notes persist.
+3. Toggle off. Save. Verify `coaching_delivered_at` is null in DB.
+4. Verify the auto-check from Task 1 still works alongside this manual control.
+
+**Files modified:** 1 (`src/app/analysis/[id]/page.tsx`)
+
+**Commit:** `git commit -m "Phase 2 Task 2: Manual coaching delivery toggle and notes on analysis page"`
+
+---
+
+### PHASE 2 TASK 3: Settings toggle for auto-check behavior
+STATUS: ⏳ NOT STARTED
+
+**Why this is third:** Some managers want full manual control. This adds a per-org setting to disable the Copy auto-check from Task 1.
+
+**Edit:** `src/app/settings/page.tsx` (or `src/app/dashboard/settings/page.tsx` — read both, find the actual settings page)
+
+Read the full file first. Add a new toggle section:
+
+- Section heading: "Coaching Tracking"
+- A toggle labeled "Automatically mark coaching as delivered when I click Copy Message"
+- Help text: "When enabled, clicking the Copy Message button on an analysis will mark coaching as delivered. Disable this if you prefer to manually toggle the delivered status yourself."
+- Bound to `organizations.auto_mark_coaching_delivered`
+- Save button that updates the org row via existing settings save mechanism (do not invent a new save flow — use whatever pattern the existing coaching context settings use)
+- Match existing styling
+
+**Edit:** `src/app/api/update-coaching-delivery/route.ts`
+
+If you implemented Task 1 with the API checking the org setting, no change needed.
+If you implemented Task 1 with the client checking the setting, ensure the API also checks it as a defense-in-depth — when `auto_mark_coaching_delivered` is false AND the request is the silent auto-fire from CopyButton (you'll need a flag to distinguish auto vs manual), the API silently no-ops with success. Manual saves from Task 2 always go through.
+
+**Suggested approach:** Add a `source: 'auto' | 'manual'` field to the API request body. CopyButton sends `source: 'auto'`. The manual save from Task 2 sends `source: 'manual'`. The API only checks the org setting when source is 'auto'.
+
+**Test:**
+1. Open settings. Verify the new toggle appears, defaulted to ON.
+2. Toggle it OFF. Save.
+3. Open an analysis. Click Copy Message. Verify `coaching_delivered` does NOT change in DB.
+4. Use the manual toggle from Task 2 — verify it still works.
+5. Toggle setting back ON. Click Copy. Verify auto-mark works again.
+
+**Files modified:** 2 (settings page + API route)
+
+**Commit:** `git commit -m "Phase 2 Task 3: Settings toggle for coaching delivery auto-check"`
+
+---
+
+### PHASE 2 TASK 4: Coaching history view per agent (Layer 1)
+STATUS: ⏳ NOT STARTED
+
+**Why this is fourth:** With delivery tracking populated by Tasks 1–3, the agent page can now show a meaningful longitudinal view.
+
+**Edit:** `src/app/dashboard/agent/[name]/page.tsx`
+
+Read the full file first. Add a new "Coaching History" section (either as a tab or a section below existing content — match what the page already does).
+
+The section shows a chronological list (newest first) of all chats analyzed for this agent, where each row displays:
+- Date of analysis (`created_at`)
+- Link to the chat analysis page (`/analysis/[id]`)
+- The improvement areas flagged (from existing `improvement_areas` or equivalent field — read the file to see what field name is used)
+- Scores at time of analysis (overall score and any sub-scores already shown elsewhere on this page)
+- Coaching delivered status: green check if `coaching_delivered = true`, gray dash if false
+- Delivery date if delivered
+
+Query requirements:
+- Filter by `organization_id`
+- Filter by agent name
+- Include `.eq('excluded', false)`
+- Order by `created_at` descending
+- No pagination needed for v1 — show all (we can add pagination later if needed)
+
+**Test:**
+1. Navigate to an agent page that has multiple analyzed chats.
+2. Verify the Coaching History section shows all chats in chronological order.
+3. Verify the delivered status reflects the actual DB state.
+4. Click a row — verify it navigates to the analysis page.
+5. Exclude a chat — verify it disappears from the history.
+
+**Files modified:** 1 (`src/app/dashboard/agent/[name]/page.tsx`)
+
+**Commit:** `git commit -m "Phase 2 Task 4: Coaching history view per agent"`
+
+---
+
+### PHASE 2 TASK 5: Repeat pattern detection + repeated coaching flag (Layers 2 + 4)
+STATUS: ⏳ NOT STARTED
+
+**Why this is last:** Requires data from Tasks 1–4 to be meaningful. This is the payoff — the system that surfaces "you've coached this 5 times with no improvement."
+
+**Build a server-side helper:** `src/lib/coachingPatterns.ts`
+
+A function `detectAgentPatterns(organizationId: string, agentName: string)` that:
+- Queries all `chat_analyses` for that org + agent + `excluded = false`, ordered by `created_at` ascending
+- Builds a frequency map of improvement areas across those analyses
+- Returns an array of patterns where the same improvement area appears 3+ times, with shape:
+  ```
+  {
+    area: string,
+    occurrences: number,
+    coached_count: number,        // how many times coaching_delivered=true on those chats
+    avg_score_first_3: number,    // avg overall score on first 3 occurrences
+    avg_score_last_3: number,     // avg overall score on last 3 occurrences
+    no_improvement: boolean       // true if coached_count >= 3 AND last_3 not better than first_3 by margin (e.g. < 0.5 improvement)
+  }
+  ```
+- Threshold and margin values should be exported as constants at the top of the file so they can be tuned without rewriting logic
+
+**Edit:** `src/app/dashboard/agent/[name]/page.tsx`
+
+Read the full file first. Above the Coaching History section from Task 4, add a "Patterns" section that:
+- Calls `detectAgentPatterns()` server-side
+- For each pattern returned, renders a card showing:
+  - The improvement area
+  - "Flagged in [N] chats over [date range]"
+  - "Coaching delivered [M] of [N] times"
+  - If `no_improvement` is true, show a flag: "⚠️ Repeated coaching with no measurable improvement"
+- If no patterns meet the threshold, show: "No repeat patterns detected for this agent."
+- Use a clear visual treatment for the no_improvement flag (e.g. amber border) — but do NOT prescribe an action. The flag is informational only.
+
+**Test:**
+1. Pick an agent with at least 3 analyses where the same improvement area appears.
+2. Verify the pattern card appears with correct counts.
+3. Mark coaching delivered on those analyses (use the toggle from Task 2).
+4. Verify the "Coaching delivered M of N times" updates.
+5. Verify the no_improvement flag appears only when the threshold conditions are met.
+6. Verify an agent with no repeats shows the empty state message.
+
+**Files modified:** 1 (`src/app/dashboard/agent/[name]/page.tsx`) + 1 created (`src/lib/coachingPatterns.ts`)
+
+**Commit:** `git commit -m "Phase 2 Task 5: Repeat pattern detection and repeated coaching flag"`
 
 ---
 
 ## SCOPE LOCK
 
-All MVP and post-MVP tasks are complete. The app is live in production with Paddle billing fully working end-to-end. The orchestration guide is now a reference document. Future work (UI polish, plan gating enforcement, API integration) will be scoped in new task lists as needed.
+MVP and Phase 1 (Paddle billing, landing page, extension marketing page) are complete. Phase 2 (Coaching Effectiveness Tracker) is in progress per the task list above.
+
+The orchestration guide remains the source of truth for any future tasks. Do not build anything outside the documented task list. New tasks must be added to this file before any code is written.
+
+UI polish, plan gating enforcement, duplicate PDF link, password change flow, self-signup improvements, agent management, and Stripe integration remain as separate work items to be scoped when their turn comes.
