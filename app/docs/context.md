@@ -241,6 +241,7 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 - subscription-status API route returns 401 when called from client-side fetch due to Route Handler cookie handling — TrialBanner and select-plan page use Supabase browser client directly as workaround
 - Supabase RLS returns 406 on client-side subscriptions query — non-blocking, page works without it
 - VS Code shows false TypeScript error "Cannot find module @/components/AppNav" — stale cache issue, does not affect Vercel build
+- Upload page only accepts one file at a time despite UI saying "file(s)" and despite duplicate detection logic supporting multiple files. Likely a missing multiple attribute on the file input or drag-and-drop handler reading only the first file. Investigation deferred — fix as a small standalone task after Phase 2 Task 1 commits.
 - To reset testing account after cancelling a subscription: run `UPDATE organizations SET plan='trial', trial_ends_at=now()+interval '14 days' WHERE id='8e71dc46-e674-4131-8709-506223a35d7e';` and `DELETE FROM subscriptions WHERE organization_id='8e71dc46-e674-4131-8709-506223a35d7e';`
 
 ## ISOLATED FILES — DO NOT TOUCH UNLESS EXPLICITLY ASKED
