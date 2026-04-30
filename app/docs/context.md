@@ -96,7 +96,7 @@
   - Screen sharing / remote session detection: when transcript contains a remote session URL (join.zoho.com, zoom.us, meet.google.com, teamviewer.com, anydesk.com) followed by a 5+ minute gap, assume live session and do not coach on the gap
   - Transcript completeness awareness: when transcript is incomplete (remote session, channel switch to email/phone, bot answered before agent connected, invisible handoff), explicitly acknowledge it and only coach on visible portions
   - Hard timestamp citation limit: max 2-3 timestamp citations per coaching message, only when timing is the actual coaching point — quotes about content/tone/phrasing/empathy/clarity must be without timestamps
-  - Updates applied to both src/app/api/process-jobs/route.ts and src/app/api/reanalyze/route.ts
+  - Updates applied to both src/app/api/process-jobs/route.ts and src/app/api/reanalyze-analysis/route.ts
   - Only affects new analyses going forward — existing analyses keep old coaching messages until re-analyzed via per-chat button
 - Documentation sync for Phase 2 (April 30, 2026) — DONE
   - codex-orchestration.md rewritten with 6-task Phase 2 plan
@@ -106,9 +106,11 @@
   - SQL migration was run manually in Supabase before code work
   - Created `src/app/api/update-coaching-delivery/route.ts`
   - Added CopyButton auto-mark wiring and passed analysis id from the analysis detail page
+- Phase 2 Task 2: AI prompt outputs structured coaching_points alongside copy_coaching_message — DONE
+  - Updated process-jobs and reanalyze-analysis prompts and response handling
 
 ## CURRENT TASK
-- **Active build: Phase 2 — Coaching Effectiveness Tracker (Section 10k).** Task 1 is DONE. Next task is Task 2 (prompt update for structured coaching points).
+- **Active build: Phase 2 — Coaching Effectiveness Tracker (Section 10k).** Tasks 1 and 2 are DONE. Next task is Task 3 (manual delivery toggle + notes UI).
 - Trial extended to 30 days via SQL for Bangkok travel (April 6–17, 2026)
 
 ## REMAINING BEFORE FULL LAUNCH
@@ -221,7 +223,7 @@ Modified:
 - src/app/dashboard/settings/page.tsx (and/or src/app/settings/page.tsx)
 - src/app/dashboard/agent/[name]/page.tsx
 - src/app/api/process-jobs/route.ts
-- src/app/api/reanalyze/route.ts
+- src/app/api/reanalyze-analysis/route.ts
 - src/lib/planAccess.ts
 
 **Cost characteristics:**
@@ -263,6 +265,7 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 - knownSenderNames set for handling inconsistent PDF spacing
 - Company coaching context: manager-provided process knowledge injected into AI prompt per org
 - Per-chat re-analyze: one chat at a time, no bulk — intentional cost control
+- Doc drift correction (April 30, 2026): the re-analyze route was incorrectly documented as src/app/api/reanalyze/route.ts across RULES.md, CONTEXT.md, and codex-orchestration.md. Real path is src/app/api/reanalyze-analysis/route.ts. Confirmed by directory listing and the form action in src/app/analysis/[id]/page.tsx. All references updated.
 - Two-layer API integration strategy: full metadata ingest + selective AI analysis (Section 10c)
 - RLS enabled on all tables. Service role key bypasses RLS. Application-level org filtering maintained as defense-in-depth.
 - Paddle approved first — will be primary billing provider. Stripe as backup if approved.
@@ -293,7 +296,7 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 
 ## FILES THAT MUST NOT BREAK
 - `src/app/api/process-jobs/route.ts` — the core worker
-- `src/app/api/reanalyze/route.ts` — per-chat re-analyze worker
+- `src/app/api/reanalyze-analysis/route.ts` — per-chat re-analyze worker
 - `src/app/dashboard/page.tsx` — main dashboard
 - `src/app/api/create-analysis-job/route.ts` — upload pipeline
 - `src/lib/currentOrganization.ts` — org resolution for multi-tenancy

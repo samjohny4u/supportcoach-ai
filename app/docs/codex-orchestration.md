@@ -51,7 +51,7 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - Total analyses: ~52 active records + ~175 from earlier batches
 - RLS: ENABLED on all 9 tables (including subscriptions and extension_waitlist)
 
-**Worker (`src/app/api/process-jobs/route.ts`) and Re-Analyze (`src/app/api/reanalyze/route.ts`):**
+**Worker (`src/app/api/process-jobs/route.ts`) and Re-Analyze (`src/app/api/reanalyze-analysis/route.ts`):**
 - ✅ Idempotency check (8a)
 - ✅ Processing status claim (8b)
 - ✅ source_type fix (8c)
@@ -317,7 +317,7 @@ STATUS: ✅ DONE
 
 ### Section 9l: Per-Chat Re-Analyze
 STATUS: ✅ DONE
-- API route: `src/app/api/reanalyze/route.ts`
+- API route: `src/app/api/reanalyze-analysis/route.ts`
 - Analysis page button with confirmation prompt
 - One chat at a time, no bulk — intentional cost control
 - Tested — re-analyzed chats reflect updated coaching context
@@ -559,11 +559,11 @@ Read the full file first. Then:
 ---
 
 ### PHASE 2 TASK 2: Prompt update for structured coaching points
-STATUS: ⏳ NOT STARTED
+STATUS: ✅ DONE
 
 **Why this is second:** The follow-through detection in Task 5 needs structured coaching points to compare against. This task updates both analysis routes to output the new `coaching_points` array. No UI changes yet — this is purely a data layer change. Existing `copy_coaching_message` stays untouched (managers still copy the same message; coaching_points is additive structured data).
 
-**Edit:** `src/app/api/process-jobs/route.ts` AND `src/app/api/reanalyze/route.ts`
+**Edit:** `src/app/api/process-jobs/route.ts` AND `src/app/api/reanalyze-analysis/route.ts`
 
 Read the full file of each first. Both routes have the same OpenAI system prompt and JSON schema — apply the same change to both.
 
@@ -608,7 +608,7 @@ Do NOT touch any other prompt logic. Do NOT remove or change the existing `copy_
 4. Re-analyze a chat using the per-chat re-analyze button. Verify it also populates `coaching_points`.
 5. Test on an abandoned chat — `coaching_points` should be `[]`.
 
-**Files modified:** 2 (`src/app/api/process-jobs/route.ts`, `src/app/api/reanalyze/route.ts`)
+**Files modified:** 2 (`src/app/api/process-jobs/route.ts`, `src/app/api/reanalyze-analysis/route.ts`)
 
 **Commit:** `git commit -m "Phase 2 Task 2: AI prompt outputs structured coaching_points alongside copy_coaching_message"`
 
@@ -698,7 +698,7 @@ export function getFollowthroughWindowDays(plan: string): number {
 
 Trial users get the Starter window (30 days) — they upgrade to unlock more.
 
-**Edit:** `src/app/api/process-jobs/route.ts` AND `src/app/api/reanalyze/route.ts`
+**Edit:** `src/app/api/process-jobs/route.ts` AND `src/app/api/reanalyze-analysis/route.ts`
 
 Read the full file of each first. Both routes need the same change.
 
@@ -782,7 +782,7 @@ A POST endpoint that:
 7. Test on a Starter plan org — verify only last 30 days of coaching is included.
 8. Verify analysis still completes if the agent has no prior delivered coaching (empty followthrough is fine).
 
-**Files modified:** 4 (`src/lib/planAccess.ts`, `src/app/api/process-jobs/route.ts`, `src/app/api/reanalyze/route.ts`, `src/app/analysis/[id]/page.tsx`) + 1 created (`src/app/api/update-followthrough-override/route.ts`)
+**Files modified:** 4 (`src/lib/planAccess.ts`, `src/app/api/process-jobs/route.ts`, `src/app/api/reanalyze-analysis/route.ts`, `src/app/analysis/[id]/page.tsx`) + 1 created (`src/app/api/update-followthrough-override/route.ts`)
 
 **Commit:** `git commit -m "Phase 2 Task 5: Follow-through detection at analysis time with manager override"`
 

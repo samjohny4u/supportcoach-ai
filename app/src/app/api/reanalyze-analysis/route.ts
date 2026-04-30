@@ -28,6 +28,7 @@ type AnalysisResult = {
   summary_improvements: string[];
   quick_summary?: string;
   copy_coaching_message?: string;
+  coaching_points?: unknown;
   attention_priority?: "low" | "medium" | "high";
   scores: {
     empathy: number;
@@ -109,6 +110,95 @@ function uniqueClean(items: string[] | null | undefined, limit = 10): string[] {
     result.push(cleaned);
 
     if (result.length >= limit) break;
+  }
+
+  return result;
+}
+
+const ALLOWED_COACHING_AREAS = new Set([
+  "empathy",
+  "clarity",
+  "ownership",
+  "resolution_quality",
+  "professionalism",
+  "response_time",
+  "confirmation",
+  "escalation",
+  "product_knowledge",
+  "tone",
+  "process_adherence",
+]);
+
+function slugifyCoachingPointId(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function normalizeCoachingPoints(
+  raw: unknown,
+  analysisId: string | number | null
+): Array<{
+  id: string;
+  area: string;
+  specific_behavior: string;
+  recommended_behavior: string;
+}> {
+  if (!Array.isArray(raw)) return [];
+
+  const result: Array<{
+    id: string;
+    area: string;
+    specific_behavior: string;
+    recommended_behavior: string;
+  }> = [];
+
+  const seenIds = new Set<string>();
+
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+
+    const candidate = item as Record<string, unknown>;
+
+    const rawId =
+      typeof candidate.id === "string" && candidate.id.trim().length > 0
+        ? candidate.id.trim()
+        : "";
+    const area =
+      typeof candidate.area === "string" ? candidate.area.trim().toLowerCase() : "";
+    const specific =
+      typeof candidate.specific_behavior === "string"
+        ? candidate.specific_behavior.trim()
+        : "";
+    const recommended =
+      typeof candidate.recommended_behavior === "string"
+        ? candidate.recommended_behavior.trim()
+        : "";
+
+    if (!rawId || !area || !specific || !recommended) continue;
+    if (!ALLOWED_COACHING_AREAS.has(area)) continue;
+
+    const slugBase = slugifyCoachingPointId(rawId);
+    if (!slugBase) continue;
+
+    const prefixed =
+      analysisId !== null && analysisId !== undefined && String(analysisId).trim() !== ""
+        ? `${String(analysisId).trim()}-${slugBase}`
+        : slugBase;
+
+    if (seenIds.has(prefixed)) continue;
+    seenIds.add(prefixed);
+
+    result.push({
+      id: prefixed,
+      area,
+      specific_behavior: specific,
+      recommended_behavior: recommended,
+    });
+
+    if (result.length >= 3) break;
   }
 
   return result;
@@ -422,6 +512,7 @@ Return this exact structure:
   "summary_improvements": [],
   "quick_summary": "",
   "copy_coaching_message": "",
+  "coaching_points": [],
   "attention_priority": "low",
   "scores": {
     "empathy": 0,
@@ -713,6 +804,41 @@ Key Improvement Areas
 - Do not make the coaching message too short.
 - Do not skip sections.
 - NEVER make a factual claim about the chat that cannot be verified by reading the transcript.
+
+=== COACHING POINTS — STRUCTURED OUTPUT ===
+
+In addition to copy_coaching_message, output a coaching_points array. Each point captures one specific behavioral instruction that can be checked against the agent's future chats.
+
+Rules:
+- Output 1 to 3 coaching points per chat. Quality over quantity.
+- For abandoned chats (per the Abandoned Chat Detection rules above), output coaching_points: [].
+- For chats where coaching is genuinely "no improvement needed," output coaching_points: [].
+- Each point must be a discrete, observable behavior — not a generic tag.
+
+Each coaching_point must have this shape:
+{
+  "id": "<short kebab-case slug describing the behavior, unique within this chat — e.g. 'acknowledge-frustration-before-logistics'>",
+  "area": "<one of the allowed area tags below>",
+  "specific_behavior": "<one sentence describing exactly what the agent did in this chat that needs change. Reference the actual situation. Example: 'When the customer expressed frustration about the refund delay, the agent immediately explained the 5-7 day processing timeline without acknowledging the frustration.'>",
+  "recommended_behavior": "<one sentence describing what the agent should do instead, in concrete terms the agent can apply in future chats. Example: 'Acknowledge the frustration first (\"I understand how frustrating this delay is\") before explaining the processing timeline.'>"
+}
+
+Allowed values for "area" (use exactly one, lowercase, from this list):
+- empathy
+- clarity
+- ownership
+- resolution_quality
+- professionalism
+- response_time
+- confirmation
+- escalation
+- product_knowledge
+- tone
+- process_adherence
+
+Do not invent new area values. If a coaching point doesn't fit one of these, pick the closest match.
+
+The specific_behavior must be precise enough that, given a different chat transcript later, you could check whether the agent did the same thing again or applied the recommended behavior.
           `.trim(),
         },
         {
@@ -736,6 +862,10 @@ Key Improvement Areas
     const attentionPriority = computeAttentionPriority(parsed);
     const safeAgentName = normalizeOptionalText(parsed.agent_name) || null;
     const safeCustomerName = normalizeOptionalText(parsed.customer_name) || null;
+    const normalizedCoachingPoints = normalizeCoachingPoints(
+      parsed.coaching_points,
+      analysisId
+    );
 
     await supabaseAdmin
       .from("conversations")
@@ -777,6 +907,7 @@ Key Improvement Areas
         customer_frustration_present: parsed.customer_frustration_present ?? false,
         escalation_done_well: parsed.escalation_done_well ?? false,
         excluded: analysis.excluded ?? false,
+        coaching_points: normalizedCoachingPoints,
       })
       .eq("id", analysisId)
       .eq("organization_id", organizationId);
