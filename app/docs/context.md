@@ -1,13 +1,14 @@
 # SUPPORTCOACH AI — CONTEXT FILE
-# Last updated: April 27, 2026
+# Last updated: April 30, 2026
 
 ## PROJECT STATUS
-- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete
+- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete. Phase 2 (Coaching Effectiveness Tracker) about to begin.
 - **All MVP features are DONE**
 - **RLS security is ENABLED on all tables**
 - **Production deployment is LIVE at supportcoach.io**
 - **Paddle billing is FULLY WORKING — checkout, webhooks, database updates all verified**
 - **Codebase:** GitHub repo, committed and pushed, auto-deploys via Vercel
+- **Active build:** Phase 2 — Coaching Effectiveness Tracker (6 tasks per `docs/codex-orchestration.md`)
 
 ## COMPLETED TASKS
 - Task 0: Remove manager-insights route and dashboard panel — DONE
@@ -97,59 +98,137 @@
   - Hard timestamp citation limit: max 2-3 timestamp citations per coaching message, only when timing is the actual coaching point — quotes about content/tone/phrasing/empathy/clarity must be without timestamps
   - Updates applied to both src/app/api/process-jobs/route.ts and src/app/api/reanalyze/route.ts
   - Only affects new analyses going forward — existing analyses keep old coaching messages until re-analyzed via per-chat button
+- Documentation sync for Phase 2 (April 30, 2026) — DONE
+  - codex-orchestration.md rewritten with 6-task Phase 2 plan
+  - supportcoach-ai-context.md fully synced with Section 10k design (schema, prompt, file structure, plan tiers)
+  - This CONTEXT.md updated to reflect new Section 10k design (was previously the older 4-layer design)
 
 ## CURRENT TASK
-- No active blockers. Product is fully live with working billing.
+- **Active build: Phase 2 — Coaching Effectiveness Tracker (Section 10k).** 6-task plan in docs/codex-orchestration.md. About to start Task 1 (database schema + Copy auto-check).
 - Trial extended to 30 days via SQL for Bangkok travel (April 6–17, 2026)
 
 ## REMAINING BEFORE FULL LAUNCH
-1. **UI design polish** — dashboard interior pages (fonts, colors, theme consistency). Landing page is complete.
-2. **Plan gating enforcement** — API routes and dashboard pages do not yet check plan tier. Professional/Enterprise features accessible to all plans. Gating to be added after billing is confirmed stable.
-3. **Duplicate PDF link** — when upload detects a duplicate, show a "View Analysis →" link to the existing analysis detail page. Small change to upload/page.tsx and create-analysis-job/route.ts. Approved for build post-Bangkok.
-4. **Password change flow** — Phase 2 item, post-Bangkok
-5. **Self-signup improvements** — Phase 2 item, post-Bangkok
-6. **Agent management** — Phase 2 item, post-Bangkok
+1. **Coaching Effectiveness Tracker (Section 10k Phase 2)** — 6 tasks, in active build. See orchestration doc.
+2. **UI design polish** — dashboard interior pages (fonts, colors, theme consistency). Landing page is complete.
+3. **Plan gating enforcement** — API routes and dashboard pages do not yet check plan tier. Professional/Enterprise features accessible to all plans. Gating to be added after billing is confirmed stable. Section 10k lookback window will be one of the things gated when this is done.
+4. **Duplicate PDF link** — when upload detects a duplicate, show a "View Analysis →" link to the existing analysis detail page. Small change to upload/page.tsx and create-analysis-job/route.ts. Approved for build post-Bangkok.
+5. **Password change flow** — Phase 2 item, post-Bangkok
+6. **Self-signup improvements** — Phase 2 item, post-Bangkok
+7. **Agent management** — Phase 2 item, post-Bangkok
 
-## APPROVED FUTURE FEATURES (Documented — Not Yet Built)
+## PHASE 2 — COACHING EFFECTIVENESS TRACKER (Active Build)
 
-### Coaching Effectiveness Tracker
-**Status:** Fully designed, approved for Phase 2. Do not build until user explicitly starts this task.
-**Reference:** Also documented in Section 10k of supportcoach-ai-context.md.
+**Reference docs:**
+- Architectural design: Section 10k of `docs/supportcoach-ai-context.md`
+- Build plan (6 tasks): "PHASE 2 TASKS" section of `docs/codex-orchestration.md`
 
-**What it is:** A system for tracking whether coaching is being delivered, whether agents are improving, and surfacing when the same coaching points are being repeated with no improvement in scores.
+**What it is:** End-to-end system that closes the coaching loop. Tracks specific behavioral coaching points across an agent's chats over time, detects when previously-coached behaviors recur in new chats, and gives the manager a pre-written follow-up coaching message they can paste verbatim.
 
-**Four layers:**
+**Why it matters:** Today the coaching message gets generated and copied — but there's no record of whether it was sent, no way to track improvement, and no connection between past coaching and future chats from the same agent. Generic improvement-area tags (empathy, response_time) are too coarse to answer "did this agent apply the coaching I gave them last week?" — empathy can show up in dozens of specific behaviors. The tracker therefore operates on **specific behavioral coaching points** rather than generic tags.
 
-**Layer 1 — Coaching History per Agent**
-A view on `/dashboard/agent/[name]` showing every coaching message ever delivered to that agent — dates, which chat it came from, improvement areas flagged, and scores at time of coaching. Data already exists in `chat_analyses` but no per-agent longitudinal view exists yet.
+**Locked design decisions:**
 
-**Layer 2 — Repeat Pattern Detection**
-Compare improvement areas across an agent's analyzed chats over time. Flag when the same weakness appears repeatedly (e.g., empathy flagged in 8 of 10 chats over 3 months). Threshold: 3+ occurrences = pattern flag. This is agent-level longitudinal tracking, distinct from the team-level Pattern Cards (Section 9h of master context).
+1. **Chat-level delivery tracking.** Clicking Copy Message marks all coaching points from that chat as delivered together. Per-point granularity is not built in v1 — it adds UI complexity for marginal benefit. Manual override is available for managers who don't use Copy Message.
 
-**Layer 3 — Coaching Delivery Tracking**
-Auto-check `coaching_delivered = true` when the manager clicks "Copy Message" in `CopyButton.tsx`. Fire a silent API call to update the record at that moment. Add a setting in `/settings` to disable auto-check for managers who prefer manual control. Managers can also manually toggle delivery status on the analysis detail page.
+2. **Structured coaching points.** AI outputs a `coaching_points` array alongside the existing `copy_coaching_message`. Each point has shape:
+   ```
+   {
+     id: "kebab-case-slug",
+     area: "empathy" (existing tag for stats compatibility),
+     specific_behavior: "What the agent did in this chat (one sentence)",
+     recommended_behavior: "What they should do instead (one sentence)"
+   }
+   ```
+   1-3 points per chat. Empty array for abandoned chats and no-coaching-needed chats. The specific_behavior is precise enough that, given a future transcript, the AI can check whether the same behavior recurred.
 
-**Layer 4 — Repeated Coaching Flag**
-When an agent has the same improvement area flagged 3+ times AND coaching was delivered each time with no measurable score improvement, surface a flag: "Repeated coaching with no improvement." The manager decides what to do with this information — no assumptions are made about what action they should take (e.g., incentives, warnings, additional training). This flag is informational only.
+3. **AI-driven follow-through detection with manager override.** When a new chat is analyzed for an agent who has prior delivered coaching, the AI receives the prior coaching points within the lookback window. It outputs a `coaching_followthrough` array with per-point status (`followed_through` / `repeated` / `no_opportunity`) plus evidence sentence. Manager can override any AI assessment from the analysis page. Manager override takes precedence in all scorecards and repeat detection.
 
-**Database changes needed:**
+4. **Auto-generated follow-up coaching message.** When system detects a repeated coaching point, the agent page shows a "Copy follow-up message" button. Generates a templated coaching script — no extra AI call, just a string template populated from existing data:
+   > "On March 10, I coached you that when a customer is frustrated about refund delays, you should acknowledge the frustration first before explaining logistics. Looking at your chat from April 28 with Sarah K., I noticed the same pattern came up again — the customer expressed frustration and the response went straight to the refund timeline. What's blocking you from applying the new approach? Let's work through it."
+
+5. **Plan-gated lookback windows:**
+   - Starter: 30 days only. Dropdown disabled.
+   - Professional: 30 or 90 days. Default 90.
+   - Enterprise: 30, 90, or 365 days. Default 365. Labeled in UI as "All time (up to 365 days)" — the 365-day cap is a hard upper bound to protect against runaway costs and stale data.
+   - Trial users get the Starter window (30 days).
+   - Hard `LIMIT 30` on prior coaching points sent into any single analysis applies to all plans.
+
+**6-task build order:**
+
+| Task | What it does |
+|---|---|
+| 1 | DB schema (delivery columns + coaching_points jsonb + coaching_followthrough table + auto-mark setting) + /api/update-coaching-delivery route + Copy auto-check wiring |
+| 2 | Prompt update — both worker routes output structured coaching_points alongside existing copy_coaching_message. Data layer only, no UI change. |
+| 3 | Manual delivery toggle + notes UI on analysis page |
+| 4 | Settings toggle to disable Copy auto-check |
+| 5 | AI follow-through detection at analysis time (gets prior delivered coaching points within plan window, AI outputs per-point status) + manager override UI on analysis page + /api/update-followthrough-override route |
+| 6 | Agent page: scorecard + repeated coaching cards with "Copy follow-up message" button + coaching history view |
+
+**Key architectural rules:**
+
+- Existing `copy_coaching_message` is NOT removed or modified. Remains the manager's primary deliverable. `coaching_points` is additive structured data.
+- Follow-through prompt is only added to OpenAI call when agent has at least one prior delivered coaching point within the lookback window. New agents incur no extra cost.
+- Re-analyzing a chat (Section 9l) deletes coaching_followthrough rows where the chat is `detected_in_analysis_id` so reanalysis produces a fresh assessment. Rows where chat is `source_analysis_id` are preserved.
+- When `auto_mark_coaching_delivered` is false at the org level, auto-mark API call from CopyButton silently no-ops. Manual toggles always work regardless.
+- Manager overrides on coaching_followthrough rows take precedence over AI status everywhere.
+
+**Database schema (Phase 2 Task 1 SQL — to be run when Task 1 begins):**
+
 ```sql
 ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_delivered boolean DEFAULT false;
 ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_delivered_at timestamptz;
 ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_notes text;
+ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_points jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS auto_mark_coaching_delivered boolean DEFAULT true;
+
+CREATE TABLE IF NOT EXISTS coaching_followthrough (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  agent_name text NOT NULL,
+  source_analysis_id uuid NOT NULL REFERENCES chat_analyses(id) ON DELETE CASCADE,
+  source_coaching_point_id text NOT NULL,
+  detected_in_analysis_id uuid NOT NULL REFERENCES chat_analyses(id) ON DELETE CASCADE,
+  status text NOT NULL CHECK (status IN ('followed_through', 'repeated', 'no_opportunity')),
+  evidence text,
+  manager_override text CHECK (manager_override IS NULL OR manager_override IN ('followed_through', 'repeated', 'no_opportunity')),
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (source_analysis_id, source_coaching_point_id, detected_in_analysis_id)
+);
+
+ALTER TABLE coaching_followthrough ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "coaching_followthrough_org_isolation" ON coaching_followthrough
+  FOR ALL USING (organization_id IN (
+    SELECT organization_id FROM organization_memberships WHERE user_id = auth.uid()
+  ));
+CREATE INDEX IF NOT EXISTS idx_coaching_followthrough_org_agent
+  ON coaching_followthrough(organization_id, agent_name, created_at DESC);
 ```
 
-**UI changes needed:**
-- `src/components/CopyButton.tsx` — fire silent API call to set coaching_delivered = true on click
-- `src/app/analysis/[id]/page.tsx` — manual coaching_delivered toggle + coaching_notes field
-- `src/app/dashboard/agent/[name]/page.tsx` — coaching history tab with chronological list and repeat pattern flags
-- `src/app/settings/page.tsx` — toggle for auto-check behavior on/off per org
-- New API route: `src/app/api/update-coaching-delivery/route.ts`
+**Files affected across all 6 tasks:**
 
-**Key design decisions:**
-- Auto-check on copy is the right default — the copy moment is the highest-intent signal that coaching is about to happen
-- The repeated coaching flag is informational only — no assumptions about what the manager does with it
-- This is different from Pattern Cards (Section 9h) which are team/topic level — this is agent-level longitudinal coaching tracking
+Created:
+- src/app/api/update-coaching-delivery/route.ts
+- src/app/api/update-followthrough-override/route.ts
+- src/lib/coachingFollowthrough.ts
+
+Modified:
+- src/components/CopyButton.tsx
+- src/app/analysis/[id]/page.tsx
+- src/app/dashboard/settings/page.tsx (and/or src/app/settings/page.tsx)
+- src/app/dashboard/agent/[name]/page.tsx
+- src/app/api/process-jobs/route.ts
+- src/app/api/reanalyze/route.ts
+- src/lib/planAccess.ts
+
+**Cost characteristics:**
+
+Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reasoning output. Rough estimates per analysis (GPT-4o-mini):
+
+| Window | Avg points in prompt | Extra cost per analysis |
+|---|---|---|
+| 30 days | 3-6 | ~$0.005-0.01 |
+| 90 days | 10-20 | ~$0.02-0.04 |
+| 365 days (capped at 30) | 20-30 | ~$0.04-0.08 |
 
 ## KNOWN ISSUES / BLOCKERS
 - No active blockers
@@ -196,7 +275,16 @@ ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_notes text;
 - Landing page nav: uses shared supabase client from src/lib/supabase.ts — never create a second Supabase client instance on the landing page
 - Nav architecture: AppNav (src/components/AppNav.tsx) renders on all pages except / — landing page handles its own nav internally
 - Extension landing page: hosted at /extension within the Manager Dashboard repo — two separate products sharing one Next.js app and one Supabase project
-- Coaching Effectiveness Tracker: auto-check coaching_delivered on Copy Message click is correct default — managers can disable in settings. Repeated coaching flag is informational only — no assumptions about what action the manager takes.
+- **Coaching Effectiveness Tracker (Section 10k Phase 2):**
+  - Chat-level delivery tracking — Copy Message marks all points from that chat delivered together. Per-point granularity not built in v1.
+  - Structured coaching points (specific_behavior + recommended_behavior) instead of generic tag-only flagging — precise enough to check against future chats.
+  - AI-driven follow-through detection at analysis time with manager override — AI classifies each prior coaching point as followed_through / repeated / no_opportunity with evidence; manager can override.
+  - Auto-generated follow-up coaching message via template — no extra AI call, populated from data we already have.
+  - Plan-gated lookback windows: Starter 30 days only, Pro 30/90 (default 90), Enterprise 30/90/365 (default 365). Hard cap at 365 days for "All time" — protects against runaway costs and stale data.
+  - Trial users get Starter window (30 days).
+  - LIMIT 30 prior coaching points per analysis regardless of plan.
+  - Manager overrides take precedence over AI status everywhere.
+  - Existing copy_coaching_message preserved unchanged — coaching_points is additive structured data.
 
 ## FILES THAT MUST NOT BREAK
 - `src/app/api/process-jobs/route.ts` — the core worker
@@ -206,19 +294,21 @@ ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_notes text;
 - `src/lib/currentOrganization.ts` — org resolution for multi-tenancy
 - `middleware.ts` — auth + subscription lock check
 - `src/lib/paddle.ts` — Paddle price mapping and webhook verification
-- `src/lib/planAccess.ts` — plan gating logic
+- `src/lib/planAccess.ts` — plan gating logic (will be extended in Phase 2 Task 5 with getFollowthroughWindowDays helper)
 - `src/app/page.tsx` — public landing page
 - `src/components/AppNav.tsx` — app-wide nav for all interior pages
 - `src/app/layout.tsx` — root layout, imports AppNav
 - `src/app/api/paddle-webhook/route.ts` — Paddle webhook receiver
+- `src/components/CopyButton.tsx` — will be modified in Phase 2 Task 1 to fire silent auto-mark on copy. Existing copy behavior must remain identical.
+- `src/app/analysis/[id]/page.tsx` — will receive new sections in Phase 2 Tasks 2, 3, 5. Existing functionality (re-analyze, exclude, copy coaching message) must remain identical.
 - `src/app/extension/page.tsx` — Chrome Extension marketing page (isolated)
 - `src/app/api/extension-waitlist/route.ts` — Chrome Extension waitlist API (isolated)
 
 ## DOCUMENTS TO READ ON NEW THREAD
 1. `docs/RULES.md` — standing orders (read first, always)
 2. `docs/CONTEXT.md` — this file
-3. `docs/codex-orchestration.md` — completed task list (reference only)
-4. `docs/supportcoach-ai-context.md` — full master prompt
+3. `docs/codex-orchestration.md` — completed task list + Phase 2 active build plan
+4. `docs/supportcoach-ai-context.md` — full master prompt (Section 10k for Phase 2 architecture)
 
 ## NEW THREAD STARTER MESSAGE
-"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates all verified March 25, 2026. Extension landing page lives at /extension and is isolated. AI prompt was last enhanced April 27, 2026 with abandoned chat detection, screen sharing detection, transcript completeness awareness, and a hard limit of 2-3 timestamp citations per coaching message. Coaching Effectiveness Tracker is fully designed in CONTEXT.md and supportcoach-ai-context.md Section 10k — approved for Phase 2. Remaining work: dashboard UI polish, plan gating enforcement, duplicate PDF link, and Coaching Effectiveness Tracker."
+"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates all verified March 25, 2026. Extension landing page lives at /extension and is isolated. AI prompt was last enhanced April 27, 2026 with abandoned chat detection, screen sharing detection, transcript completeness awareness, and a hard limit of 2-3 timestamp citations per coaching message. **Phase 2 Coaching Effectiveness Tracker is in active build** — fully designed in master doc Section 10k and broken into 6 tasks in docs/codex-orchestration.md (PHASE 2 TASKS section). Build operates on structured coaching_points (specific_behavior + recommended_behavior) with AI-driven follow-through detection at analysis time, plan-gated lookback windows (Starter 30 / Pro 30-90 / Enterprise 30-90-365), and auto-generated follow-up coaching messages. Other remaining work: dashboard UI polish, plan gating enforcement, duplicate PDF link."
