@@ -450,7 +450,7 @@ STATUS: ✅ DONE
 | Dashboard UI polish (interior pages) | 1 day – 1 week | User decision on shadcn/ui direction pending |
 | Plan gating enforcement | 1-2 days | Scheduled after UI polish per agreed roadmap |
 | Duplicate PDF link to existing analysis (Section 8f) | 0.5 day | Approved for build post-Bangkok |
-| Coaching Effectiveness Tracker (Phase 2) | 3-5 days | See Phase 2 task list below |
+| Coaching Effectiveness Tracker (Phase 2) | 5-7 days | See Phase 2 task list below |
 | Password change flow | 1 day | Phase 2, post-Bangkok |
 | Self-signup improvements | 1-2 days | Phase 2, post-Bangkok |
 | Agent management | 2-3 days | Phase 2, post-Bangkok |
@@ -458,41 +458,80 @@ STATUS: ✅ DONE
 
 ---
 
-## PHASE 2 TASKS
+## PHASE 2 TASKS — COACHING EFFECTIVENESS TRACKER
 
 These tasks are scoped, designed, and approved for build. Reference Section 10k of `docs/supportcoach-ai-context.md` and the Coaching Effectiveness Tracker section in `docs/CONTEXT.md` for full design rationale.
 
-**Architectural overview:** The Coaching Effectiveness Tracker is a 4-layer system that tracks whether coaching is being delivered, whether agents are improving, and surfaces when the same coaching points are being repeated with no improvement. Layers must be built in order — each builds on the previous.
+**Architectural overview:**
+The Coaching Effectiveness Tracker is a 6-task system that tracks specific behavioral coaching points across an agent's chats over time, automatically detects when previously-coached behaviors recur in new chats, and surfaces those patterns with auto-generated follow-up coaching messages the manager can paste verbatim.
 
-**Build order:**
-1. Phase 2 Task 1 — Database schema + auto-check on Copy
-2. Phase 2 Task 2 — Manual delivery toggle + coaching notes on analysis page
-3. Phase 2 Task 3 — Settings toggle for auto-check behavior
-4. Phase 2 Task 4 — Coaching history view per agent
-5. Phase 2 Task 5 — Repeat pattern detection + repeated coaching flag
+**Core design decisions (locked):**
+- **Chat-level delivery tracking** — Copy Message click marks all coaching points from that chat as delivered together (matches the Copy button reality, simpler UI). Per-point granularity not needed for v1.
+- **Structured coaching points** — AI outputs `coaching_points: [{id, area, specific_behavior, recommended_behavior}]` alongside existing `copy_coaching_message`. Tags (area) stay generic for stats; specific_behavior + recommended_behavior are precise enough to check against future chats.
+- **AI-driven follow-through detection with manager override** — When analyzing a new chat, the AI is given the agent's previously-delivered coaching points within the lookback window, and outputs per-point status (`followed_through` / `repeated` / `no_opportunity`) with evidence. Manager can override on the analysis page.
+- **Auto-generated follow-up coaching message** — Templated string built from original coaching point + new chat where it recurred. Copy-to-clipboard button. No extra AI call needed.
+- **Plan-gated lookback windows:** Starter = 30 days only. Professional = 30 or 90 days (default 90). Enterprise = 30, 90, or 365 days (default 365). Hard cap at 365 days for "All time" to prevent runaway costs and stale data ("All time" labeled in UI as "All time (up to 365 days)").
+
+**Build order:** Tasks must be built in order — each builds on the previous. Tasks 1 and 2 are foundational. Tasks 3 and 4 add the manual control surface. Task 5 is the AI detection engine. Task 6 is the agent-facing UI that brings everything together.
 
 ---
 
-### PHASE 2 TASK 1: Database schema + Copy auto-check (Layer 3 foundation)
+### PHASE 2 TASK 1: Database schema + Copy auto-check (foundation)
 STATUS: ⏳ NOT STARTED
 
-**Why this is first:** Every other Phase 2 task depends on the `coaching_delivered` column existing and being populated. This task adds the column and starts populating it from the highest-intent signal (the Copy Message click).
+**Why this is first:** Every other Phase 2 task depends on these columns and tables existing. The Copy click is the highest-intent signal that coaching is about to happen, so we wire auto-marking on Copy in this task to start populating delivery data immediately.
 
 **SQL migration to run in Supabase SQL Editor:**
 
 ```sql
+-- Coaching delivery tracking columns on chat_analyses
 ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_delivered boolean DEFAULT false;
 ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_delivered_at timestamptz;
 ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_notes text;
+
+-- Structured coaching points (populated by Task 2 prompt update)
+ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_points jsonb DEFAULT '[]'::jsonb;
+
+-- Per-org auto-mark setting
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS auto_mark_coaching_delivered boolean DEFAULT true;
+
+-- Follow-through assessment table (populated by Task 5)
+CREATE TABLE IF NOT EXISTS coaching_followthrough (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  agent_name text NOT NULL,
+  source_analysis_id uuid NOT NULL REFERENCES chat_analyses(id) ON DELETE CASCADE,
+  source_coaching_point_id text NOT NULL,
+  detected_in_analysis_id uuid NOT NULL REFERENCES chat_analyses(id) ON DELETE CASCADE,
+  status text NOT NULL CHECK (status IN ('followed_through', 'repeated', 'no_opportunity')),
+  evidence text,
+  manager_override text CHECK (manager_override IS NULL OR manager_override IN ('followed_through', 'repeated', 'no_opportunity')),
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (source_analysis_id, source_coaching_point_id, detected_in_analysis_id)
+);
+
+-- RLS on the new table
+ALTER TABLE coaching_followthrough ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "coaching_followthrough_org_isolation" ON coaching_followthrough
+  FOR ALL
+  USING (organization_id IN (
+    SELECT organization_id FROM organization_memberships WHERE user_id = auth.uid()
+  ));
+
+-- Index for fast lookups by agent + org + date
+CREATE INDEX IF NOT EXISTS idx_coaching_followthrough_org_agent
+  ON coaching_followthrough(organization_id, agent_name, created_at DESC);
 ```
 
 **Create:** `src/app/api/update-coaching-delivery/route.ts`
 
 A POST endpoint that:
-- Accepts JSON body: `{ analysis_id: string, delivered: boolean, notes?: string }`
+- Accepts JSON body: `{ analysis_id: string, delivered: boolean, notes?: string, source: 'auto' | 'manual' }`
 - Verifies the user is authenticated
 - Verifies the analysis belongs to the user's organization (resolve org via `currentOrganization.ts`)
+- If `source === 'auto'`, fetch the org's `auto_mark_coaching_delivered` setting first. If false, return `{ success: true, skipped: true }` and do nothing. If true, proceed.
+- If `source === 'manual'`, always proceed (manual saves bypass the auto-check setting).
 - Updates `chat_analyses` row with: `coaching_delivered`, `coaching_delivered_at` (set to now() when delivered=true, null when delivered=false), `coaching_notes` (only if provided)
 - Returns JSON: `{ success: true }` or `{ error: string }` with appropriate status codes
 - Wraps DB call in try/catch
@@ -501,29 +540,84 @@ A POST endpoint that:
 **Edit:** `src/components/CopyButton.tsx`
 
 Read the full file first. Then:
-- After successful clipboard copy, fire a silent fetch POST to `/api/update-coaching-delivery` with `{ analysis_id, delivered: true }`
-- The analysis_id needs to be passed as a prop to CopyButton — check the parent (`src/app/analysis/[id]/page.tsx`) and add the prop where CopyButton is used
-- Auto-check ONLY fires if the org's `auto_mark_coaching_delivered` setting is true — fetch this from the org row before firing. If you cannot resolve org client-side cleanly, fire the call always and let the API route check the org setting and silently no-op if disabled.
-- The fetch is fire-and-forget (no await needed for UI). Wrap in try/catch so a failed call doesn't break the copy action.
+- After successful clipboard copy, fire a silent fetch POST to `/api/update-coaching-delivery` with `{ analysis_id, delivered: true, source: 'auto' }`
+- The `analysis_id` needs to be passed as a prop to CopyButton — check the parent (`src/app/analysis/[id]/page.tsx`) and add the prop where CopyButton is used
+- The fetch is fire-and-forget. Wrap in try/catch so a failed call doesn't break the copy action.
 - Do NOT change the existing copy behavior or UI — this is purely additive.
 
 **Test:**
-1. Run the SQL migration in Supabase. Verify all 4 columns exist.
+1. Run the SQL migration in Supabase. Verify all columns and the new table exist.
 2. Open an analysis page. Click Copy Message.
 3. Check the `chat_analyses` row in Supabase — `coaching_delivered` should be true, `coaching_delivered_at` should have a timestamp.
 4. Verify the existing copy-to-clipboard still works visually (toast/check mark).
-5. Verify nothing breaks if the user is logged out (the API route should reject the call cleanly).
+5. Verify nothing breaks if the user is logged out.
 
 **Files modified:** Approximately 2 (CopyButton.tsx, analysis page) + 1 created (API route).
 
-**Commit:** `git commit -m "Phase 2 Task 1: Coaching delivery tracking schema and Copy auto-check"`
+**Commit:** `git commit -m "Phase 2 Task 1: Coaching delivery schema, follow-through table, Copy auto-check"`
 
 ---
 
-### PHASE 2 TASK 2: Manual delivery toggle + coaching notes on analysis page (Layer 3 completion)
+### PHASE 2 TASK 2: Prompt update for structured coaching points
 STATUS: ⏳ NOT STARTED
 
-**Why this is second:** Managers who don't use the Copy button (e.g. they coach verbally or use their own template) need a way to manually mark coaching as delivered. They also need a place to add notes about what they actually said.
+**Why this is second:** The follow-through detection in Task 5 needs structured coaching points to compare against. This task updates both analysis routes to output the new `coaching_points` array. No UI changes yet — this is purely a data layer change. Existing `copy_coaching_message` stays untouched (managers still copy the same message; coaching_points is additive structured data).
+
+**Edit:** `src/app/api/process-jobs/route.ts` AND `src/app/api/reanalyze/route.ts`
+
+Read the full file of each first. Both routes have the same OpenAI system prompt and JSON schema — apply the same change to both.
+
+**Add to the system prompt (in the section that defines required output fields):**
+
+```
+COACHING POINTS — STRUCTURED OUTPUT
+
+In addition to the existing copy_coaching_message, output a coaching_points array. Each point captures one specific behavioral instruction that can be checked against the agent's future chats.
+
+Rules:
+- Output 1 to 3 coaching points per chat. Quality over quantity.
+- For abandoned chats (per existing rule), output an empty array: []
+- For chats where coaching is genuinely "no improvement needed," output an empty array.
+- Each point must be a discrete, observable behavior — not a generic tag.
+
+Each coaching_point must have this shape:
+{
+  "id": "<a short kebab-case slug unique within this chat, e.g. 'acknowledge-frustration-before-logistics'>",
+  "area": "<one of the existing improvement_areas tags, e.g. 'empathy', 'response_time', 'product_knowledge'>",
+  "specific_behavior": "<one sentence describing exactly what the agent did in this chat that needs change. Reference the actual situation. Example: 'When the customer expressed frustration about the refund delay, the agent immediately explained the 5-7 day processing timeline without acknowledging the frustration.'>",
+  "recommended_behavior": "<one sentence describing what the agent should do instead, in concrete terms the agent can apply in future chats. Example: 'Acknowledge the frustration first (\"I understand how frustrating this delay is\") before explaining the processing timeline.'>"
+}
+
+The specific_behavior must be precise enough that, given a different chat transcript later, you could check whether the agent did the same thing again or applied the recommended behavior.
+```
+
+**Update the JSON schema** the AI is instructed to return so it includes `coaching_points` as a required field (existing fields stay unchanged).
+
+**Update the response handling code** in both routes to:
+- Parse `coaching_points` from the AI response
+- Validate it's an array, default to `[]` if missing or invalid
+- Validate each point has the required fields, drop malformed entries silently
+- Save to `chat_analyses.coaching_points` column (jsonb)
+
+Do NOT touch any other prompt logic. Do NOT remove or change the existing `copy_coaching_message` generation.
+
+**Test:**
+1. Run a fresh analysis on a real chat that has coaching points.
+2. Check the `chat_analyses` row — `coaching_points` should be an array of 1-3 structured objects with all four fields populated.
+3. Check that `copy_coaching_message` is still generated identically to before.
+4. Re-analyze a chat using the per-chat re-analyze button. Verify it also populates `coaching_points`.
+5. Test on an abandoned chat — `coaching_points` should be `[]`.
+
+**Files modified:** 2 (`src/app/api/process-jobs/route.ts`, `src/app/api/reanalyze/route.ts`)
+
+**Commit:** `git commit -m "Phase 2 Task 2: AI prompt outputs structured coaching_points alongside copy_coaching_message"`
+
+---
+
+### PHASE 2 TASK 3: Manual delivery toggle + coaching notes on analysis page
+STATUS: ⏳ NOT STARTED
+
+**Why this is third:** Managers who don't use the Copy button (e.g. they coach verbally or use their own template) need a way to manually mark coaching as delivered, and a place to add notes about what they actually said.
 
 **Edit:** `src/app/analysis/[id]/page.tsx`
 
@@ -532,7 +626,7 @@ Read the full file first. Add a new section near the existing coaching message a
 - A checkbox or toggle labeled "Coaching delivered" — bound to `coaching_delivered` from the analysis row
 - A timestamp display: "Delivered on [date]" if `coaching_delivered_at` is set
 - A textarea labeled "Coaching notes (optional)" — bound to `coaching_notes`
-- A "Save" button that POSTs to `/api/update-coaching-delivery` with the current toggle and notes value
+- A "Save" button that POSTs to `/api/update-coaching-delivery` with `{ analysis_id, delivered, notes, source: 'manual' }`
 - After save, show a brief confirmation ("Saved")
 - Match existing dark theme styling
 
@@ -544,14 +638,14 @@ Read the full file first. Add a new section near the existing coaching message a
 
 **Files modified:** 1 (`src/app/analysis/[id]/page.tsx`)
 
-**Commit:** `git commit -m "Phase 2 Task 2: Manual coaching delivery toggle and notes on analysis page"`
+**Commit:** `git commit -m "Phase 2 Task 3: Manual coaching delivery toggle and notes on analysis page"`
 
 ---
 
-### PHASE 2 TASK 3: Settings toggle for auto-check behavior
+### PHASE 2 TASK 4: Settings toggle for auto-check behavior
 STATUS: ⏳ NOT STARTED
 
-**Why this is third:** Some managers want full manual control. This adds a per-org setting to disable the Copy auto-check from Task 1.
+**Why this is fourth:** Some managers want full manual control. This adds a per-org setting to disable the Copy auto-check from Task 1.
 
 **Edit:** `src/app/settings/page.tsx` (or `src/app/dashboard/settings/page.tsx` — read both, find the actual settings page)
 
@@ -561,112 +655,222 @@ Read the full file first. Add a new toggle section:
 - A toggle labeled "Automatically mark coaching as delivered when I click Copy Message"
 - Help text: "When enabled, clicking the Copy Message button on an analysis will mark coaching as delivered. Disable this if you prefer to manually toggle the delivered status yourself."
 - Bound to `organizations.auto_mark_coaching_delivered`
-- Save button that updates the org row via existing settings save mechanism (do not invent a new save flow — use whatever pattern the existing coaching context settings use)
+- Save button that updates the org row via the existing settings save mechanism (do not invent a new save flow — use whatever pattern the existing coaching context settings use)
 - Match existing styling
 
-**Edit:** `src/app/api/update-coaching-delivery/route.ts`
-
-If you implemented Task 1 with the API checking the org setting, no change needed.
-If you implemented Task 1 with the client checking the setting, ensure the API also checks it as a defense-in-depth — when `auto_mark_coaching_delivered` is false AND the request is the silent auto-fire from CopyButton (you'll need a flag to distinguish auto vs manual), the API silently no-ops with success. Manual saves from Task 2 always go through.
-
-**Suggested approach:** Add a `source: 'auto' | 'manual'` field to the API request body. CopyButton sends `source: 'auto'`. The manual save from Task 2 sends `source: 'manual'`. The API only checks the org setting when source is 'auto'.
+The API route from Task 1 already checks this setting when `source === 'auto'`, so no API changes needed here.
 
 **Test:**
 1. Open settings. Verify the new toggle appears, defaulted to ON.
 2. Toggle it OFF. Save.
 3. Open an analysis. Click Copy Message. Verify `coaching_delivered` does NOT change in DB.
-4. Use the manual toggle from Task 2 — verify it still works.
+4. Use the manual toggle from Task 3 — verify it still works.
 5. Toggle setting back ON. Click Copy. Verify auto-mark works again.
 
-**Files modified:** 2 (settings page + API route)
+**Files modified:** 1 (settings page)
 
-**Commit:** `git commit -m "Phase 2 Task 3: Settings toggle for coaching delivery auto-check"`
-
----
-
-### PHASE 2 TASK 4: Coaching history view per agent (Layer 1)
-STATUS: ⏳ NOT STARTED
-
-**Why this is fourth:** With delivery tracking populated by Tasks 1–3, the agent page can now show a meaningful longitudinal view.
-
-**Edit:** `src/app/dashboard/agent/[name]/page.tsx`
-
-Read the full file first. Add a new "Coaching History" section (either as a tab or a section below existing content — match what the page already does).
-
-The section shows a chronological list (newest first) of all chats analyzed for this agent, where each row displays:
-- Date of analysis (`created_at`)
-- Link to the chat analysis page (`/analysis/[id]`)
-- The improvement areas flagged (from existing `improvement_areas` or equivalent field — read the file to see what field name is used)
-- Scores at time of analysis (overall score and any sub-scores already shown elsewhere on this page)
-- Coaching delivered status: green check if `coaching_delivered = true`, gray dash if false
-- Delivery date if delivered
-
-Query requirements:
-- Filter by `organization_id`
-- Filter by agent name
-- Include `.eq('excluded', false)`
-- Order by `created_at` descending
-- No pagination needed for v1 — show all (we can add pagination later if needed)
-
-**Test:**
-1. Navigate to an agent page that has multiple analyzed chats.
-2. Verify the Coaching History section shows all chats in chronological order.
-3. Verify the delivered status reflects the actual DB state.
-4. Click a row — verify it navigates to the analysis page.
-5. Exclude a chat — verify it disappears from the history.
-
-**Files modified:** 1 (`src/app/dashboard/agent/[name]/page.tsx`)
-
-**Commit:** `git commit -m "Phase 2 Task 4: Coaching history view per agent"`
+**Commit:** `git commit -m "Phase 2 Task 4: Settings toggle for coaching delivery auto-check"`
 
 ---
 
-### PHASE 2 TASK 5: Repeat pattern detection + repeated coaching flag (Layers 2 + 4)
+### PHASE 2 TASK 5: Follow-through detection at analysis time
 STATUS: ⏳ NOT STARTED
 
-**Why this is last:** Requires data from Tasks 1–4 to be meaningful. This is the payoff — the system that surfaces "you've coached this 5 times with no improvement."
+**Why this is fifth:** With Tasks 1–4 done, structured coaching points are being generated and delivery is being tracked. Task 5 closes the loop — when analyzing a new chat, the AI checks whether previously-delivered coaching points recurred.
 
-**Build a server-side helper:** `src/lib/coachingPatterns.ts`
+**Add to `src/lib/planAccess.ts`** (read the file first):
 
-A function `detectAgentPatterns(organizationId: string, agentName: string)` that:
-- Queries all `chat_analyses` for that org + agent + `excluded = false`, ordered by `created_at` ascending
-- Builds a frequency map of improvement areas across those analyses
-- Returns an array of patterns where the same improvement area appears 3+ times, with shape:
-  ```
-  {
-    area: string,
-    occurrences: number,
-    coached_count: number,        // how many times coaching_delivered=true on those chats
-    avg_score_first_3: number,    // avg overall score on first 3 occurrences
-    avg_score_last_3: number,     // avg overall score on last 3 occurrences
-    no_improvement: boolean       // true if coached_count >= 3 AND last_3 not better than first_3 by margin (e.g. < 0.5 improvement)
-  }
-  ```
-- Threshold and margin values should be exported as constants at the top of the file so they can be tuned without rewriting logic
+A constant export defining the lookback windows per plan:
+
+```typescript
+export const COACHING_FOLLOWTHROUGH_WINDOW_DAYS = {
+  starter: 30,
+  professional: 90,
+  enterprise: 365,
+} as const;
+
+export function getFollowthroughWindowDays(plan: string): number {
+  if (plan === 'professional') return 90;
+  if (plan === 'enterprise') return 365;
+  return 30; // starter and trial
+}
+```
+
+Trial users get the Starter window (30 days) — they upgrade to unlock more.
+
+**Edit:** `src/app/api/process-jobs/route.ts` AND `src/app/api/reanalyze/route.ts`
+
+Read the full file of each first. Both routes need the same change.
+
+Before the OpenAI call, after the agent name is identified:
+
+1. Fetch the org's plan from `organizations` table (or accept it from a cached value if already loaded).
+2. Use `getFollowthroughWindowDays(plan)` to get the lookback window.
+3. Query `chat_analyses` for previously-delivered coaching points for this agent within the window:
+   ```
+   SELECT id, coaching_points, created_at
+   FROM chat_analyses
+   WHERE organization_id = $org
+     AND agent_name = $agent
+     AND coaching_delivered = true
+     AND excluded = false
+     AND created_at >= now() - interval '<window> days'
+     AND id != <current analysis id>
+   ORDER BY created_at DESC
+   LIMIT 30
+   ```
+   The `LIMIT 30` is a safety cap — even on Enterprise, more than 30 historical coaching events is too much prompt context.
+4. Flatten all `coaching_points` arrays into a single list with `{point_id, source_analysis_id, source_date, area, specific_behavior, recommended_behavior}`.
+
+**Add to the system prompt** (only when there are previously-delivered points to check):
+
+```
+PREVIOUSLY DELIVERED COACHING — FOLLOW-THROUGH CHECK
+
+This agent has been coached on the following specific behaviors in earlier chats. For each one, check whether the current chat shows:
+- followed_through: the agent applied the recommended behavior (or the situation arose and the agent handled it correctly)
+- repeated: the agent did the same thing the original coaching said NOT to do
+- no_opportunity: the situation that the coaching applies to did not arise in this chat
+
+Output a coaching_followthrough array. Each entry must have shape:
+{
+  "point_id": "<the original point_id>",
+  "source_analysis_id": "<the source analysis id>",
+  "status": "followed_through" | "repeated" | "no_opportunity",
+  "evidence": "<one short sentence quoting or describing what in the current chat supports this status; for no_opportunity, briefly state why the situation didn't arise>"
+}
+
+Be honest. If the situation didn't arise, say no_opportunity — do not invent follow-through.
+
+Previously delivered coaching points to check:
+<list of {point_id, source_date, area, specific_behavior, recommended_behavior}>
+```
+
+**Update the JSON schema** to include `coaching_followthrough` as an optional array (empty array when no prior coaching exists).
+
+**Process the AI response:**
+- Parse `coaching_followthrough` from the response
+- For each entry, validate `point_id` matches one of the points sent in
+- Insert one row into `coaching_followthrough` table per valid entry, with the current analysis as `detected_in_analysis_id`
+- Use `ON CONFLICT DO NOTHING` (or check for existing row first) to handle re-analyze idempotency
+
+**Edit:** `src/app/analysis/[id]/page.tsx`
+
+Read the full file first. Add a new "Previous Coaching Follow-Through" section, shown only if there are `coaching_followthrough` rows referencing this analysis as `detected_in_analysis_id`.
+
+For each entry:
+- Show the original specific_behavior + recommended_behavior + source date
+- Show the AI's status (color-coded: green = followed_through, amber = repeated, gray = no_opportunity)
+- Show the evidence quote
+- Provide a manager override dropdown — manager can change status. On change, POST to a new helper endpoint that updates the `manager_override` column in `coaching_followthrough`.
+
+**Create:** `src/app/api/update-followthrough-override/route.ts`
+
+A POST endpoint that:
+- Accepts `{ followthrough_id, override: 'followed_through' | 'repeated' | 'no_opportunity' | null }`
+- Verifies auth + org scope
+- Updates `coaching_followthrough.manager_override`
+- Returns success/error
+
+**Test:**
+1. Find an agent with at least one delivered coaching point from a recent chat.
+2. Upload and analyze a new chat for that same agent.
+3. After analysis completes, open the new analysis page.
+4. Verify a "Previous Coaching Follow-Through" section shows the prior point with a status.
+5. Verify the `coaching_followthrough` table has the new row.
+6. Use the manager override dropdown — verify the override saves.
+7. Test on a Starter plan org — verify only last 30 days of coaching is included.
+8. Verify analysis still completes if the agent has no prior delivered coaching (empty followthrough is fine).
+
+**Files modified:** 4 (`src/lib/planAccess.ts`, `src/app/api/process-jobs/route.ts`, `src/app/api/reanalyze/route.ts`, `src/app/analysis/[id]/page.tsx`) + 1 created (`src/app/api/update-followthrough-override/route.ts`)
+
+**Commit:** `git commit -m "Phase 2 Task 5: Follow-through detection at analysis time with manager override"`
+
+---
+
+### PHASE 2 TASK 6: Agent page — coaching history, follow-through scorecard, repeat detection with auto-generated follow-up message
+STATUS: ⏳ NOT STARTED
+
+**Why this is last:** This is the payoff. With all upstream data flowing (delivery, structured points, follow-through assessments), the agent page becomes the single place a manager goes to see the longitudinal picture and grab pre-written follow-up coaching messages.
+
+**Create:** `src/lib/coachingFollowthrough.ts`
+
+Server-side helper exporting:
+
+```typescript
+export async function getAgentCoachingHistory(supabase, organizationId, agentName) {
+  // Returns chronological list of analyses with coaching_points, delivered status, dates
+}
+
+export async function getAgentFollowthroughScorecard(supabase, organizationId, agentName, windowDays) {
+  // Returns { coached: number, followed: number, repeated: number, no_opportunity: number }
+  // Uses coaching_followthrough rows joined with chat_analyses to count
+  // Manager overrides take precedence over AI status
+}
+
+export async function getAgentRepeatedCoachings(supabase, organizationId, agentName, windowDays) {
+  // Returns array of repeat events:
+  // { source_point: {...}, source_analysis_id, source_date, detected_in_analysis_id, detected_date, evidence }
+  // One entry per (source_coaching_point, detected_in_analysis) pair where final status (override or AI) is 'repeated'
+}
+
+export function buildFollowupCoachingMessage(repeat: RepeatEvent, agentName: string): string {
+  // Returns a templated coaching script ready to paste
+  // Format:
+  // "On <source_date>, I coached you that <recommended_behavior>.
+  //  Looking at your chat from <detected_date>, I noticed the same pattern came up again — <evidence>.
+  //  What's blocking you from applying the new approach? Let's work through it."
+}
+```
+
+The threshold and template strings should be exported as constants at the top of the file so they can be tuned without rewriting logic.
 
 **Edit:** `src/app/dashboard/agent/[name]/page.tsx`
 
-Read the full file first. Above the Coaching History section from Task 4, add a "Patterns" section that:
-- Calls `detectAgentPatterns()` server-side
-- For each pattern returned, renders a card showing:
-  - The improvement area
-  - "Flagged in [N] chats over [date range]"
-  - "Coaching delivered [M] of [N] times"
-  - If `no_improvement` is true, show a flag: "⚠️ Repeated coaching with no measurable improvement"
-- If no patterns meet the threshold, show: "No repeat patterns detected for this agent."
-- Use a clear visual treatment for the no_improvement flag (e.g. amber border) — but do NOT prescribe an action. The flag is informational only.
+Read the full file first. Add three new sections, in this order, above existing content (or as tabs — match what the page already does):
+
+**Section A: Follow-Through Scorecard**
+- Window selector dropdown — options gated by plan:
+  - Starter: dropdown disabled, shows "30 days" (no other options)
+  - Professional: 30 days / 90 days (default 90)
+  - Enterprise: 30 days / 90 days / All time (up to 365 days) (default 365)
+- Stat cards: Coached (N), Followed Through (N), Repeated (N), No Opportunity (N)
+- Visual: green/amber/gray colored cards
+- Use `getAgentFollowthroughScorecard()` helper
+
+**Section B: Repeated Coaching**
+- Lists every repeat event in the selected window using `getAgentRepeatedCoachings()`
+- Each row card shows:
+  - "⚠️ Repeated coaching"
+  - Original coaching point (specific_behavior + recommended_behavior + source date with link to source analysis)
+  - Repeated in: detected_date with link to detected analysis
+  - Evidence quote
+  - Two buttons:
+    - **"Copy follow-up message"** — uses `buildFollowupCoachingMessage()` to put a pre-written script on the clipboard. Same UX as existing CopyButton (brief checkmark/toast).
+    - "View original chat" — link to source analysis page
+- If no repeats in window, show empty state: "No repeated coaching detected in this window."
+
+**Section C: Coaching History**
+- Chronological list (newest first) of all analyses for this agent within the selected window
+- Filter: `excluded = false`, `organization_id = $org`, `agent_name = $name`
+- Each row shows: date, link to analysis, improvement areas / coaching point areas, scores at time, delivered status (green check / gray dash), delivery date if delivered
+- Use `getAgentCoachingHistory()` helper
 
 **Test:**
-1. Pick an agent with at least 3 analyses where the same improvement area appears.
-2. Verify the pattern card appears with correct counts.
-3. Mark coaching delivered on those analyses (use the toggle from Task 2).
-4. Verify the "Coaching delivered M of N times" updates.
-5. Verify the no_improvement flag appears only when the threshold conditions are met.
-6. Verify an agent with no repeats shows the empty state message.
+1. Pick an agent with at least 2-3 analyzed chats and at least one delivered coaching point.
+2. Upload a new chat for that agent that triggers a repeat detection (Task 5 should populate it).
+3. Open the agent page.
+4. Verify scorecard shows correct counts.
+5. Verify Repeated Coaching section shows the repeat with both buttons.
+6. Click "Copy follow-up message" — verify a complete coaching script is in the clipboard.
+7. Paste it into a text editor and verify it reads naturally with all fields filled in.
+8. Switch the window dropdown (if Pro/Enterprise) — verify counts and lists update.
+9. On a Starter plan, verify dropdown is disabled at 30 days.
+10. Verify excluded chats are filtered out.
 
-**Files modified:** 1 (`src/app/dashboard/agent/[name]/page.tsx`) + 1 created (`src/lib/coachingPatterns.ts`)
+**Files modified:** 1 (`src/app/dashboard/agent/[name]/page.tsx`) + 1 created (`src/lib/coachingFollowthrough.ts`)
 
-**Commit:** `git commit -m "Phase 2 Task 5: Repeat pattern detection and repeated coaching flag"`
+**Commit:** `git commit -m "Phase 2 Task 6: Agent page coaching scorecard, repeated coaching with auto-generated follow-up message"`
 
 ---
 
