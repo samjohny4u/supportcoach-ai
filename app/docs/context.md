@@ -2,7 +2,7 @@
 # Last updated: April 30, 2026
 
 ## PROJECT STATUS
-- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete. Phase 2 (Coaching Effectiveness Tracker) about to begin.
+- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete. Phase 2 (Coaching Effectiveness Tracker) in progress; Task 1 complete.
 - **All MVP features are DONE**
 - **RLS security is ENABLED on all tables**
 - **Production deployment is LIVE at supportcoach.io**
@@ -102,9 +102,13 @@
   - codex-orchestration.md rewritten with 6-task Phase 2 plan
   - supportcoach-ai-context.md fully synced with Section 10k design (schema, prompt, file structure, plan tiers)
   - This CONTEXT.md updated to reflect new Section 10k design (was previously the older 4-layer design)
+- Phase 2 Task 1: Coaching delivery schema, follow-through table, Copy auto-check — DONE
+  - SQL migration was run manually in Supabase before code work
+  - Created `src/app/api/update-coaching-delivery/route.ts`
+  - Added CopyButton auto-mark wiring and passed analysis id from the analysis detail page
 
 ## CURRENT TASK
-- **Active build: Phase 2 — Coaching Effectiveness Tracker (Section 10k).** 6-task plan in docs/codex-orchestration.md. About to start Task 1 (database schema + Copy auto-check).
+- **Active build: Phase 2 — Coaching Effectiveness Tracker (Section 10k).** Task 1 is DONE. Next task is Task 2 (prompt update for structured coaching points).
 - Trial extended to 30 days via SQL for Bangkok travel (April 6–17, 2026)
 
 ## REMAINING BEFORE FULL LAUNCH
@@ -157,7 +161,7 @@
 
 | Task | What it does |
 |---|---|
-| 1 | DB schema (delivery columns + coaching_points jsonb + coaching_followthrough table + auto-mark setting) + /api/update-coaching-delivery route + Copy auto-check wiring |
+| 1 | DONE — DB schema (delivery columns + coaching_points jsonb + coaching_followthrough table + auto-mark setting) + /api/update-coaching-delivery route + Copy auto-check wiring |
 | 2 | Prompt update — both worker routes output structured coaching_points alongside existing copy_coaching_message. Data layer only, no UI change. |
 | 3 | Manual delivery toggle + notes UI on analysis page |
 | 4 | Settings toggle to disable Copy auto-check |
@@ -172,7 +176,7 @@
 - When `auto_mark_coaching_delivered` is false at the org level, auto-mark API call from CopyButton silently no-ops. Manual toggles always work regardless.
 - Manager overrides on coaching_followthrough rows take precedence over AI status everywhere.
 
-**Database schema (Phase 2 Task 1 SQL — to be run when Task 1 begins):**
+**Database schema (Phase 2 Task 1 SQL — already run manually in Supabase):**
 
 ```sql
 ALTER TABLE chat_analyses ADD COLUMN IF NOT EXISTS coaching_delivered boolean DEFAULT false;
@@ -299,7 +303,7 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 - `src/components/AppNav.tsx` — app-wide nav for all interior pages
 - `src/app/layout.tsx` — root layout, imports AppNav
 - `src/app/api/paddle-webhook/route.ts` — Paddle webhook receiver
-- `src/components/CopyButton.tsx` — will be modified in Phase 2 Task 1 to fire silent auto-mark on copy. Existing copy behavior must remain identical.
+- `src/components/CopyButton.tsx` — modified in Phase 2 Task 1 to fire silent auto-mark on copy. Existing copy behavior must remain identical.
 - `src/app/analysis/[id]/page.tsx` — will receive new sections in Phase 2 Tasks 2, 3, 5. Existing functionality (re-analyze, exclude, copy coaching message) must remain identical.
 - `src/app/extension/page.tsx` — Chrome Extension marketing page (isolated)
 - `src/app/api/extension-waitlist/route.ts` — Chrome Extension waitlist API (isolated)

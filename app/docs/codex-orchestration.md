@@ -477,7 +477,7 @@ The Coaching Effectiveness Tracker is a 6-task system that tracks specific behav
 ---
 
 ### PHASE 2 TASK 1: Database schema + Copy auto-check (foundation)
-STATUS: ⏳ NOT STARTED
+STATUS: ✅ DONE
 
 **Why this is first:** Every other Phase 2 task depends on these columns and tables existing. The Copy click is the highest-intent signal that coaching is about to happen, so we wire auto-marking on Copy in this task to start populating delivery data immediately.
 
