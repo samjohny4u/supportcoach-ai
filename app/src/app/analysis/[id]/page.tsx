@@ -112,7 +112,13 @@ function normalizeCoachingText(text: string) {
     .replace(/:four:/g, "4.");
 }
 
-function CoachingMessageSection({ text }: { text: string }) {
+function CoachingMessageSection({
+  text,
+  analysisId,
+}: {
+  text: string;
+  analysisId: string;
+}) {
   const normalized = normalizeCoachingText(text);
   const lines = normalized
     .split(/\r?\n/)
@@ -126,6 +132,7 @@ function CoachingMessageSection({ text }: { text: string }) {
         {text.trim() ? (
           <CopyButton
             text={text}
+            analysisId={analysisId}
             idleLabel="Copy Message"
             className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-300 hover:bg-indigo-500/20"
           />
@@ -403,7 +410,7 @@ export default async function AnalysisDetailPage({
         </div>
 
         <div className="mb-8">
-          <CoachingMessageSection text={coachingMessage} />
+          <CoachingMessageSection text={coachingMessage} analysisId={analysis.id} />
         </div>
 
         <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
