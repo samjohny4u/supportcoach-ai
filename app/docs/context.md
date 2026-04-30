@@ -108,9 +108,11 @@
   - Added CopyButton auto-mark wiring and passed analysis id from the analysis detail page
 - Phase 2 Task 2: AI prompt outputs structured coaching_points alongside copy_coaching_message — DONE
   - Updated process-jobs and reanalyze-analysis prompts and response handling
+- Phase 2 Task 3: Manual coaching delivery toggle and notes on analysis page — DONE
+  - Added analysis page controls for delivered status and optional coaching notes
 
 ## CURRENT TASK
-- **Active build: Phase 2 — Coaching Effectiveness Tracker (Section 10k).** Tasks 1 and 2 are DONE. Next task is Task 3 (manual delivery toggle + notes UI).
+- **Active build: Phase 2 — Coaching Effectiveness Tracker (Section 10k).** Tasks 1, 2, and 3 are DONE. Next task is Task 4 (settings toggle for Copy auto-check).
 - Trial extended to 30 days via SQL for Bangkok travel (April 6–17, 2026)
 
 ## REMAINING BEFORE FULL LAUNCH

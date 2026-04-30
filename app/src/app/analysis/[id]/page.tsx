@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServer } from "../../../lib/supabaseServer";
 import { getCurrentOrganization } from "../../../lib/currentOrganization";
 import CopyButton from "../../../components/CopyButton";
+import CoachingDeliveryControls from "../../../components/CoachingDeliveryControls";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,6 +40,9 @@ type Analysis = {
   customer_frustration_present: boolean | null;
   escalation_done_well: boolean | null;
   excluded: boolean | null;
+  coaching_delivered: boolean | null;
+  coaching_delivered_at: string | null;
+  coaching_notes: string | null;
 };
 
 function ListSection({
@@ -390,6 +394,15 @@ export default async function AnalysisDetailPage({
               </button>
             </form>
           </div>
+        </div>
+
+        <div className="mb-8">
+          <CoachingDeliveryControls
+            analysisId={String(analysis.id)}
+            initialDelivered={analysis.coaching_delivered === true}
+            initialDeliveredAt={analysis.coaching_delivered_at}
+            initialNotes={analysis.coaching_notes || ""}
+          />
         </div>
 
         <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">

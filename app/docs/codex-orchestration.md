@@ -615,7 +615,7 @@ Do NOT touch any other prompt logic. Do NOT remove or change the existing `copy_
 ---
 
 ### PHASE 2 TASK 3: Manual delivery toggle + coaching notes on analysis page
-STATUS: ⏳ NOT STARTED
+STATUS: ✅ DONE
 
 **Why this is third:** Managers who don't use the Copy button (e.g. they coach verbally or use their own template) need a way to manually mark coaching as delivered, and a place to add notes about what they actually said.
 
