@@ -643,7 +643,9 @@ Read the full file first. Add a new section near the existing coaching message a
 ---
 
 ### PHASE 2 TASK 4: Settings toggle for auto-check behavior
-STATUS: ⏳ NOT STARTED
+STATUS: ✅ DONE
+
+Completed: Settings page toggle wired to `organizations.auto_mark_coaching_delivered`; existing auto-mark API no-op behavior handles the backend.
 
 **Why this is fourth:** Some managers want full manual control. This adds a per-org setting to disable the Copy auto-check from Task 1.
 

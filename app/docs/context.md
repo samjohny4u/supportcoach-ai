@@ -2,7 +2,7 @@
 # Last updated: May 1, 2026
 
 ## PROJECT STATUS
-- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete. Phase 2 (Coaching Effectiveness Tracker) in progress; Tasks 1, 2, 3, and 5 complete.
+- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete. Phase 2 (Coaching Effectiveness Tracker) in progress; Tasks 1, 2, 3, 4, and 5 complete.
 - **All MVP features are DONE**
 - **RLS security is ENABLED on all tables**
 - **Production deployment is LIVE at supportcoach.io**
@@ -109,13 +109,14 @@
 - Phase 2 Task 2: Structured coaching_points output added to both worker and reanalyze routes — DONE (verified end-to-end with Subaiqua chat 292)
 - Phase 2 Task 3: Manual coaching delivery toggle and notes UI on analysis page — DONE
 - Phase 2 Task 3 hotfix: allow clearing coaching notes via empty string (May 1, 2026) — client now always sends notes including "", API only updates coaching_notes when source === 'manual' — DONE
+- Phase 2 Task 4: Settings toggle for Copy auto-mark wired to organizations.auto_mark_coaching_delivered — DONE
 - Phase 2 Task 5: Follow-through detection at analysis time + manager override UI — DONE (verified end-to-end on Subaiqua chat 288)
 - Phase 2 Task 5 hotfix: ISO date format on follow-through section to avoid React hydration error #418 (May 1, 2026) — replaced toLocaleDateString() with toISOString().split("T")[0] — DONE
 - Phase 2 Task 5 polish: hide no_opportunity rows from analysis page display, show "Prior coaching evaluated for this chat — no action needed." note when all rows filtered out, reorder Coaching Delivery and Previous Coaching Follow-Through to below the Coaching message section, rename "Copy Coaching Message" heading to "Coaching" (May 1, 2026) — DONE
 
 ## CURRENT TASK
-- Phase 2 Tasks 1, 2, 3, 5 complete and verified in production. Task 4 (settings toggle for Copy auto-check) and Task 6 (agent page scorecard + repeated coaching cards) remain.
-- Recommended next: Task 4 first (small, ~15 min), then Task 6 (larger).
+- Phase 2 Tasks 1, 2, 3, 4, 5 complete. Task 6 (agent page scorecard + repeated coaching cards) remains.
+- Recommended next: Task 6.
 - All architectural decisions for Tasks 4 and 6 are locked in Section 10k of supportcoach-ai-context.md and the PHASE 2 TASKS section of codex-orchestration.md. No new design conversation needed before building.
 
 ## REMAINING BEFORE FULL LAUNCH
@@ -171,7 +172,7 @@
 | 1 | DONE — DB schema (delivery columns + coaching_points jsonb + coaching_followthrough table + auto-mark setting) + /api/update-coaching-delivery route + Copy auto-check wiring |
 | 2 | DONE — Prompt update: both worker routes output structured coaching_points alongside existing copy_coaching_message. Data layer only, no UI change. |
 | 3 | DONE — Manual delivery toggle + notes UI on analysis page |
-| 4 | Settings toggle to disable Copy auto-check |
+| 4 | DONE — Settings toggle to disable Copy auto-check |
 | 5 | DONE — AI follow-through detection at analysis time (gets prior delivered coaching points within plan window, AI outputs per-point status) + manager override UI on analysis page + /api/update-followthrough-override route |
 | 6 | Agent page: scorecard + repeated coaching cards with "Copy follow-up message" button + coaching history view |
 

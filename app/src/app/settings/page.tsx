@@ -43,6 +43,33 @@ export default async function SettingsPage({
     }
   }
 
+  async function saveAutoMarkSetting(formData: FormData) {
+    "use server";
+
+    try {
+      const { organizationId } = await getCurrentOrganization();
+      const autoMarkEnabled = formData.get("auto_mark") === "on";
+
+      const { error } = await supabaseAdmin
+        .from("organizations")
+        .update({ auto_mark_coaching_delivered: autoMarkEnabled })
+        .eq("id", organizationId);
+
+      if (error) {
+        redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+      }
+
+      revalidatePath("/settings");
+      redirect("/settings?saved=1");
+    } catch (error: any) {
+      redirect(
+        `/settings?error=${encodeURIComponent(
+          error?.message || "Failed to save coaching delivery tracking preference."
+        )}`
+      );
+    }
+  }
+
   const supabaseAuth = await createSupabaseServer();
   const {
     data: { user },
@@ -80,7 +107,7 @@ export default async function SettingsPage({
 
   const { data: organization, error } = await supabaseAdmin
     .from("organizations")
-    .select("name, coaching_context")
+    .select("name, coaching_context, auto_mark_coaching_delivered")
     .eq("id", organizationId)
     .single();
 
@@ -105,6 +132,10 @@ export default async function SettingsPage({
     organization.coaching_context.trim().length > 0
       ? organization.coaching_context.trim()
       : "";
+  const autoMarkEnabled =
+    typeof organization.auto_mark_coaching_delivered === "boolean"
+      ? organization.auto_mark_coaching_delivered
+      : true;
 
   return (
     <main className="px-6 py-16">
@@ -170,6 +201,38 @@ export default async function SettingsPage({
                 className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-5 py-3 text-sm font-semibold text-indigo-300 hover:bg-indigo-500/20"
               >
                 Save Context
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-white/10 bg-[#081225] p-8">
+          <h2 className="mb-3 text-2xl font-bold text-white">Coaching Delivery Tracking</h2>
+
+          <p className="mb-6 text-sm leading-6 text-gray-300">
+            When enabled, copying a coaching message automatically marks it as delivered.
+            When disabled, managers must mark delivery manually from the analysis page.
+          </p>
+
+          <form action={saveAutoMarkSetting} className="space-y-5">
+            <label className="flex items-center gap-3 text-sm text-gray-200">
+              <input
+                type="checkbox"
+                name="auto_mark"
+                defaultChecked={autoMarkEnabled}
+                className="h-4 w-4 rounded border-white/20 bg-black"
+              />
+              <span className="font-medium">
+                Automatically mark coaching as delivered when Copy is clicked
+              </span>
+            </label>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-5 py-3 text-sm font-semibold text-indigo-300 hover:bg-indigo-500/20"
+              >
+                Save Preference
               </button>
             </div>
           </form>
