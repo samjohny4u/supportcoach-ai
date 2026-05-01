@@ -40,17 +40,15 @@ export default function CoachingDeliveryControls({
       analysis_id: string;
       delivered: boolean;
       source: "manual";
-      notes?: string;
+      notes: string;
     } = {
       analysis_id: analysisId,
       delivered,
       source: "manual",
+      notes: "",
     };
 
-    const trimmedNotes = notes.trim();
-    if (trimmedNotes.length > 0) {
-      payload.notes = trimmedNotes;
-    }
+    payload.notes = notes.trim();
 
     try {
       const res = await fetch("/api/update-coaching-delivery", {

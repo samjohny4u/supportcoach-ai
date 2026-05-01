@@ -127,7 +127,7 @@ export async function POST(req: Request) {
     coaching_delivered_at: body.delivered ? new Date().toISOString() : null,
   };
 
-  if (typeof body.notes === "string") {
+  if (source === "manual" && typeof body.notes === "string") {
     updatePayload.coaching_notes = cleanString(body.notes);
   }
 
