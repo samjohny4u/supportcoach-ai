@@ -1,8 +1,8 @@
 # SUPPORTCOACH AI — CONTEXT FILE
-# Last updated: April 30, 2026
+# Last updated: May 1, 2026
 
 ## PROJECT STATUS
-- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete. Phase 2 (Coaching Effectiveness Tracker) in progress; Task 1 complete.
+- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete. Phase 2 (Coaching Effectiveness Tracker) in progress; Tasks 1, 2, 3, and 5 complete.
 - **All MVP features are DONE**
 - **RLS security is ENABLED on all tables**
 - **Production deployment is LIVE at supportcoach.io**
@@ -106,16 +106,17 @@
   - SQL migration was run manually in Supabase before code work
   - Created `src/app/api/update-coaching-delivery/route.ts`
   - Added CopyButton auto-mark wiring and passed analysis id from the analysis detail page
-- Phase 2 Task 2: AI prompt outputs structured coaching_points alongside copy_coaching_message — DONE
-  - Updated process-jobs and reanalyze-analysis prompts and response handling
-- Phase 2 Task 3: Manual coaching delivery toggle and notes on analysis page — DONE
-  - Added analysis page controls for delivered status and optional coaching notes
-- Phase 2 Task 5: Follow-through detection at analysis time with manager override — DONE
-  - Added prior delivered coaching point fetch, follow-through prompt injection, coaching_followthrough persistence, re-analysis refresh, and manager override UI
+- Phase 2 Task 2: Structured coaching_points output added to both worker and reanalyze routes — DONE (verified end-to-end with Subaiqua chat 292)
+- Phase 2 Task 3: Manual coaching delivery toggle and notes UI on analysis page — DONE
+- Phase 2 Task 3 hotfix: allow clearing coaching notes via empty string (May 1, 2026) — client now always sends notes including "", API only updates coaching_notes when source === 'manual' — DONE
+- Phase 2 Task 5: Follow-through detection at analysis time + manager override UI — DONE (verified end-to-end on Subaiqua chat 288)
+- Phase 2 Task 5 hotfix: ISO date format on follow-through section to avoid React hydration error #418 (May 1, 2026) — replaced toLocaleDateString() with toISOString().split("T")[0] — DONE
+- Phase 2 Task 5 polish: hide no_opportunity rows from analysis page display, show "Prior coaching evaluated for this chat — no action needed." note when all rows filtered out, reorder Coaching Delivery and Previous Coaching Follow-Through to below the Coaching message section, rename "Copy Coaching Message" heading to "Coaching" (May 1, 2026) — DONE
 
 ## CURRENT TASK
-- **Active build: Phase 2 — Coaching Effectiveness Tracker (Section 10k).** Tasks 1, 2, 3, and 5 are DONE. Task 4 remains not started. Next task is Task 4 (settings toggle for Copy auto-check).
-- Trial extended to 30 days via SQL for Bangkok travel (April 6–17, 2026)
+- Phase 2 Tasks 1, 2, 3, 5 complete and verified in production. Task 4 (settings toggle for Copy auto-check) and Task 6 (agent page scorecard + repeated coaching cards) remain.
+- Recommended next: Task 4 first (small, ~15 min), then Task 6 (larger).
+- All architectural decisions for Tasks 4 and 6 are locked in Section 10k of supportcoach-ai-context.md and the PHASE 2 TASKS section of codex-orchestration.md. No new design conversation needed before building.
 
 ## REMAINING BEFORE FULL LAUNCH
 1. **Coaching Effectiveness Tracker (Section 10k Phase 2)** — 6 tasks, in active build. See orchestration doc.
@@ -168,10 +169,10 @@
 | Task | What it does |
 |---|---|
 | 1 | DONE — DB schema (delivery columns + coaching_points jsonb + coaching_followthrough table + auto-mark setting) + /api/update-coaching-delivery route + Copy auto-check wiring |
-| 2 | Prompt update — both worker routes output structured coaching_points alongside existing copy_coaching_message. Data layer only, no UI change. |
-| 3 | Manual delivery toggle + notes UI on analysis page |
+| 2 | DONE — Prompt update: both worker routes output structured coaching_points alongside existing copy_coaching_message. Data layer only, no UI change. |
+| 3 | DONE — Manual delivery toggle + notes UI on analysis page |
 | 4 | Settings toggle to disable Copy auto-check |
-| 5 | AI follow-through detection at analysis time (gets prior delivered coaching points within plan window, AI outputs per-point status) + manager override UI on analysis page + /api/update-followthrough-override route |
+| 5 | DONE — AI follow-through detection at analysis time (gets prior delivered coaching points within plan window, AI outputs per-point status) + manager override UI on analysis page + /api/update-followthrough-override route |
 | 6 | Agent page: scorecard + repeated coaching cards with "Copy follow-up message" button + coaching history view |
 
 **Key architectural rules:**
@@ -250,6 +251,8 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 - Supabase RLS returns 406 on client-side subscriptions query — non-blocking, page works without it
 - VS Code shows false TypeScript error "Cannot find module @/components/AppNav" — stale cache issue, does not affect Vercel build
 - Upload page only accepts one file at a time despite UI saying "file(s)" and despite duplicate detection logic supporting multiple files. Likely a missing multiple attribute on the file input or drag-and-drop handler reading only the first file. Investigation deferred — fix as a small standalone task after Phase 2 Task 1 commits.
+- Lingering React hydration error #418 on the analysis page after Task 5 polish (May 1, 2026): page renders fully and all sections work, but DevTools console shows a soft hydration mismatch the AI auto-recovers from. Cause not yet diagnosed (the obvious one — toLocaleDateString — was fixed in the Task 5 ISO date hotfix). Non-blocking. Investigate during dashboard UI polish pass.
+- Coaching section heading rename (May 1, 2026, fixed): "Copy Coaching Message" was confusing because the section contains a coaching message AND a Copy button — the title described the action, not the content. Renamed to "Coaching".
 - To reset testing account after cancelling a subscription: run `UPDATE organizations SET plan='trial', trial_ends_at=now()+interval '14 days' WHERE id='8e71dc46-e674-4131-8709-506223a35d7e';` and `DELETE FROM subscriptions WHERE organization_id='8e71dc46-e674-4131-8709-506223a35d7e';`
 
 ## ISOLATED FILES — DO NOT TOUCH UNLESS EXPLICITLY ASKED
@@ -299,6 +302,7 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
   - LIMIT 15 prior coaching points per analysis regardless of plan.
   - Manager overrides take precedence over AI status everywhere.
   - Existing copy_coaching_message preserved unchanged — coaching_points is additive structured data.
+- Phase 2 Task 5 display filter (May 1, 2026): the analysis page hides coaching_followthrough rows where the final status (manager_override or AI status) is "no_opportunity". This filter is DISPLAY-ONLY on the analysis page. The DB rows still exist for all three statuses. Task 6 (agent page scorecard) MUST count all three statuses (followed_through, repeated, no_opportunity) when building the scorecard totals — do NOT inherit this filter into Task 6. The scorecard is meant to be honest about what was evaluated; the analysis page filter exists only to reduce per-chat noise for the manager.
 
 ## FILES THAT MUST NOT BREAK
 - `src/app/api/process-jobs/route.ts` — the core worker
@@ -309,12 +313,17 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 - `middleware.ts` — auth + subscription lock check
 - `src/lib/paddle.ts` — Paddle price mapping and webhook verification
 - `src/lib/planAccess.ts` — plan gating logic (will be extended in Phase 2 Task 5 with getFollowthroughWindowDays helper)
+- `src/app/api/update-coaching-delivery/route.ts` — Phase 2 Task 1 + Task 3 hotfix. Auto-mark from CopyButton must remain silent no-op when org auto-mark setting is false. Manual save must always update coaching_notes including empty string.
 - `src/app/page.tsx` — public landing page
 - `src/components/AppNav.tsx` — app-wide nav for all interior pages
 - `src/app/layout.tsx` — root layout, imports AppNav
 - `src/app/api/paddle-webhook/route.ts` — Paddle webhook receiver
+- `src/app/api/update-followthrough-override/route.ts` — Phase 2 Task 5. Manager override endpoint, used by FollowthroughOverrideSelect.
+- `src/lib/coachingFollowthroughFetch.ts` — Phase 2 Task 5. Helper for fetching prior delivered coaching and building the follow-through prompt section. Hard cap at COACHING_FOLLOWTHROUGH_LIMIT = 15 prior points per analysis.
 - `src/components/CopyButton.tsx` — modified in Phase 2 Task 1 to fire silent auto-mark on copy. Existing copy behavior must remain identical.
 - `src/app/analysis/[id]/page.tsx` — will receive new sections in Phase 2 Tasks 2, 3, 5. Existing functionality (re-analyze, exclude, copy coaching message) must remain identical.
+- `src/components/CoachingDeliveryControls.tsx` — Phase 2 Task 3. Client component for manual delivery toggle and notes. Must always send notes field (including "") with source: "manual" payload.
+- `src/components/FollowthroughOverrideSelect.tsx` — Phase 2 Task 5. Client component for per-row manager override of AI follow-through assessment.
 - `src/app/extension/page.tsx` — Chrome Extension marketing page (isolated)
 - `src/app/api/extension-waitlist/route.ts` — Chrome Extension waitlist API (isolated)
 
