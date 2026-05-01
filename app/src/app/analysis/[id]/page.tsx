@@ -369,7 +369,7 @@ export default async function AnalysisDetailPage({
         source_recommended_behavior: recommendedBehavior,
         source_area: area,
         source_date: source.created_at
-          ? new Date(source.created_at).toLocaleDateString()
+          ? new Date(source.created_at).toISOString().split("T")[0]
           : "",
       });
     }
