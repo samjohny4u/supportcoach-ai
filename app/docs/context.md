@@ -110,9 +110,11 @@
   - Updated process-jobs and reanalyze-analysis prompts and response handling
 - Phase 2 Task 3: Manual coaching delivery toggle and notes on analysis page — DONE
   - Added analysis page controls for delivered status and optional coaching notes
+- Phase 2 Task 5: Follow-through detection at analysis time with manager override — DONE
+  - Added prior delivered coaching point fetch, follow-through prompt injection, coaching_followthrough persistence, re-analysis refresh, and manager override UI
 
 ## CURRENT TASK
-- **Active build: Phase 2 — Coaching Effectiveness Tracker (Section 10k).** Tasks 1, 2, and 3 are DONE. Next task is Task 4 (settings toggle for Copy auto-check).
+- **Active build: Phase 2 — Coaching Effectiveness Tracker (Section 10k).** Tasks 1, 2, 3, and 5 are DONE. Task 4 remains not started. Next task is Task 4 (settings toggle for Copy auto-check).
 - Trial extended to 30 days via SQL for Bangkok travel (April 6–17, 2026)
 
 ## REMAINING BEFORE FULL LAUNCH
@@ -159,7 +161,7 @@
    - Professional: 30 or 90 days. Default 90.
    - Enterprise: 30, 90, or 365 days. Default 365. Labeled in UI as "All time (up to 365 days)" — the 365-day cap is a hard upper bound to protect against runaway costs and stale data.
    - Trial users get the Starter window (30 days).
-   - Hard `LIMIT 30` on prior coaching points sent into any single analysis applies to all plans.
+   - Hard `LIMIT 15` on prior coaching points sent into any single analysis applies to all plans.
 
 **6-task build order:**
 
@@ -217,6 +219,8 @@ CREATE INDEX IF NOT EXISTS idx_coaching_followthrough_org_agent
 Created:
 - src/app/api/update-coaching-delivery/route.ts
 - src/app/api/update-followthrough-override/route.ts
+- src/components/FollowthroughOverrideSelect.tsx
+- src/lib/coachingFollowthroughFetch.ts
 - src/lib/coachingFollowthrough.ts
 
 Modified:
@@ -292,7 +296,7 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
   - Auto-generated follow-up coaching message via template — no extra AI call, populated from data we already have.
   - Plan-gated lookback windows: Starter 30 days only, Pro 30/90 (default 90), Enterprise 30/90/365 (default 365). Hard cap at 365 days for "All time" — protects against runaway costs and stale data.
   - Trial users get Starter window (30 days).
-  - LIMIT 30 prior coaching points per analysis regardless of plan.
+  - LIMIT 15 prior coaching points per analysis regardless of plan.
   - Manager overrides take precedence over AI status everywhere.
   - Existing copy_coaching_message preserved unchanged — coaching_points is additive structured data.
 

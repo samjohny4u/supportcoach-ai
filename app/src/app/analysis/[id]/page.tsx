@@ -4,6 +4,7 @@ import { createSupabaseServer } from "../../../lib/supabaseServer";
 import { getCurrentOrganization } from "../../../lib/currentOrganization";
 import CopyButton from "../../../components/CopyButton";
 import CoachingDeliveryControls from "../../../components/CoachingDeliveryControls";
+import FollowthroughOverrideSelect from "../../../components/FollowthroughOverrideSelect";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,6 +44,13 @@ type Analysis = {
   coaching_delivered: boolean | null;
   coaching_delivered_at: string | null;
   coaching_notes: string | null;
+};
+
+type CoachingPointRecord = {
+  id?: unknown;
+  area?: unknown;
+  specific_behavior?: unknown;
+  recommended_behavior?: unknown;
 };
 
 function ListSection({
@@ -289,6 +297,84 @@ export default async function AnalysisDetailPage({
   }
 
   const analysis = data as Analysis;
+  const { data: followthroughData } = await supabase
+    .from("coaching_followthrough")
+    .select("id, source_analysis_id, source_coaching_point_id, status, evidence, manager_override, created_at")
+    .eq("organization_id", organizationId)
+    .eq("detected_in_analysis_id", id)
+    .order("created_at", { ascending: true });
+
+  const followthroughRows = Array.isArray(followthroughData) ? followthroughData : [];
+
+  const followthroughDisplayRows: Array<{
+    id: string;
+    source_analysis_id: string;
+    source_coaching_point_id: string;
+    status: string;
+    evidence: string;
+    manager_override: string | null;
+    source_specific_behavior: string;
+    source_recommended_behavior: string;
+    source_area: string;
+    source_date: string;
+  }> = [];
+
+  if (followthroughRows.length > 0) {
+    const sourceIds = Array.from(
+      new Set(followthroughRows.map((row) => row.source_analysis_id))
+    );
+
+    const { data: sourceAnalyses } = await supabase
+      .from("chat_analyses")
+      .select("id, coaching_points, created_at")
+      .eq("organization_id", organizationId)
+      .in("id", sourceIds);
+
+    const sourceMap = new Map<string, { coaching_points: unknown; created_at: string | null }>();
+    for (const row of sourceAnalyses || []) {
+      sourceMap.set(String(row.id), {
+        coaching_points: row.coaching_points,
+        created_at: row.created_at,
+      });
+    }
+
+    for (const row of followthroughRows) {
+      const source = sourceMap.get(String(row.source_analysis_id));
+      if (!source || !Array.isArray(source.coaching_points)) continue;
+
+      const matchingPoint = source.coaching_points.find((point: CoachingPointRecord) => {
+        return point && typeof point === "object" && point.id === row.source_coaching_point_id;
+      });
+
+      if (!matchingPoint || typeof matchingPoint !== "object") continue;
+
+      const specificBehavior =
+        typeof matchingPoint.specific_behavior === "string"
+          ? matchingPoint.specific_behavior
+          : "";
+      const recommendedBehavior =
+        typeof matchingPoint.recommended_behavior === "string"
+          ? matchingPoint.recommended_behavior
+          : "";
+      const area = typeof matchingPoint.area === "string" ? matchingPoint.area : "";
+
+      followthroughDisplayRows.push({
+        id: String(row.id),
+        source_analysis_id: String(row.source_analysis_id),
+        source_coaching_point_id: row.source_coaching_point_id,
+        status: row.status,
+        evidence: row.evidence || "",
+        manager_override: row.manager_override,
+        source_specific_behavior: specificBehavior,
+        source_recommended_behavior: recommendedBehavior,
+        source_area: area,
+        source_date: source.created_at
+          ? new Date(source.created_at).toLocaleDateString()
+          : "",
+      });
+    }
+  }
+
   const coachingMessage = analysis.copy_coaching_message?.trim() || "";
   const quickSummary = analysis.quick_summary?.trim() || "";
   const isExcluded = analysis.excluded === true;
@@ -404,6 +490,91 @@ export default async function AnalysisDetailPage({
             initialNotes={analysis.coaching_notes || ""}
           />
         </div>
+
+        {followthroughDisplayRows.length > 0 ? (
+          <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
+            <h2 className="mb-2 text-2xl font-semibold text-white">
+              Previous Coaching Follow-Through
+            </h2>
+            <p className="mb-5 text-sm text-gray-400">
+              Assessments of how this chat reflects on prior coaching delivered to this agent.
+            </p>
+
+            <div className="space-y-4">
+              {followthroughDisplayRows.map((row) => {
+                const finalStatus = row.manager_override || row.status;
+                const statusClasses =
+                  finalStatus === "followed_through"
+                    ? "border-emerald-500/20 bg-emerald-500/15 text-emerald-300"
+                    : finalStatus === "repeated"
+                      ? "border-amber-500/20 bg-amber-500/15 text-amber-300"
+                      : "border-white/10 bg-white/5 text-gray-300";
+
+                const statusLabel =
+                  finalStatus === "followed_through"
+                    ? "Followed through"
+                    : finalStatus === "repeated"
+                      ? "Repeated"
+                      : "No opportunity";
+
+                return (
+                  <div
+                    key={row.id}
+                    className="rounded-2xl border border-white/10 bg-black/20 p-5"
+                  >
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                      <div
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase ${statusClasses}`}
+                      >
+                        {statusLabel}
+                        {row.manager_override ? " (override)" : ""}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Originally coached on {row.source_date || "unknown date"}
+                      </div>
+                    </div>
+
+                    <div className="mb-3 text-sm text-gray-200">
+                      <span className="text-xs uppercase tracking-wide text-gray-500">
+                        Original behavior
+                      </span>
+                      <p className="mt-1">{row.source_specific_behavior}</p>
+                    </div>
+
+                    <div className="mb-3 text-sm text-gray-200">
+                      <span className="text-xs uppercase tracking-wide text-gray-500">
+                        Recommended behavior
+                      </span>
+                      <p className="mt-1">{row.source_recommended_behavior}</p>
+                    </div>
+
+                    {row.evidence ? (
+                      <div className="mb-3 text-sm text-gray-200">
+                        <span className="text-xs uppercase tracking-wide text-gray-500">
+                          Evidence in this chat
+                        </span>
+                        <p className="mt-1 italic text-gray-300">{row.evidence}</p>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <a
+                        href={`/analysis/${row.source_analysis_id}`}
+                        className="text-xs font-semibold text-indigo-300 hover:text-indigo-200"
+                      >
+                        View original chat -&gt;
+                      </a>
+                      <FollowthroughOverrideSelect
+                        followthroughId={row.id}
+                        initialOverride={row.manager_override}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">

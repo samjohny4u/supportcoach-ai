@@ -231,3 +231,18 @@ export function isUpgrade(currentPlan: string, newPlan: string): boolean {
   const newLevel = PLAN_HIERARCHY[newPlan] ?? 0;
   return newLevel > currentLevel;
 }
+
+export const COACHING_FOLLOWTHROUGH_WINDOW_DAYS = {
+  starter: 30,
+  professional: 90,
+  enterprise: 365,
+} as const;
+
+export const COACHING_FOLLOWTHROUGH_LIMIT = 15;
+
+export function getFollowthroughWindowDays(plan: string | null | undefined): number {
+  const normalized = (plan || "").toLowerCase().trim();
+  if (normalized === "professional") return 90;
+  if (normalized === "enterprise") return 365;
+  return 30; // starter, trial, or unknown
+}

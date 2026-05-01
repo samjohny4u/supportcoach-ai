@@ -3,6 +3,11 @@ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabaseServer";
 import { getCurrentOrganization } from "@/lib/currentOrganization";
+import {
+  fetchPriorDeliveredCoachingPoints,
+  buildFollowthroughPromptSection,
+  type PriorCoachingPoint,
+} from "@/lib/coachingFollowthroughFetch";
 
 export const runtime = "nodejs";
 
@@ -29,6 +34,7 @@ type AnalysisResult = {
   quick_summary?: string;
   copy_coaching_message?: string;
   coaching_points?: unknown;
+  coaching_followthrough?: unknown;
   attention_priority?: "low" | "medium" | "high";
   scores: {
     empathy: number;
@@ -199,6 +205,67 @@ function normalizeCoachingPoints(
     });
 
     if (result.length >= 3) break;
+  }
+
+  return result;
+}
+
+function normalizeFollowthroughEntries(
+  raw: unknown,
+  validPriorPoints: PriorCoachingPoint[]
+): Array<{
+  point_id: string;
+  source_analysis_id: string;
+  status: "followed_through" | "repeated" | "no_opportunity";
+  evidence: string;
+}> {
+  if (!Array.isArray(raw)) return [];
+
+  const validIds = new Set<string>();
+  for (const point of validPriorPoints) {
+    validIds.add(`${point.source_analysis_id}::${point.point_id}`);
+  }
+
+  const result: Array<{
+    point_id: string;
+    source_analysis_id: string;
+    status: "followed_through" | "repeated" | "no_opportunity";
+    evidence: string;
+  }> = [];
+
+  const seen = new Set<string>();
+
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const candidate = item as Record<string, unknown>;
+
+    const pointId =
+      typeof candidate.point_id === "string" ? candidate.point_id.trim() : "";
+    const sourceAnalysisId =
+      typeof candidate.source_analysis_id === "string"
+        ? candidate.source_analysis_id.trim()
+        : "";
+    const status =
+      typeof candidate.status === "string" ? candidate.status.trim().toLowerCase() : "";
+    const evidence =
+      typeof candidate.evidence === "string" ? candidate.evidence.trim() : "";
+
+    if (!pointId || !sourceAnalysisId) continue;
+    if (status !== "followed_through" && status !== "repeated" && status !== "no_opportunity") {
+      continue;
+    }
+
+    const key = `${sourceAnalysisId}::${pointId}`;
+    if (!validIds.has(key)) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    result.push({
+      point_id: pointId,
+      source_analysis_id: sourceAnalysisId,
+      status: status as "followed_through" | "repeated" | "no_opportunity",
+      evidence: evidence || "No evidence provided.",
+    });
   }
 
   return result;
@@ -468,6 +535,44 @@ export async function POST(req: Request) {
       );
     }
 
+    // --- Phase 2 Task 5: Fetch org plan and prior delivered coaching ---
+    const { data: orgPlanRow } = await supabaseAdmin
+      .from("organizations")
+      .select("plan")
+      .eq("id", organizationId)
+      .maybeSingle();
+
+    const plan = typeof orgPlanRow?.plan === "string" ? orgPlanRow.plan : null;
+
+    const { data: existingAgent } = await supabaseAdmin
+      .from("chat_analyses")
+      .select("agent_name")
+      .eq("id", analysisId)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    const agentNameForFollowthrough =
+      typeof existingAgent?.agent_name === "string" ? existingAgent.agent_name : null;
+
+    let priorCoachingPoints: PriorCoachingPoint[] = [];
+    let followthroughPromptSection = "";
+
+    if (agentNameForFollowthrough) {
+      try {
+        priorCoachingPoints = await fetchPriorDeliveredCoachingPoints(
+          supabaseAdmin,
+          organizationId,
+          agentNameForFollowthrough,
+          plan,
+          analysisId
+        );
+        followthroughPromptSection = buildFollowthroughPromptSection(priorCoachingPoints);
+      } catch {
+        // Continue without follow-through detection if fetch fails
+      }
+    }
+    // --- End Task 5 fetch ---
+
     // --- Build coaching context section for the system prompt ---
     const coachingContextSection = companyCoachingContext
       ? `
@@ -497,7 +602,7 @@ You are an expert support QA coach reviewing customer support chat transcripts f
 Your job is to analyze the chat and generate structured coaching feedback in the same supportive, specific, manager-like tone Johny Patrick uses when coaching support agents.
 
 Analyze the transcript and return ONLY valid JSON.
-${coachingContextSection}
+${coachingContextSection}${followthroughPromptSection}
 Return this exact structure:
 {
   "agent_name": "",
@@ -513,6 +618,7 @@ Return this exact structure:
   "quick_summary": "",
   "copy_coaching_message": "",
   "coaching_points": [],
+  "coaching_followthrough": [],
   "attention_priority": "low",
   "scores": {
     "empathy": 0,
@@ -857,6 +963,15 @@ The specific_behavior must be precise enough that, given a different chat transc
       );
     }
 
+    // --- Phase 2 Task 5: Clear prior follow-through assessments for this chat ---
+    // Re-analysis produces a fresh assessment; old detected_in rows are stale.
+    await supabaseAdmin
+      .from("coaching_followthrough")
+      .delete()
+      .eq("detected_in_analysis_id", analysisId)
+      .eq("organization_id", organizationId);
+    // --- End delete ---
+
     const quickSummary = buildQuickSummary(parsed);
     const copyCoachingMessage = buildCopyCoachingMessage(parsed);
     const attentionPriority = computeAttentionPriority(parsed);
@@ -916,6 +1031,34 @@ The specific_behavior must be precise enough that, given a different chat transc
       return NextResponse.redirect(
         buildRedirectUrl(req, returnTo, "error", updateError.message)
       );
+    }
+
+    try {
+      const normalizedFollowthrough = normalizeFollowthroughEntries(
+        parsed.coaching_followthrough,
+        priorCoachingPoints
+      );
+
+      if (normalizedFollowthrough.length > 0 && agentNameForFollowthrough) {
+        const followthroughRows = normalizedFollowthrough.map((entry) => ({
+          organization_id: organizationId,
+          agent_name: agentNameForFollowthrough,
+          source_analysis_id: entry.source_analysis_id,
+          source_coaching_point_id: entry.point_id,
+          detected_in_analysis_id: analysisId,
+          status: entry.status,
+          evidence: entry.evidence,
+        }));
+
+        await supabaseAdmin
+          .from("coaching_followthrough")
+          .upsert(followthroughRows, {
+            onConflict: "source_analysis_id,source_coaching_point_id,detected_in_analysis_id",
+            ignoreDuplicates: true,
+          });
+      }
+    } catch {
+      // Follow-through rows are supplementary; do not block re-analysis completion.
     }
 
     return NextResponse.redirect(

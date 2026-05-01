@@ -674,7 +674,7 @@ The API route from Task 1 already checks this setting when `source === 'auto'`, 
 ---
 
 ### PHASE 2 TASK 5: Follow-through detection at analysis time
-STATUS: ⏳ NOT STARTED
+STATUS: ✅ DONE
 
 **Why this is fifth:** With Tasks 1–4 done, structured coaching points are being generated and delivery is being tracked. Task 5 closes the loop — when analyzing a new chat, the AI checks whether previously-delivered coaching points recurred.
 
@@ -717,9 +717,9 @@ Before the OpenAI call, after the agent name is identified:
      AND created_at >= now() - interval '<window> days'
      AND id != <current analysis id>
    ORDER BY created_at DESC
-   LIMIT 30
+   LIMIT 15
    ```
-   The `LIMIT 30` is a safety cap — even on Enterprise, more than 30 historical coaching events is too much prompt context.
+   The `LIMIT 15` is a safety cap — even on Enterprise, more than 15 historical coaching events is too much prompt context.
 4. Flatten all `coaching_points` arrays into a single list with `{point_id, source_analysis_id, source_date, area, specific_behavior, recommended_behavior}`.
 
 **Add to the system prompt** (only when there are previously-delivered points to check):
@@ -782,7 +782,7 @@ A POST endpoint that:
 7. Test on a Starter plan org — verify only last 30 days of coaching is included.
 8. Verify analysis still completes if the agent has no prior delivered coaching (empty followthrough is fine).
 
-**Files modified:** 4 (`src/lib/planAccess.ts`, `src/app/api/process-jobs/route.ts`, `src/app/api/reanalyze-analysis/route.ts`, `src/app/analysis/[id]/page.tsx`) + 1 created (`src/app/api/update-followthrough-override/route.ts`)
+**Files modified:** 4 (`src/lib/planAccess.ts`, `src/app/api/process-jobs/route.ts`, `src/app/api/reanalyze-analysis/route.ts`, `src/app/analysis/[id]/page.tsx`) + 3 created (`src/lib/coachingFollowthroughFetch.ts`, `src/app/api/update-followthrough-override/route.ts`, `src/components/FollowthroughOverrideSelect.tsx`)
 
 **Commit:** `git commit -m "Phase 2 Task 5: Follow-through detection at analysis time with manager override"`
 
