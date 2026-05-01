@@ -139,7 +139,7 @@ function CoachingMessageSection({
   return (
     <div className="rounded-3xl border border-white/10 bg-[#081225] p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-semibold text-white">Copy Coaching Message</h2>
+        <h2 className="text-2xl font-semibold text-white">Coaching</h2>
 
         {text.trim() ? (
           <CopyButton
@@ -375,6 +375,14 @@ export default async function AnalysisDetailPage({
     }
   }
 
+  const visibleFollowthroughRows = followthroughDisplayRows.filter((row) => {
+    const finalStatus = row.manager_override || row.status;
+    return finalStatus !== "no_opportunity";
+  });
+
+  const followthroughEvaluatedButNoAction =
+    followthroughDisplayRows.length > 0 && visibleFollowthroughRows.length === 0;
+
   const coachingMessage = analysis.copy_coaching_message?.trim() || "";
   const quickSummary = analysis.quick_summary?.trim() || "";
   const isExcluded = analysis.excluded === true;
@@ -482,6 +490,27 @@ export default async function AnalysisDetailPage({
           </div>
         </div>
 
+        <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-2xl font-semibold text-white">10-Second Coaching Summary</h2>
+            <div
+              className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getPriorityClasses(
+                analysis.attention_priority
+              )}`}
+            >
+              {analysis.attention_priority || "low"} priority
+            </div>
+          </div>
+
+          <p className="text-gray-300">
+            {quickSummary || "No quick coaching summary available."}
+          </p>
+        </div>
+
+        <div className="mb-8">
+          <CoachingMessageSection text={coachingMessage} analysisId={String(analysis.id)} />
+        </div>
+
         <div className="mb-8">
           <CoachingDeliveryControls
             analysisId={String(analysis.id)}
@@ -491,7 +520,7 @@ export default async function AnalysisDetailPage({
           />
         </div>
 
-        {followthroughDisplayRows.length > 0 ? (
+        {visibleFollowthroughRows.length > 0 ? (
           <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
             <h2 className="mb-2 text-2xl font-semibold text-white">
               Previous Coaching Follow-Through
@@ -501,7 +530,7 @@ export default async function AnalysisDetailPage({
             </p>
 
             <div className="space-y-4">
-              {followthroughDisplayRows.map((row) => {
+              {visibleFollowthroughRows.map((row) => {
                 const finalStatus = row.manager_override || row.status;
                 const statusClasses =
                   finalStatus === "followed_through"
@@ -574,28 +603,11 @@ export default async function AnalysisDetailPage({
               })}
             </div>
           </div>
-        ) : null}
-
-        <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-2xl font-semibold text-white">10-Second Coaching Summary</h2>
-            <div
-              className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getPriorityClasses(
-                analysis.attention_priority
-              )}`}
-            >
-              {analysis.attention_priority || "low"} priority
-            </div>
+        ) : followthroughEvaluatedButNoAction ? (
+          <div className="mb-8 rounded-2xl border border-white/10 bg-[#081225] px-6 py-4 text-sm text-gray-400">
+            Prior coaching evaluated for this chat — no action needed.
           </div>
-
-          <p className="text-gray-300">
-            {quickSummary || "No quick coaching summary available."}
-          </p>
-        </div>
-
-        <div className="mb-8">
-          <CoachingMessageSection text={coachingMessage} analysisId={String(analysis.id)} />
-        </div>
+        ) : null}
 
         <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
           <div className="mb-4 flex flex-wrap items-center gap-3">
