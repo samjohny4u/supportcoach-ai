@@ -791,7 +791,9 @@ A POST endpoint that:
 ---
 
 ### PHASE 2 TASK 6: Agent page — coaching history, follow-through scorecard, repeat detection with auto-generated follow-up message
-STATUS: ⏳ NOT STARTED
+STATUS: ⏳ IN PROGRESS — Task 6a DONE, Task 6b pending
+
+Task 6a complete: agent page scorecard and repeated coaching cards with templated follow-up message copy button are implemented. Task 6b remains pending: coaching history view.
 
 **Why this is last:** This is the payoff. With all upstream data flowing (delivery, structured points, follow-through assessments), the agent page becomes the single place a manager goes to see the longitudinal picture and grab pre-written follow-up coaching messages.
 

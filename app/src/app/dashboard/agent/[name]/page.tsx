@@ -3,6 +3,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "../../../../lib/supabaseServer";
 import { getCurrentOrganization } from "../../../../lib/currentOrganization";
+import {
+  getAgentScorecard,
+  getRepeatedCoachingForAgent,
+} from "../../../../lib/coachingFollowthrough";
+import { getFollowthroughWindowDays } from "../../../../lib/planAccess";
+import FollowupMessageButton from "../../../../components/FollowupMessageButton";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,6 +39,20 @@ function average(values: Array<number | null>) {
   );
 }
 
+function formatShortDate(value: string | null): string {
+  if (!value) return "date unknown";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "date unknown";
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function ScoreBar({ label, value }: { label: string; value: number }) {
   const width = `${Math.max(0, Math.min(100, value * 10))}%`;
 
@@ -46,6 +66,26 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
       <div className="h-2 rounded-full bg-white/10">
         <div className="h-2 rounded-full bg-indigo-400" style={{ width }} />
       </div>
+    </div>
+  );
+}
+
+function ScorecardTile({
+  label,
+  value,
+  accentClassName,
+  caption,
+}: {
+  label: string;
+  value: string | number;
+  accentClassName: string;
+  caption?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+      <p className="text-sm text-gray-400">{label}</p>
+      <p className={`mt-2 text-3xl font-bold ${accentClassName}`}>{value}</p>
+      {caption ? <p className="mt-1 text-xs text-gray-500">{caption}</p> : null}
     </div>
   );
 }
@@ -85,6 +125,13 @@ export default async function AgentPage({
   const { name } = await params;
   const agentName = decodeURIComponent(name);
 
+  const { data: orgRow } = await supabase
+    .from("organizations")
+    .select("plan")
+    .eq("id", organizationId)
+    .maybeSingle();
+  const windowDays = getFollowthroughWindowDays(orgRow?.plan ?? null);
+
   const { data, error } = await supabase
     .from("chat_analyses")
     .select(
@@ -112,6 +159,11 @@ export default async function AgentPage({
       </main>
     );
   }
+
+  const [scorecard, repeatedCoaching] = await Promise.all([
+    getAgentScorecard(organizationId, agentName, windowDays),
+    getRepeatedCoachingForAgent(organizationId, agentName, windowDays),
+  ]);
 
   const chats = ((data ?? []) as unknown as ChatAnalysisRow[]) || [];
 
@@ -179,6 +231,110 @@ export default async function AgentPage({
               value={avgScores.professionalism}
             />
           </div>
+        </div>
+
+        <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
+          <h2 className="mb-2 text-2xl font-semibold">Coaching Effectiveness</h2>
+          <p className="mb-6 text-sm text-gray-400">
+            Based on coaching delivered in the last {windowDays} days.
+          </p>
+
+          <div className="grid gap-6 md:grid-cols-4">
+            <ScorecardTile
+              label="Followed Through"
+              value={scorecard.followed_through}
+              accentClassName="text-emerald-400"
+            />
+            <ScorecardTile
+              label="Repeated"
+              value={scorecard.repeated}
+              accentClassName="text-amber-400"
+            />
+            <ScorecardTile
+              label="No Opportunity"
+              value={scorecard.no_opportunity}
+              accentClassName="text-gray-300"
+            />
+            <ScorecardTile
+              label="Follow-through Rate"
+              value={`${scorecard.followthrough_rate}%`}
+              accentClassName="text-indigo-300"
+              caption="of opportunities"
+            />
+          </div>
+        </div>
+
+        <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
+          <h2 className="mb-2 text-2xl font-semibold">Repeated Coaching</h2>
+          <p className="mb-6 text-sm text-gray-400">
+            Coaching points this agent received previously that came up again in a recent chat.
+          </p>
+
+          {repeatedCoaching.length === 0 ? (
+            <p className="text-gray-400">
+              No repeated coaching detected in the last {windowDays} days.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {repeatedCoaching.map((row) => (
+                <div
+                  key={row.followthrough_id}
+                  className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-5"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-400">
+                      Repeated
+                    </p>
+                    <FollowupMessageButton
+                      agentName={agentName}
+                      sourceRecommendedBehavior={row.source_recommended_behavior}
+                      sourceDeliveredAt={row.source_delivered_at}
+                      detectedAt={row.detected_at}
+                      detectedInCustomerName={row.detected_in_customer_name}
+                      evidence={row.evidence}
+                    />
+                  </div>
+
+                  <p className="mt-3 text-xs text-gray-500">
+                    Originally coached: {formatShortDate(row.source_delivered_at)}
+                  </p>
+
+                  <div className="mt-2">
+                    <p className="text-xs uppercase tracking-wide text-gray-400">
+                      Specific behavior coached
+                    </p>
+                    <p className="mt-1 text-sm text-gray-200">
+                      {row.source_specific_behavior}
+                    </p>
+                  </div>
+
+                  <div className="mt-3">
+                    <p className="text-xs uppercase tracking-wide text-gray-400">
+                      Recommended behavior
+                    </p>
+                    <p className="mt-1 text-sm text-gray-200">
+                      {row.source_recommended_behavior}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 border-t border-white/5 pt-3">
+                    <p className="text-xs text-gray-500">
+                      Detected again in chat with{" "}
+                      {row.detected_in_customer_name || "Unknown Customer"} on{" "}
+                      {formatShortDate(row.detected_at)}
+                    </p>
+                    {row.evidence &&
+                    typeof row.evidence === "string" &&
+                    row.evidence.trim().length > 0 ? (
+                      <blockquote className="mt-2 text-sm italic text-gray-300">
+                        — {row.evidence}
+                      </blockquote>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="mb-10 grid gap-6 md:grid-cols-2">

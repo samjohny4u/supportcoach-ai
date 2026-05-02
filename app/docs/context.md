@@ -113,10 +113,11 @@
 - Phase 2 Task 5: Follow-through detection at analysis time + manager override UI — DONE (verified end-to-end on Subaiqua chat 288)
 - Phase 2 Task 5 hotfix: ISO date format on follow-through section to avoid React hydration error #418 (May 1, 2026) — replaced toLocaleDateString() with toISOString().split("T")[0] — DONE
 - Phase 2 Task 5 polish: hide no_opportunity rows from analysis page display, show "Prior coaching evaluated for this chat — no action needed." note when all rows filtered out, reorder Coaching Delivery and Previous Coaching Follow-Through to below the Coaching message section, rename "Copy Coaching Message" heading to "Coaching" (May 1, 2026) — DONE
+- Phase 2 Task 6a: Agent scorecard and repeated coaching cards with follow-up message templating — DONE
 
 ## CURRENT TASK
-- Phase 2 Tasks 1, 2, 3, 4, 5 complete. Task 6 (agent page scorecard + repeated coaching cards) remains.
-- Recommended next: Task 6.
+- Phase 2 Tasks 1, 2, 3, 4, 5, and 6a complete. Task 6b (agent coaching history view) remains.
+- Recommended next: Task 6b.
 - All architectural decisions for Tasks 4 and 6 are locked in Section 10k of supportcoach-ai-context.md and the PHASE 2 TASKS section of codex-orchestration.md. No new design conversation needed before building.
 
 ## REMAINING BEFORE FULL LAUNCH
@@ -174,7 +175,8 @@
 | 3 | DONE — Manual delivery toggle + notes UI on analysis page |
 | 4 | DONE — Settings toggle to disable Copy auto-check |
 | 5 | DONE — AI follow-through detection at analysis time (gets prior delivered coaching points within plan window, AI outputs per-point status) + manager override UI on analysis page + /api/update-followthrough-override route |
-| 6 | Agent page: scorecard + repeated coaching cards with "Copy follow-up message" button + coaching history view |
+| 6a | DONE — Agent page scorecard + repeated coaching cards with "Copy follow-up message" button |
+| 6b | Agent page coaching history view |
 
 **Key architectural rules:**
 
