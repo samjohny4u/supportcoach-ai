@@ -1,9 +1,11 @@
+import Link from "next/link";
+
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-black text-gray-300">
       <div className="max-w-3xl mx-auto px-6 py-16">
         <h1 className="text-3xl font-bold text-white mb-2">Privacy Policy</h1>
-        <p className="text-gray-500 mb-10">Last updated: March 22, 2026</p>
+        <p className="text-gray-500 mb-10">Last updated: June 23, 2026</p>
 
         <div className="space-y-8 text-sm leading-relaxed">
           <section>
@@ -124,7 +126,66 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-white mb-3">9. Your Rights</h2>
+            <h2 className="text-lg font-semibold text-white mb-3">9. Chrome Extension (Live Agent Coach)</h2>
+            <p>
+              This section describes data practices specific to the Support Coach AI &quot;Live Agent
+              Coach&quot; Chrome extension, which differs from the dashboard described above. The
+              extension provides real-time coaching while a support agent composes a reply; it does
+              not upload or store conversation transcripts.
+            </p>
+
+            <p className="font-medium text-white mt-3 mb-1">What the extension accesses</p>
+            <p>
+              When an agent installs the extension and types a reply inside a supported help desk
+              (Zendesk, Intercom, or Zoho SalesIQ), the extension reads the reply text the agent is
+              composing in order to analyze it. The extension runs only on these supported help-desk
+              domains. It reads only the agent&apos;s own draft reply &mdash; it does not read or
+              transmit the customer&apos;s messages or the wider conversation.
+            </p>
+
+            <p className="font-medium text-white mt-3 mb-1">What is transmitted, and to whom</p>
+            <p>
+              The agent&apos;s draft reply text is sent over an encrypted (HTTPS) connection to our
+              servers and to OpenAI&apos;s API, which analyzes the draft and returns coaching feedback
+              and a suggested rewrite. OpenAI acts as a sub-processor; as of the date of this policy,
+              OpenAI does not use API inputs or outputs for model training (see Section 5).
+            </p>
+
+            <p className="font-medium text-white mt-3 mb-1">What we store &mdash; and do not store</p>
+            <p>
+              The draft reply text is processed transiently and is{" "}
+              <span className="text-white">not stored in our database</span>. It may be held briefly
+              in a short-lived in-memory cache (up to 60 seconds, keyed by a non-reversible hash) to
+              avoid duplicate processing, after which it is discarded. We retain only aggregate
+              coaching statistics &mdash; which coaching rule types were triggered and counts of
+              suggestions shown, accepted, or dismissed. These statistics contain no message content,
+              no customer data, and no draft text.
+            </p>
+
+            <p className="font-medium text-white mt-3 mb-1">Limited use</p>
+            <p>
+              Our handling of data received from the Chrome extension complies with the{" "}
+              <a
+                href="https://developer.chrome.com/docs/webstore/program-policies/limited-use/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-emerald-400 hover:text-emerald-300 underline"
+              >
+                Chrome Web Store User Data Policy
+              </a>
+              , including its Limited Use requirements. The draft text accessed by the extension is
+              used solely to provide the real-time coaching feature. It is not sold or transferred to
+              others except to the service providers needed to deliver the feature (such as OpenAI);
+              it is not used or transferred for advertising, ad personalization, or to determine
+              creditworthiness; and it is not used for any purpose unrelated to the coaching feature.
+              We do not allow humans to read this data except (a) with your consent, (b) as necessary
+              for security purposes such as investigating abuse, (c) to comply with applicable law, or
+              (d) where the data has been aggregated and anonymized.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-3">10. Your Rights</h2>
             <p>Depending on your jurisdiction, you may have the right to:</p>
             <ul className="list-disc list-inside mt-2 space-y-1 text-gray-400">
               <li>Access the personal data we hold about you</li>
@@ -143,7 +204,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-white mb-3">10. Cookies</h2>
+            <h2 className="text-lg font-semibold text-white mb-3">11. Cookies</h2>
             <p>
               We use essential cookies for authentication and session management. We do not use
               tracking cookies, advertising cookies, or third-party analytics cookies.
@@ -151,7 +212,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-white mb-3">11. Children&apos;s Privacy</h2>
+            <h2 className="text-lg font-semibold text-white mb-3">12. Children&apos;s Privacy</h2>
             <p>
               The Service is not intended for use by individuals under the age of 18. We do not
               knowingly collect personal information from children.
@@ -159,7 +220,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-white mb-3">12. Changes to This Policy</h2>
+            <h2 className="text-lg font-semibold text-white mb-3">13. Changes to This Policy</h2>
             <p>
               We may update this Privacy Policy from time to time. We will notify users of material
               changes via email or through the Service. Your continued use of the Service after changes
@@ -168,7 +229,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-white mb-3">13. Contact</h2>
+            <h2 className="text-lg font-semibold text-white mb-3">14. Contact</h2>
             <p>
               If you have questions about this Privacy Policy, please contact us at{" "}
               <a href="mailto:support@supportcoach.io" className="text-emerald-400 hover:text-emerald-300 underline">
@@ -180,7 +241,7 @@ export default function PrivacyPage() {
         </div>
 
         <div className="mt-16 pt-8 border-t border-gray-800 text-center text-gray-600 text-xs">
-          <a href="/" className="hover:text-gray-400">← Back to SupportCoach AI</a>
+          <Link href="/" className="hover:text-gray-400">← Back to SupportCoach AI</Link>
         </div>
       </div>
     </div>

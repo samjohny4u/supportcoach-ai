@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
+
+const SIGNUP_URL = "https://admin.supportcoach.io/signup";
+const ADMIN_URL = "https://admin.supportcoach.io/";
 
 const featureCards = [
   {
@@ -25,54 +29,47 @@ const featureCards = [
 
 const platforms = ["Zendesk", "Intercom", "Zoho SalesIQ", "More coming soon"];
 
-const teamSizes = [
-  "1-5 agents",
-  "6-15 agents",
-  "16-50 agents",
-  "50+ agents",
+const PRICING = {
+  // Both plans are priced per agent/month and anchored to the real post-launch rate ($20),
+  // so the strikethrough means one thing everywhere: "our regular $20/agent/mo rate".
+  // Annual stacks the launch + annual discount, so it lands at $10/agent/mo (50% off $20).
+  monthly: {
+    label: "Monthly",
+    regular: "$20" as string | null,
+    price: "$15",
+    unit: "/agent/month",
+    savings: "Save 25%" as string | null,
+    note: "Billed monthly. Cancel anytime.",
+    badge: null as string | null,
+  },
+  annual: {
+    label: "Annual",
+    regular: "$20" as string | null,
+    price: "$10",
+    unit: "/agent/month",
+    savings: "Save 50%" as string | null,
+    note: "Billed annually ($120/agent/year). Cancel anytime.",
+    badge: "Best value 🔥",
+  },
+} as const;
+
+const includedFeatures = [
+  "Real-time rules check (zero AI cost)",
+  "AI coaching card with full rewrite",
+  "Pre-send safety check across 8 dimensions",
+  "Works on Zendesk, Intercom & Zoho SalesIQ",
+  "Manager dashboard & weekly summaries",
 ];
 
 export default function ExtensionPage() {
-  const [email, setEmail] = useState("");
-  const [company, setCompany] = useState("");
-  const [teamSize, setTeamSize] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
 
   useEffect(() => {
     document.body.classList.add("hide-dashboard-nav");
     return () => document.body.classList.remove("hide-dashboard-nav");
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    if (!email || !company || !teamSize) {
-      setError("Please fill in all fields.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch("/api/extension-waitlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, company_name: company, team_size: teamSize }),
-      });
-      const data = await res.json();
-      if (data.error === "already_registered") {
-        setError("This email is already on the waitlist.");
-      } else if (data.ok) {
-        setSubmitted(true);
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
-    } catch {
-      setError("Could not connect. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const plan = PRICING[billing];
 
   return (
     <main className="relative min-h-screen overflow-hidden text-white bg-black">
@@ -93,20 +90,32 @@ export default function ExtensionPage() {
           <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.3em", color: "#6ee7b7" }}>
             SUPPORTCOACH
           </span>
-          <a
-            href="/"
-            style={{
-              fontSize: "13px",
-              color: "rgba(255,255,255,0.7)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: "999px",
-              padding: "8px 20px",
-              textDecoration: "none",
-              background: "rgba(255,255,255,0.04)",
-            }}
-          >
-            Manager Dashboard &rarr;
-          </a>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <a
+              href={ADMIN_URL}
+              style={{
+                fontSize: "13px",
+                color: "rgba(255,255,255,0.7)",
+                textDecoration: "none",
+              }}
+            >
+              Sign In
+            </a>
+            <a
+              href={SIGNUP_URL}
+              style={{
+                fontSize: "13px",
+                fontWeight: 700,
+                color: "#000000",
+                background: "#34d399",
+                borderRadius: "999px",
+                padding: "8px 20px",
+                textDecoration: "none",
+              }}
+            >
+              Start Free Trial
+            </a>
+          </div>
         </nav>
 
         {/* HERO */}
@@ -148,7 +157,7 @@ export default function ExtensionPage() {
 
             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
               <a
-                href="#waitlist"
+                href={SIGNUP_URL}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -162,7 +171,7 @@ export default function ExtensionPage() {
                   textDecoration: "none",
                 }}
               >
-                Join the Waitlist
+                Start Free Trial
               </a>
               <a
                 href="#how-it-works"
@@ -183,6 +192,9 @@ export default function ExtensionPage() {
                 See How It Works
               </a>
             </div>
+            <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.45)", marginTop: "16px" }}>
+              14-day free trial. No credit card required.
+            </p>
           </div>
 
           {/* MOCK COACHING CARD */}
@@ -295,154 +307,172 @@ export default function ExtensionPage() {
           </div>
         </section>
 
-        {/* VIDEO PLACEHOLDER */}
-        <section style={{ paddingBottom: "96px" }}>
+        {/* VIDEO */}
+        <section id="demo" style={{ paddingBottom: "96px" }}>
           <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.3em", color: "#6ee7b7", marginBottom: "12px" }}>SEE IT IN ACTION</p>
           <h2 style={{ fontSize: "clamp(24px, 3vw, 36px)", fontWeight: 700, color: "#ffffff", marginBottom: "32px" }}>
             Watch it catch a bad reply in real time
           </h2>
           <div
             style={{
+              position: "relative",
               borderRadius: "24px",
+              overflow: "hidden",
               border: "1px solid rgba(255,255,255,0.08)",
               background: "rgba(255,255,255,0.03)",
               aspectRatio: "16/9",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "12px",
             }}
           >
-            <span style={{ fontSize: "40px", opacity: 0.3 }}>&#9654;</span>
-            <p style={{ fontSize: "16px", fontWeight: 500, color: "rgba(255,255,255,0.4)" }}>Demo video coming soon</p>
-            <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.25)", textAlign: "center", maxWidth: "360px" }}>
-              We&apos;re finishing our internal beta. A full walkthrough will be posted here shortly.
-            </p>
+            <iframe
+              src="https://www.youtube-nocookie.com/embed/_t77xhDO8B0?rel=0&modestbranding=1"
+              title="Support Coach AI — live demo"
+              loading="lazy"
+              allow="autoplay; encrypted-media; picture-in-picture; web-share"
+              allowFullScreen
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+            />
           </div>
         </section>
 
-        {/* WAITLIST FORM */}
-        <section id="waitlist" style={{ paddingBottom: "96px" }}>
+        {/* PRICING */}
+        <section id="pricing" style={{ paddingBottom: "96px" }}>
+          <div style={{ textAlign: "center", marginBottom: "40px" }}>
+            <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.3em", color: "#6ee7b7", marginBottom: "12px" }}>PRICING</p>
+            <h2 style={{ fontSize: "clamp(24px, 3vw, 36px)", fontWeight: 700, color: "#ffffff", marginBottom: "12px" }}>
+              Simple per-agent pricing
+            </h2>
+            <p style={{ fontSize: "15px", lineHeight: 1.6, color: "rgba(255,255,255,0.55)", maxWidth: "460px", margin: "0 auto" }}>
+              One price per agent. Every coaching layer included. At $15/agent/month, that&apos;s about
+              50&cent; a day &mdash; less than the cost of a single mishandled conversation.
+            </p>
+          </div>
+
+          {/* Launch offer banner — the launch discount lives here (applies to either plan),
+              so the strikethrough in the card can mean one thing only: the regular price. */}
           <div
             style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+              flexWrap: "wrap",
+              textAlign: "center",
+              borderRadius: "16px",
+              border: "1px solid rgba(252,211,77,0.25)",
+              background: "rgba(252,211,77,0.07)",
+              padding: "14px 20px",
+              maxWidth: "640px",
+              margin: "0 auto 28px",
+            }}
+          >
+            <span style={{ fontSize: "14px", fontWeight: 700, color: "#fcd34d" }}>🚀 Launch pricing</span>
+            <span style={{ fontSize: "14px", lineHeight: 1.5, color: "rgba(255,255,255,0.75)" }}>
+              From $10/agent/mo. Lock in your rate before our regular price rises to $20 &mdash; early teams keep it for the life of their subscription.
+            </span>
+          </div>
+
+          {/* Billing toggle */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "32px" }}>
+            <div style={{ display: "inline-flex", borderRadius: "999px", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)", padding: "4px" }}>
+              {(["monthly", "annual"] as const).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setBilling(key)}
+                  style={{
+                    borderRadius: "999px",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "8px 22px",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    background: billing === key ? "#34d399" : "transparent",
+                    color: billing === key ? "#000000" : "rgba(255,255,255,0.6)",
+                  }}
+                >
+                  {PRICING[key].label}
+                  {key === "annual" ? " · Save 50%" : ""}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Price card */}
+          <div
+            style={{
+              position: "relative",
               borderRadius: "28px",
-              border: "1px solid rgba(52,211,153,0.15)",
-              background: "rgba(52,211,153,0.04)",
-              padding: "clamp(32px, 5vw, 64px)",
-              maxWidth: "600px",
+              border: "1px solid rgba(52,211,153,0.2)",
+              background: "rgba(52,211,153,0.05)",
+              padding: "clamp(32px, 5vw, 56px)",
+              maxWidth: "520px",
               margin: "0 auto",
             }}
           >
-            <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.3em", color: "#6ee7b7", marginBottom: "12px" }}>EARLY ACCESS</p>
-            <h2 style={{ fontSize: "clamp(24px, 3vw, 36px)", fontWeight: 700, color: "#ffffff", marginBottom: "12px" }}>
-              Be first when we launch
-            </h2>
-            <p style={{ fontSize: "15px", lineHeight: 1.6, color: "rgba(255,255,255,0.55)", marginBottom: "36px" }}>
-              We&apos;re running a controlled rollout. Join the waitlist and we&apos;ll reach out when your spot is ready.
+            {plan.badge ? (
+              <span style={{ position: "absolute", top: "24px", right: "24px", fontSize: "11px", fontWeight: 700, color: "#000000", background: "#34d399", borderRadius: "999px", padding: "5px 12px" }}>
+                {plan.badge}
+              </span>
+            ) : null}
+
+            <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.28em", color: "#6ee7b7", marginBottom: "16px" }}>
+              SUPPORT COACH AI
             </p>
 
-            {submitted ? (
-              <div style={{ borderRadius: "16px", border: "1px solid rgba(52,211,153,0.25)", background: "rgba(52,211,153,0.08)", padding: "24px", textAlign: "center" }}>
-                <p style={{ fontSize: "18px", fontWeight: 600, color: "#34d399", marginBottom: "8px" }}>You&apos;re on the list! &#127881;</p>
-                <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.55)" }}>We&apos;ll be in touch soon.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: "8px", letterSpacing: "0.05em" }}>
-                    WORK EMAIL *
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@company.com"
-                    style={{
-                      width: "100%",
-                      borderRadius: "12px",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background: "rgba(255,255,255,0.05)",
-                      padding: "13px 16px",
-                      fontSize: "15px",
-                      color: "#ffffff",
-                      outline: "none",
-                      boxSizing: "border-box",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: "8px", letterSpacing: "0.05em" }}>
-                    COMPANY NAME *
-                  </label>
-                  <input
-                    type="text"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    placeholder="Acme Inc."
-                    style={{
-                      width: "100%",
-                      borderRadius: "12px",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background: "rgba(255,255,255,0.05)",
-                      padding: "13px 16px",
-                      fontSize: "15px",
-                      color: "#ffffff",
-                      outline: "none",
-                      boxSizing: "border-box",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: "8px", letterSpacing: "0.05em" }}>
-                    SUPPORT TEAM SIZE *
-                  </label>
-                  <select
-                    value={teamSize}
-                    onChange={(e) => setTeamSize(e.target.value)}
-                    style={{
-                      width: "100%",
-                      borderRadius: "12px",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background: "#081225",
-                      padding: "13px 16px",
-                      fontSize: "15px",
-                      color: teamSize ? "#ffffff" : "rgba(255,255,255,0.35)",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <option value="" disabled>Select team size</option>
-                    {teamSizes.map((s) => (
-                      <option key={s} value={s} style={{ color: "#ffffff", background: "#081225" }}>{s}</option>
-                    ))}
-                  </select>
-                </div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: "10px", flexWrap: "wrap", marginBottom: "10px" }}>
+              {plan.regular ? (
+                <span style={{ fontSize: "22px", fontWeight: 500, color: "rgba(255,255,255,0.4)", textDecoration: "line-through", paddingBottom: "8px" }}>
+                  {plan.regular}
+                </span>
+              ) : null}
+              <span style={{ fontSize: "56px", fontWeight: 700, color: "#ffffff", lineHeight: 1 }}>
+                {plan.price}
+              </span>
+              <span style={{ fontSize: "15px", fontWeight: 500, color: "rgba(255,255,255,0.55)", paddingBottom: "8px" }}>
+                {plan.unit}
+              </span>
+              {plan.savings ? (
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#000000", background: "#fcd34d", borderRadius: "999px", padding: "5px 12px", marginLeft: "4px", marginBottom: "9px" }}>
+                  {plan.savings}
+                </span>
+              ) : null}
+            </div>
+            <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.55)", marginBottom: "8px" }}>
+              {plan.note}
+            </p>
+            <p style={{ fontSize: "13px", color: "#a7f3d0", marginBottom: "28px" }}>
+              Lock in this rate for the life of your subscription.
+            </p>
 
-                {error && (
-                  <p style={{ fontSize: "13px", color: "#f87171", marginTop: "-4px" }}>{error}</p>
-                )}
+            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 32px", display: "flex", flexDirection: "column", gap: "12px" }}>
+              {includedFeatures.map((feature) => (
+                <li key={feature} style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "14px", color: "rgba(255,255,255,0.8)" }}>
+                  <span style={{ color: "#34d399", fontWeight: 700 }}>&#10003;</span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={{
-                    borderRadius: "999px",
-                    background: loading ? "rgba(52,211,153,0.5)" : "#34d399",
-                    color: "#000000",
-                    fontWeight: 700,
-                    fontSize: "15px",
-                    padding: "15px",
-                    border: "none",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    marginTop: "8px",
-                  }}
-                >
-                  {loading ? "Submitting..." : "Request Early Access"}
-                </button>
-              </form>
-            )}
+            <a
+              href={SIGNUP_URL}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "999px",
+                background: "#34d399",
+                color: "#000000",
+                fontWeight: 700,
+                fontSize: "15px",
+                padding: "15px",
+                textDecoration: "none",
+              }}
+            >
+              Start Free Trial
+            </a>
+            <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.45)", textAlign: "center", marginTop: "14px" }}>
+              14-day free trial. No credit card required.
+            </p>
           </div>
         </section>
 
@@ -450,13 +480,13 @@ export default function ExtensionPage() {
         <section style={{ paddingBottom: "64px", textAlign: "center" }}>
           <div style={{ borderRadius: "24px", border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)", padding: "48px 32px" }}>
             <h2 style={{ fontSize: "clamp(20px, 3vw, 28px)", fontWeight: 700, color: "#ffffff", marginBottom: "12px" }}>
-              Already using the dashboard?
+              Already using Support Coach?
             </h2>
             <p style={{ fontSize: "15px", color: "rgba(255,255,255,0.5)", marginBottom: "28px", maxWidth: "480px", margin: "0 auto 28px" }}>
-              Support Coach AI Live Agent Coach works alongside the manager dashboard &mdash; the same platform, two layers of coaching.
+              Sign in to manage your team, tone profile, and billing &mdash; or start your free trial above.
             </p>
             <a
-              href="/"
+              href={ADMIN_URL}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -471,10 +501,23 @@ export default function ExtensionPage() {
                 textDecoration: "none",
               }}
             >
-              Back to Dashboard
+              Sign In
             </a>
           </div>
         </section>
+
+        {/* FOOTER LINKS */}
+        <footer style={{ paddingBottom: "48px", textAlign: "center", display: "flex", justifyContent: "center", gap: "20px", flexWrap: "wrap" }}>
+          <Link href="/privacy" style={{ fontSize: "13px", color: "rgba(255,255,255,0.45)", textDecoration: "none" }}>
+            Privacy Policy
+          </Link>
+          <Link href="/terms" style={{ fontSize: "13px", color: "rgba(255,255,255,0.45)", textDecoration: "none" }}>
+            Terms of Service
+          </Link>
+          <a href="mailto:support@supportcoach.io" style={{ fontSize: "13px", color: "rgba(255,255,255,0.45)", textDecoration: "none" }}>
+            support@supportcoach.io
+          </a>
+        </footer>
 
       </div>
     </main>
