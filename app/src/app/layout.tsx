@@ -1,7 +1,9 @@
+import type { Metadata } from "next";
 import "./globals.css";
 import AppNav from "@/components/AppNav";
 
-export const metadata = {
+export const metadata: Metadata = {
+  metadataBase: new URL("https://www.supportcoach.io"),
   title: "SupportCoach AI",
   description: "AI-powered support coaching and QA intelligence",
 };

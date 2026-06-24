@@ -1,0 +1,22 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- Open Graph / link-preview image for supportcoach.io/extension. Brand teal + logo + wordmark. -->
+  <rect width="1200" height="630" fill="#00A87A"/>
+  <!-- subtle depth -->
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <defs>
+    <radialGradient id="g" cx="50%" cy="34%" r="70%">
+      <stop offset="0%" stop-color="#19c08e" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#00A87A" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- logo mark (speech bubble + check + tail), centered, ~150px -->
+  <g transform="translate(525 150) scale(6.818)">
+    <rect x="1" y="1" width="17" height="14" rx="4" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+    <polyline points="5.5,8 8.5,11 13,6" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M4 15 L1 20 L8 17" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linejoin="round"/>
+  </g>
+
+  <text x="600" y="430" text-anchor="middle" fill="#ffffff" font-family="'Segoe UI', system-ui, -apple-system, Arial, sans-serif" font-size="82" font-weight="700" letter-spacing="-1.5">Support Coach</text>
+  <text x="600" y="492" text-anchor="middle" fill="rgba(255,255,255,0.82)" font-family="'Segoe UI', system-ui, -apple-system, Arial, sans-serif" font-size="30" font-weight="400" letter-spacing="0.5">Real-time reply coaching for support teams</text>
+</svg>
