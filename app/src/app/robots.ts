@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/dashboard", "/settings", "/upload", "/jobs", "/analysis", "/onboarding", "/select-plan"],
+      disallow: ["/api", "/dashboard", "/settings", "/upload", "/jobs", "/analysis", "/onboarding", "/select-plan"],
     },
     sitemap: "https://www.supportcoach.io/sitemap.xml",
   };
