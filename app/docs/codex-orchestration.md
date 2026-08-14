@@ -116,6 +116,19 @@ If the conversation exceeds 50 messages or you notice context degradation, stop 
 - ✅ Billing management page
 - ✅ Middleware subscription/trial lock check
 - ✅ Onboarding sets trial_ends_at on new orgs
+- ✅ Coaching delivery tracking (auto-mark on Copy + manual toggle + notes) — Phase 2 Tasks 1, 3, 4
+- ✅ Structured `coaching_points` output from both analysis routes — Phase 2 Task 2
+- ✅ AI follow-through detection with manager override — Phase 2 Task 5
+- ✅ Agent page follow-through scorecard + repeated coaching cards + "Copy follow-up message" — Phase 2 Task 6a
+- ✅ /extension self-serve trial funnel with demo video and per-agent pricing (June 2026)
+- ✅ /extension OpenGraph link-preview metadata and branded OG image (June 2026)
+- ✅ Privacy policy section covering the Chrome Extension (June 2026)
+- ✅ sitemap.xml and robots.txt (July 2026)
+
+**Not built (commonly assumed to exist):**
+- ❌ `getAgentCoachingHistory()` / agent coaching history view — Phase 2 Task 6b, the only unbuilt Phase 2 item
+- ❌ Lookback-window selector dropdown on the agent page — `windowDays` is derived from plan with no user-facing control
+- ❌ Plan gating enforcement — Professional/Enterprise features remain accessible on all plans
 
 ---
 
@@ -441,19 +454,44 @@ STATUS: ✅ DONE
 - Trial extended to 30 days via SQL to cover Bangkok travel (April 6–17, 2026)
 - SQL used: `UPDATE organizations SET plan='trial', trial_ends_at=now()+interval '30 days' WHERE id='8e71dc46-e674-4131-8709-506223a35d7e';`
 
+### Extension Landing Page — Waitlist to Trial Funnel (June 24, 2026)
+STATUS: ✅ DONE — commit `54102d3`
+- Converted `/extension` from a waitlist capture page into a self-serve trial funnel
+- Embedded the published demo video (youtu.be/_t77xhDO8B0)
+- Removed the waitlist form; added per-agent pricing: $15/agent/mo monthly, $10/agent/mo annual (billed $120/yr), both anchored against a stated $20 post-launch rate. Launch-pricing banner with "lock in for the life of your subscription". 50c/day value framing.
+- All CTAs point to `https://admin.supportcoach.io/signup` (14-day trial, no card). "Sign In" points to `https://admin.supportcoach.io/`. Defined as `SIGNUP_URL` / `ADMIN_URL` constants at the top of the page file.
+- Footer links: Privacy, Terms, support email
+- Internal `<a href="/">` converted to `next/link` to satisfy the build
+- **Side effect:** `src/app/api/extension-waitlist/route.ts` is now orphaned — no caller remains. Route and `extension_waitlist` table both retained deliberately (table holds real signups).
+- `src/app/privacy/page.tsx` — added section 9 "Chrome Extension (Live Agent Coach)": transient draft handling (not stored; 60s in-memory hash-keyed cache), OpenAI as sub-processor, Chrome Web Store Limited Use compliance. Sections renumbered 9→10, 10→11. Last updated bumped to June 23, 2026.
+
+### Extension Link-Preview and Favicon (June 24, 2026)
+STATUS: ✅ DONE — commits `ccbbb3b`, `4ed1ef6`
+- Created `src/app/extension/layout.tsx` — server layout supplying title, description, canonical, OpenGraph and Twitter metadata for the /extension route. Needed because `page.tsx` is a client component and cannot export metadata.
+- Created `public/og-extension.png` (2400x1260 flat teal) and `public/og-extension.svg`
+- Replaced `src/app/favicon.ico` with `src/app/icon.png`; `src/app/layout.tsx` updated
+
+### SEO — Sitemap and Robots (July 1 and 3, 2026)
+STATUS: ✅ DONE — commits `0e8e9c2`, `93de005`
+- `src/app/sitemap.ts` — public indexable pages only: /extension (priority 1), /support, /privacy, /terms, /refund. Gated app routes intentionally omitted.
+- `src/app/robots.ts` — allow /, disallow /api, /dashboard, /settings, /upload, /jobs, /analysis, /onboarding, /select-plan. Sitemap URL declared.
+- `/api` added to disallow on July 3 after a crawler was observed probing `/api/logout`
+- **Standing rule:** a new PUBLIC page must be added to `sitemap.ts`; a new GATED route must be added to the `robots.ts` disallow list.
+
 ---
 
 ## REMAINING WORK
 
 | Item | Effort | Owner |
 |---|---|---|
+| Phase 2 Task 6b — agent coaching history view | 0.5-1 day | Only unbuilt Phase 2 task. Read the AS-BUILT warning in Task 6 first. |
 | Dashboard UI polish (interior pages) | 1 day – 1 week | User decision on shadcn/ui direction pending |
 | Plan gating enforcement | 1-2 days | Scheduled after UI polish per agreed roadmap |
 | Duplicate PDF link to existing analysis (Section 8f) | 0.5 day | Approved for build post-Bangkok |
-| Coaching Effectiveness Tracker (Phase 2) | 5-7 days | See Phase 2 task list below |
 | Password change flow | 1 day | Phase 2, post-Bangkok |
 | Self-signup improvements | 1-2 days | Phase 2, post-Bangkok |
 | Agent management | 2-3 days | Phase 2, post-Bangkok |
+| Orphaned `extension-waitlist` route — keep, or retire deliberately | 0.25 day | Needs a decision, not a default |
 | Stripe billing (if approved) | Optional — Paddle is primary | Backup |
 
 ---
@@ -791,9 +829,33 @@ A POST endpoint that:
 ---
 
 ### PHASE 2 TASK 6: Agent page — coaching history, follow-through scorecard, repeat detection with auto-generated follow-up message
-STATUS: ⏳ IN PROGRESS — Task 6a DONE, Task 6b pending
+STATUS: ⏳ IN PROGRESS — Task 6a DONE (May 2, 2026, commit `bb04b7e`), Task 6b pending
 
-Task 6a complete: agent page scorecard and repeated coaching cards with templated follow-up message copy button are implemented. Task 6b remains pending: coaching history view.
+Task 6a complete: agent page scorecard (Section A) and repeated coaching cards with templated
+follow-up message copy button (Section B) are implemented. Task 6b remains pending: coaching
+history view (Section C).
+
+> ⚠️ **READ THIS BEFORE BUILDING 6b — THE SPEC BELOW IS NOT THE AS-BUILT CODE.**
+> The helper names and shapes written in this task were the design intent. What actually shipped
+> differs. The AS-BUILT column is authoritative — do not "fix" the code to match the spec.
+>
+> | Spec says | Actually shipped |
+> |---|---|
+> | `getAgentFollowthroughScorecard(supabase, orgId, agent, windowDays)` | `getAgentScorecard(organizationId, agentName, windowDays)` — no `supabase` arg, the module builds its own service-role client |
+> | returns `{coached, followed, repeated, no_opportunity}` | returns `{followed_through, repeated, no_opportunity, total, followthrough_rate}` — no `coached` field |
+> | `getAgentRepeatedCoachings(...)` | `getRepeatedCoachingForAgent(organizationId, agentName, windowDays)` |
+> | `buildFollowupCoachingMessage()` exported from `src/lib/coachingFollowthrough.ts`, template constants exported at top of file | template is inline in `handleCopy()` inside `src/components/FollowupMessageButton.tsx`; no exported constants exist |
+> | `getAgentCoachingHistory(...)` | **not built — this is Task 6b** |
+>
+> When building 6b, add `getAgentCoachingHistory(organizationId, agentName, windowDays)` to
+> `src/lib/coachingFollowthrough.ts` following the AS-BUILT convention (positional args, no
+> supabase parameter, service-role client from the module, try/catch returning `[]` on error) —
+> NOT the `(supabase, ...)` signature written below.
+>
+> Sections A and B are already on the page. Task 6b adds Section C only. The window-selector
+> dropdown described in Section A below is currently NOT a dropdown — the page derives a single
+> `windowDays` from `getFollowthroughWindowDays(orgRow?.plan)` with no user-facing selector. If a
+> selector is wanted, that is a separate scoped change, not part of 6b.
 
 **Why this is last:** This is the payoff. With all upstream data flowing (delivery, structured points, follow-through assessments), the agent page becomes the single place a manager goes to see the longitudinal picture and grab pre-written follow-up coaching messages.
 

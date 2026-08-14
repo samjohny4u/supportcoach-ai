@@ -1,8 +1,9 @@
 # SUPPORTCOACH AI — CONTEXT FILE
-# Last updated: May 1, 2026
+# Last updated: August 14, 2026
 
 ## PROJECT STATUS
-- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete. Phase 2 (Coaching Effectiveness Tracker) in progress; Tasks 1, 2, 3, 4, and 5 complete.
+- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete. Phase 2 (Coaching Effectiveness Tracker) in progress; Tasks 1, 2, 3, 4, 5, and 6a complete. Task 6b is the only Phase 2 task remaining.
+- **Last commit:** `93de005` (July 3, 2026). No code changes between July 3 and August 14, 2026.
 - **All MVP features are DONE**
 - **RLS security is ENABLED on all tables**
 - **Production deployment is LIVE at supportcoach.io**
@@ -113,12 +114,47 @@
 - Phase 2 Task 5: Follow-through detection at analysis time + manager override UI — DONE (verified end-to-end on Subaiqua chat 288)
 - Phase 2 Task 5 hotfix: ISO date format on follow-through section to avoid React hydration error #418 (May 1, 2026) — replaced toLocaleDateString() with toISOString().split("T")[0] — DONE
 - Phase 2 Task 5 polish: hide no_opportunity rows from analysis page display, show "Prior coaching evaluated for this chat — no action needed." note when all rows filtered out, reorder Coaching Delivery and Previous Coaching Follow-Through to below the Coaching message section, rename "Copy Coaching Message" heading to "Coaching" (May 1, 2026) — DONE
-- Phase 2 Task 6a: Agent scorecard and repeated coaching cards with follow-up message templating — DONE
+- Phase 2 Task 6a: Agent scorecard and repeated coaching cards with follow-up message templating (May 2, 2026, commit `bb04b7e`) — DONE
+  - Created `src/lib/coachingFollowthrough.ts` exporting `getAgentScorecard()` and `getRepeatedCoachingForAgent()`
+  - Created `src/components/FollowupMessageButton.tsx` — client component that BUILDS the templated follow-up message inline in its copy handler
+  - Modified `src/app/dashboard/agent/[name]/page.tsx` — Section A (scorecard tiles) and Section B (repeated coaching cards)
+  - AS-BUILT NAMES DIFFER FROM THE ORIGINAL SPEC — see "AS-BUILT vs SPEC" below. The as-built names are correct; the spec names were never used.
+
+- Extension landing page converted from waitlist to self-serve trial funnel (June 24, 2026, commit `54102d3`) — DONE
+  - `src/app/extension/page.tsx` — embedded demo video (youtu.be/_t77xhDO8B0), replaced the waitlist form with per-agent pricing (monthly $15/agent/mo, annual $10/agent/mo billed $120/yr, both anchored against a $20 post-launch rate), launch-pricing banner with "lock in for the life of your subscription"
+  - All CTAs now point to `https://admin.supportcoach.io/signup` (14-day trial, no card). "Sign In" points to `https://admin.supportcoach.io/`. Constants `SIGNUP_URL` and `ADMIN_URL` at the top of the file.
+  - Footer links: Privacy, Terms, support email
+  - Internal `<a href="/">` converted to `next/link` to satisfy the build
+  - `src/app/privacy/page.tsx` — added section 9 "Chrome Extension (Live Agent Coach)" covering transient draft handling (not stored, 60s in-memory hash-keyed cache), OpenAI as sub-processor, and Chrome Web Store Limited Use compliance. Sections renumbered 9→10, 10→11. Last updated bumped to June 23, 2026.
+- Extension link-preview and favicon (June 24, 2026, commits `ccbbb3b`, `4ed1ef6`) — DONE
+  - Created `src/app/extension/layout.tsx` — server layout supplying title/description/canonical/OpenGraph/Twitter metadata for the /extension route (the page itself is a client component and cannot export metadata)
+  - Created `public/og-extension.png` (2400x1260, flat teal, 2x sharpened) and `public/og-extension.svg`
+  - Replaced `src/app/favicon.ico` with `src/app/icon.png`; `src/app/layout.tsx` updated
+- SEO: sitemap and robots (July 1 and 3, 2026, commits `0e8e9c2`, `93de005`) — DONE
+  - Created `src/app/sitemap.ts` — lists only public indexable pages: /extension (priority 1), /support, /privacy, /terms, /refund. Gated app routes intentionally omitted.
+  - Created `src/app/robots.ts` — allows /, disallows /api, /dashboard, /settings, /upload, /jobs, /analysis, /onboarding, /select-plan; points at https://www.supportcoach.io/sitemap.xml
+  - `/api` was added to the disallow list on July 3 because a crawler was probing `/api/logout`
 
 ## CURRENT TASK
-- Phase 2 Tasks 1, 2, 3, 4, 5, and 6a complete. Task 6b (agent coaching history view) remains.
+- Phase 2 Tasks 1, 2, 3, 4, 5, and 6a complete. Task 6b (agent coaching history view) remains — it is the only unbuilt Phase 2 task.
 - Recommended next: Task 6b.
 - All architectural decisions for Tasks 4 and 6 are locked in Section 10k of supportcoach-ai-context.md and the PHASE 2 TASKS section of codex-orchestration.md. No new design conversation needed before building.
+
+## AS-BUILT vs SPEC — PHASE 2 TASK 6 NAMING
+The Task 6 spec in codex-orchestration.md named four helpers. Three were built under different
+names or in a different place; one was never built. When reading the spec, translate as follows:
+
+| Spec name (codex-orchestration.md) | As-built reality |
+|---|---|
+| `getAgentFollowthroughScorecard(supabase, orgId, agent, windowDays)` | `getAgentScorecard(organizationId, agentName, windowDays)` in `src/lib/coachingFollowthrough.ts`. No supabase arg — the module creates its own service-role client. |
+| Scorecard shape `{coached, followed, repeated, no_opportunity}` | `{followed_through, repeated, no_opportunity, total, followthrough_rate}`. There is no `coached` field; `total` is the count of all rows with a resolvable status, and `followthrough_rate` is a percentage over `followed_through + repeated` only. |
+| `getAgentRepeatedCoachings(...)` | `getRepeatedCoachingForAgent(organizationId, agentName, windowDays)` in the same file. |
+| `buildFollowupCoachingMessage(repeat, agentName)` exported from `src/lib/coachingFollowthrough.ts` | Never built as a lib export. The template lives inline in the `handleCopy()` handler of `src/components/FollowupMessageButton.tsx`. The constants the spec said to export at the top of the file do not exist. |
+| `getAgentCoachingHistory(...)` | NOT BUILT. This is Task 6b. |
+
+Both helpers apply `manager_override` over the AI `status` via a shared `effectiveStatus()` function,
+and both count all three statuses (no `no_opportunity` display filter is inherited) — matching the
+Task 5 display-filter decision recorded below.
 
 ## REMAINING BEFORE FULL LAUNCH
 1. **Coaching Effectiveness Tracker (Section 10k Phase 2)** — 6 tasks, in active build. See orchestration doc.
@@ -248,6 +284,7 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 
 ## KNOWN ISSUES / BLOCKERS
 - No active blockers
+- `src/app/api/extension-waitlist/route.ts` is now ORPHANED — the June 24 extension rebuild replaced the waitlist form with pricing CTAs, so nothing in the codebase calls this route any more. The route and the `extension_waitlist` Supabase table (which holds real signups) both still exist. Do NOT delete either without an explicit decision — the table has customer data and the route is the only thing that can write to it if the waitlist is ever restored.
 - AI team summary may still produce Unicode bullet characters — the API route strips them but the prompt also instructs plain ASCII
 - First save on settings page shows NEXT_REDIRECT before working on second click — minor, not blocking
 - subscription-status API route returns 401 when called from client-side fetch due to Route Handler cookie handling — TrialBanner and select-plan page use Supabase browser client directly as workaround
@@ -259,8 +296,11 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 - To reset testing account after cancelling a subscription: run `UPDATE organizations SET plan='trial', trial_ends_at=now()+interval '14 days' WHERE id='8e71dc46-e674-4131-8709-506223a35d7e';` and `DELETE FROM subscriptions WHERE organization_id='8e71dc46-e674-4131-8709-506223a35d7e';`
 
 ## ISOLATED FILES — DO NOT TOUCH UNLESS EXPLICITLY ASKED
-- `src/app/extension/page.tsx` — Chrome Extension marketing page, not part of the Manager Dashboard product
-- `src/app/api/extension-waitlist/route.ts` — Chrome Extension waitlist API, not part of the Manager Dashboard product
+- `src/app/extension/page.tsx` — Chrome Extension marketing page, not part of the Manager Dashboard product. Rebuilt June 24, 2026 as a self-serve trial funnel (explicitly requested). Still isolated: no shared nav, no dashboard auth, no shared components.
+- `src/app/extension/layout.tsx` — metadata/OG tags for the /extension route only (added June 24, 2026)
+- `public/og-extension.png`, `public/og-extension.svg` — link-preview image for /extension
+- `src/app/api/extension-waitlist/route.ts` — Chrome Extension waitlist API, not part of the Manager Dashboard product. Now orphaned (see KNOWN ISSUES) but retained.
+- NOTE: the Chrome Extension's OWN code and backend live in a SEPARATE repo (`support-coach-extension`). Only the marketing page and waitlist API live here.
 
 ## KEY DECISIONS MADE
 - Manager-insights route removed (duplicated existing routes)
@@ -295,6 +335,10 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 - Landing page nav: uses shared supabase client from src/lib/supabase.ts — never create a second Supabase client instance on the landing page
 - Nav architecture: AppNav (src/components/AppNav.tsx) renders on all pages except / — landing page handles its own nav internally
 - Extension landing page: hosted at /extension within the Manager Dashboard repo — two separate products sharing one Next.js app and one Supabase project
+- Extension funnel (June 24, 2026): the /extension page is a self-serve trial funnel, NOT a waitlist. Waitlist form removed. CTAs point off-domain to `https://admin.supportcoach.io/signup`.
+- Subdomain split (June 24, 2026): the manager dashboard is addressed as `admin.supportcoach.io` from the extension page, while `www.supportcoach.io` fronts the marketing pages. Both are served by this one Next.js app — the extension page links out by absolute URL rather than by internal route.
+- Extension pricing is separate from Manager Dashboard pricing: $15/agent/mo monthly, $10/agent/mo annual ($120/yr), both anchored against a stated $20 post-launch rate, sold as launch pricing locked for the life of the subscription. These numbers live only in `src/app/extension/page.tsx` — they are NOT in `src/lib/paddle.ts` and are not wired to Paddle.
+- SEO (July 2026): only marketing pages are indexable. `src/app/sitemap.ts` lists /extension, /support, /privacy, /terms, /refund. `src/app/robots.ts` disallows /api and every gated app route. `/extension` is priority 1 — it is the primary acquisition page.
 - **Coaching Effectiveness Tracker (Section 10k Phase 2):**
   - Chat-level delivery tracking — Copy Message marks all points from that chat delivered together. Per-point granularity not built in v1.
   - Structured coaching points (specific_behavior + recommended_behavior) instead of generic tag-only flagging — precise enough to check against future chats.
@@ -327,8 +371,11 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 - `src/app/analysis/[id]/page.tsx` — will receive new sections in Phase 2 Tasks 2, 3, 5. Existing functionality (re-analyze, exclude, copy coaching message) must remain identical.
 - `src/components/CoachingDeliveryControls.tsx` — Phase 2 Task 3. Client component for manual delivery toggle and notes. Must always send notes field (including "") with source: "manual" payload.
 - `src/components/FollowthroughOverrideSelect.tsx` — Phase 2 Task 5. Client component for per-row manager override of AI follow-through assessment.
-- `src/app/extension/page.tsx` — Chrome Extension marketing page (isolated)
-- `src/app/api/extension-waitlist/route.ts` — Chrome Extension waitlist API (isolated)
+- `src/app/extension/page.tsx` — Chrome Extension marketing page (isolated). Primary acquisition page, sitemap priority 1.
+- `src/app/api/extension-waitlist/route.ts` — Chrome Extension waitlist API (isolated, currently orphaned)
+- `src/lib/coachingFollowthrough.ts` — Phase 2 Task 6a. Exports `getAgentScorecard` and `getRepeatedCoachingForAgent`. Manager override must keep taking precedence over AI status via `effectiveStatus()`.
+- `src/components/FollowupMessageButton.tsx` — Phase 2 Task 6a. Holds the follow-up coaching message template inline in `handleCopy()`.
+- `src/app/sitemap.ts` and `src/app/robots.ts` — SEO surface. Adding a new PUBLIC page means adding it to sitemap.ts; adding a new GATED route means adding it to the robots disallow list.
 
 ## DOCUMENTS TO READ ON NEW THREAD
 1. `docs/RULES.md` — standing orders (read first, always)
@@ -337,4 +384,4 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 4. `docs/supportcoach-ai-context.md` — full master prompt (Section 10k for Phase 2 architecture)
 
 ## NEW THREAD STARTER MESSAGE
-"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates all verified March 25, 2026. Extension landing page lives at /extension and is isolated. AI prompt was last enhanced April 27, 2026 with abandoned chat detection, screen sharing detection, transcript completeness awareness, and a hard limit of 2-3 timestamp citations per coaching message. **Phase 2 Coaching Effectiveness Tracker is in active build** — fully designed in master doc Section 10k and broken into 6 tasks in docs/codex-orchestration.md (PHASE 2 TASKS section). Build operates on structured coaching_points (specific_behavior + recommended_behavior) with AI-driven follow-through detection at analysis time, plan-gated lookback windows (Starter 30 / Pro 30-90 / Enterprise 30-90-365), and auto-generated follow-up coaching messages. Other remaining work: dashboard UI polish, plan gating enforcement, duplicate PDF link."
+"I'm continuing development of SupportCoach AI. Read docs/RULES.md and docs/CONTEXT.md for current status. The app is live at supportcoach.io. Paddle billing is fully working end-to-end — checkout, webhooks, and database updates all verified March 25, 2026. AI prompt was last enhanced April 27, 2026 with abandoned chat detection, screen sharing detection, transcript completeness awareness, and a hard limit of 2-3 timestamp citations per coaching message. **Phase 2 Coaching Effectiveness Tracker: Tasks 1-5 and 6a are DONE. Task 6b (agent coaching history view) is the only one left** — designed in master doc Section 10k and docs/codex-orchestration.md (PHASE 2 TASKS section). Before touching Task 6 code, read the AS-BUILT vs SPEC table in CONTEXT.md — three Task 6 helpers shipped under different names than the spec uses. The /extension marketing page was rebuilt June 24, 2026 into a self-serve trial funnel pointing at admin.supportcoach.io/signup; sitemap.ts and robots.ts were added in July 2026. Other remaining work: dashboard UI polish, plan gating enforcement, duplicate PDF link."
