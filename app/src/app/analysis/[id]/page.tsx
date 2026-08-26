@@ -122,6 +122,38 @@ function formatLabel(value: string | null | undefined) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+// Display-only formatter for stored raw transcripts that never got parsed into
+// conversation_messages rows. Mirrors the worker parser's segmentation (strip
+// page markers and date prefixes, skip the metadata header, split on trailing
+// H:MM:SS AM/PM timestamps) WITHOUT touching the real parser. Skipping the
+// header also keeps visitor email/phone off the page.
+function formatRawTranscriptForDisplay(raw: string): Array<{ time: string; text: string }> {
+  if (!raw || !raw.trim()) return [];
+
+  let text = raw.replace(/---\s*Page\s*\d+\s*---/gi, " ");
+  text = text.replace(/\d{1,2}\s+[A-Za-z]{3},\s*(?=\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM))/gi, "");
+
+  const chatStartMatch = text.match(/Chat\s+Duration\s*:\s*[\d:]+/i);
+  if (chatStartMatch && chatStartMatch.index !== undefined) {
+    text = text.substring(chatStartMatch.index + chatStartMatch[0].length);
+  }
+
+  const timestampRegex = /(\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM))/gi;
+  const segments: Array<{ time: string; text: string }> = [];
+  let prevEnd = 0;
+  let match;
+
+  while ((match = timestampRegex.exec(text)) !== null) {
+    const segmentText = text.substring(prevEnd, match.index).replace(/\s+/g, " ").trim();
+    if (segmentText.length >= 2) {
+      segments.push({ time: match[1].trim(), text: segmentText });
+    }
+    prevEnd = match.index + match[0].length;
+  }
+
+  return segments;
+}
+
 function formatOrdinal(count: number) {
   const ordinals = ["", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
   if (count >= 1 && count < ordinals.length) return ordinals[count];
@@ -134,6 +166,7 @@ function normalizeCoachingText(text: string) {
     .replace(/:warning:/g, "⚠️")
     .replace(/:brain:/g, "🧠")
     .replace(/:pushpin:/g, "📌")
+    .replace(/:repeat:/g, "🔁")
     .replace(/:one:/g, "1.")
     .replace(/:two:/g, "2.")
     .replace(/:three:/g, "3.")
@@ -182,7 +215,8 @@ function CoachingMessageSection({
               trimmed.startsWith("✅") ||
               trimmed.startsWith("⚠️") ||
               trimmed.startsWith("🧠") ||
-              trimmed.startsWith("📌");
+              trimmed.startsWith("📌") ||
+              trimmed.startsWith("🔁");
 
             const isBullet = trimmed.startsWith("- ") || trimmed.startsWith("• ");
             const isNumbered = /^\d+\.\s/.test(trimmed);
@@ -686,7 +720,7 @@ export default async function AnalysisDetailPage({
                         href={`/analysis/${row.source_analysis_id}`}
                         className="text-xs font-semibold text-indigo-300 hover:text-indigo-200"
                       >
-                        View original chat -&gt;
+                        View original analysis -&gt;
                       </a>
                       <FollowthroughOverrideSelect
                         followthroughId={row.id}
@@ -740,6 +774,13 @@ export default async function AnalysisDetailPage({
                     </p>
                   );
                 })
+              ) : formatRawTranscriptForDisplay(rawTranscriptFallback).length > 0 ? (
+                formatRawTranscriptForDisplay(rawTranscriptFallback).map((segment, index) => (
+                  <p key={index} className="text-gray-200">
+                    <span className="text-gray-500">[{segment.time}] </span>
+                    {segment.text}
+                  </p>
+                ))
               ) : (
                 <pre className="whitespace-pre-wrap font-sans text-gray-200">
                   {rawTranscriptFallback}
