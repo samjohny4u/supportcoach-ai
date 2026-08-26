@@ -1247,7 +1247,7 @@ dropdown values; change an override, copy again → text follows the override.
 ---
 
 ### PHASE 3 TASK 13: Feed manager overrides back into future analyses ("learning from me")
-STATUS: 🔒 SCOPED (owner asked for scoping August 26, 2026 — say "go" to build)
+STATUS: ⏳ APPROVED (owner: "Yes 'learning from me' can be built" — August 26, 2026)
 
 **What it is:** the model learns nothing from manager overrides today (stateless API calls).
 This task makes overrides INFLUENCE future analyses without any training: when
@@ -1286,6 +1286,50 @@ exist; render nothing when the analysis has no conversation.
 sentences from follow-through cards can be verified against it without leaving the page.
 
 **Commit:** `Phase 3 Task 14: collapsible transcript view on the analysis page`
+
+---
+
+### PHASE 3 TASK 15: "Since Last Coaching" section in the coaching message
+STATUS: ⏳ APPROVED (owner judgment call August 26, 2026)
+
+**Why:** Task 12-A's "weave naturally, no separate section" produced ONE continuation clause on a
+re-analysis that assessed SIX prior points — technically compliant, practically invisible. Owner
+verdict (and mine, recorded): a compact dedicated section beats stronger weaving because (a) the
+agent must SEE continuity — that is the tracker's entire point; (b) a bounded section is
+enforceable, "weave more but not too much" is not; (c) the summary-button format already proved
+the standalone shape reads well.
+
+**Edit:** `src/lib/coachingFollowthroughFetch.ts` — replace the COACHING MESSAGE INTEGRATION block:
+copy_coaching_message must include a compact `:repeat: Since Last Coaching` section immediately
+after the opening paragraph — 1-5 single-line bullets, max ~90 words: "Applied: ..." per
+followed_through point, "Came back around: ... let's make this the focus" per repeated point;
+no_opportunity skipped; section OMITTED entirely when nothing was applied or repeated; supportive,
+never a scoreboard, never a list of past dates; brief continuity references allowed elsewhere but
+no restating; overall message length unchanged (trim elsewhere).
+**Edit:** `src/app/analysis/[id]/page.tsx` — renderer: `:repeat:` → 🔁 in `normalizeCoachingText`,
+🔁 added to the section-header detection.
+
+**Test (owner):** re-analyze a chat with prior applied/repeated coaching → message shows a short
+🔁 Since Last Coaching block after the opening; total length still ~250-450 words; no section when
+all points were no_opportunity.
+
+---
+
+### PHASE 3 TASK 16: Readable transcript fallback + link label fix
+STATUS: ⏳ APPROVED (owner feedback August 26, 2026: raw fallback "looks unreadable and overwhelming")
+
+**Edit:** `src/app/analysis/[id]/page.tsx`:
+1. `formatRawTranscriptForDisplay(raw)` — display-only formatter for conversations with no parsed
+   `conversation_messages` rows: strip `--- Page N ---` markers and date prefixes, skip the
+   metadata header (everything before "Chat Duration :", which also keeps visitor email/phone off
+   the page), segment on the trailing `H:MM:SS AM/PM` timestamps exactly like the worker parser,
+   render `[time] text` paragraphs. Raw `<pre>` remains only as last resort when no timestamps
+   parse. Does NOT touch the real parser.
+2. Rename the follow-through card link "View original chat ->" to "View original analysis ->"
+   (it navigates to an analysis page, not a chat).
+
+**Test (owner):** open the #221584 analysis → transcript renders as one line per message, no page
+markers, no header dump; link label reads View original analysis.
 
 ---
 
