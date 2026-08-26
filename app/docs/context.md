@@ -141,13 +141,31 @@
 - NOTE: the hard-coded `gpt-5.4` model id now has NINE call sites (Task 9 added `src/app/api/coaching-digest/route.ts`). A model swap must touch all nine.
 - Phase 2 Tasks 1, 2, 3, 4, 5, and 6a complete. Task 6b (agent coaching history view) remains — the only unbuilt Phase 2 task; queued behind Phase 3.
 
-## REPEAT-COACHING DIAGNOSIS (August 26, 2026)
+## REPEAT-COACHING DIAGNOSIS (August 26, 2026 — CORRECTED same day by owner-run SQL)
 Symptom: repeated behaviors (e.g. 3-4 min gaps after "Please hold on") not flagged as repeat coaching.
-Root cause (by inspection): the test org is plan='trial' → 30-day lookback window
-(`getFollowthroughWindowDays`), and coaching history dates from ~May 2026 with a ~3-month usage gap —
-so no prior delivered coaching ever qualifies for any new analysis. Detection also only runs AT
-analysis time; historical chats are never retro-assessed. Delivery is not the broken link (owner
-confirms every coaching is copied → auto-marked delivered).
+
+**CONFIRMED ROOT CAUSE (Phase 3 Task 10, fixed Aug 26, 2026):** `process-jobs` guessed the agent
+before the AI call as the FIRST unique parsed sender — which in Zoho transcripts is the
+"Contractor Foreman Support" bot greeting (or the customer). Prior-coaching lookup therefore ran
+against the bot's name, found nothing, and the follow-through prompt section was silently omitted
+on nearly every upload. Owner's diagnosis SQL proved it: delivered coaching exists through
+Aug 25-26 (Query 1 — inside every window), yet only 11 followthrough rows were ever written
+(Query 3), traceable to May re-analyze tests — `reanalyze-analysis` uses the STORED agent_name and
+never had the bug. Fix: `extractOperatorNameFromHeader()` reads the agent from the PDF header's
+"Operator:" field (verified against a real production PDF), legacy first-sender heuristic as
+fallback.
+
+**INITIAL (WRONG-PRIMARY) HYPOTHESIS, kept for the record:** trial plan → 30-day window + assumed
+May-era coaching. Query 1 disproved the usage-gap premise. The window fix below was still applied
+(enterprise/365 days) and is still useful — it lets follow-through reach back past 30 days — but it
+was NOT the main break.
+
+**Data-quality observation from Query 4 (open, no action yet):** `agent_name` contains combined
+values ("Arjuna and Vinisha Sekar", "Debbie / Vinisha Sekar"), the bot ("Contractor Foreman
+Support"), and null — combined names will never exact-match either agent's coaching history.
+
+Detection only runs AT analysis time; historical chats are never retro-assessed. Delivery was never
+the broken link (every coaching is copied → auto-marked delivered).
 
 **Read-only diagnosis SQL (owner runs in Supabase SQL Editor):**
 ```sql

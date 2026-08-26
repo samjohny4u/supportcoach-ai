@@ -1154,7 +1154,7 @@ agent gets a plan of action, not a "you were wrong in 3 places" list.
 ---
 
 ### PHASE 3 TASK 10: Fix first-pass agent guess — read Operator from the PDF header
-STATUS: ⏳ APPROVED (root cause confirmed by owner-run diagnosis SQL, August 26, 2026)
+STATUS: ✅ DONE (Aug 26, 2026) — as-built in `src/app/api/process-jobs/route.ts`: `extractOperatorNameFromHeader(transcriptText)` + `isPlausibleAgentName(value)`; `earlyAgentGuess` = operator name || legacy first-sender fallback. Extraction verified against a real production PDF (multi-space and single-space header variants → "Vinisha Sekar"; missing Operator line → null → fallback). Owner end-to-end test pending.
 
 **Bug (supersedes the window-only diagnosis of Task 4):** `process-jobs` guesses the agent BEFORE
 the AI call as the FIRST unique parsed sender, and Zoho transcripts open with the
