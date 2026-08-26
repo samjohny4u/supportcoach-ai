@@ -5,6 +5,7 @@ import { getCurrentOrganization } from "../../../lib/currentOrganization";
 import CopyButton from "../../../components/CopyButton";
 import CoachingDeliveryControls from "../../../components/CoachingDeliveryControls";
 import FollowthroughOverrideSelect from "../../../components/FollowthroughOverrideSelect";
+import FollowthroughSummaryButton from "../../../components/FollowthroughSummaryButton";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -553,9 +554,21 @@ export default async function AnalysisDetailPage({
 
         {visibleFollowthroughRows.length > 0 ? (
           <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
-            <h2 className="mb-2 text-2xl font-semibold text-white">
-              Previous Coaching Follow-Through
-            </h2>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-2xl font-semibold text-white">
+                Previous Coaching Follow-Through
+              </h2>
+              <FollowthroughSummaryButton
+                agentName={analysis.agent_name || ""}
+                rows={visibleFollowthroughRows.map((row) => ({
+                  finalStatus: row.manager_override || row.status,
+                  recommendedBehavior: row.source_recommended_behavior,
+                  sourceDate: row.source_date,
+                  evidence: row.evidence,
+                  repeatCount: repeatCounts.get(row.id) || 1,
+                }))}
+              />
+            </div>
             <p className="mb-5 text-sm text-gray-400">
               Assessments of how this chat reflects on prior coaching delivered to this agent.
             </p>

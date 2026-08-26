@@ -128,6 +128,12 @@ Rules:
 - For abandoned chats (per the Abandoned Chat Detection rules above), output coaching_followthrough: [] - there isn't enough interaction to assess any prior coaching.
 - Use point_id and source_analysis_id values EXACTLY as given. Do not modify, shorten, or normalize them.
 
+COACHING MESSAGE INTEGRATION:
+- Weave the follow-through results into copy_coaching_message naturally. Do NOT add a separate section header for them and do NOT extend the message beyond its normal length.
+- If any prior point is followed_through: credit it early in the message with one specific sentence (e.g. "Last time we talked about answering procedural questions directly - you did exactly that here."). Genuine credit first builds trust in the coaching.
+- If any prior point is repeated: address it inside the "Where the Experience Could Improve" section as a continuation of earlier coaching, in an encouraging way (e.g. "this one has come back around, so let's make it the focus this week") - never as a reprimand, and never list every past occurrence.
+- If ALL prior points are no_opportunity: do not mention prior coaching in copy_coaching_message at all.
+
 Prior coaching points to assess:
 
 ${formatted}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type FollowthroughOverrideSelectProps = {
   followthroughId: string;
@@ -18,6 +19,7 @@ export default function FollowthroughOverrideSelect({
   followthroughId,
   initialOverride,
 }: FollowthroughOverrideSelectProps) {
+  const router = useRouter();
   const [value, setValue] = useState(initialOverride || "");
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -45,6 +47,9 @@ export default function FollowthroughOverrideSelect({
 
       setStatusMessage("Saved");
       setTimeout(() => setStatusMessage(""), 2000);
+      // Re-render the server page so the status badge and the copyable
+      // follow-through summary reflect the new override without a manual reload.
+      router.refresh();
     } catch (error: any) {
       setStatusMessage(error?.message || "Failed to save");
     } finally {
