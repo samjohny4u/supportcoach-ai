@@ -1093,6 +1093,7 @@ no duplicate analyses, second invocation returns the claimed message.
 | `processed_files` counter races under concurrent workers on one job | Progress % may miscount; cosmetic | Recompute count from completed items instead of local counter |
 | No cron — worker only runs when a browser triggers it | Stuck pending jobs if trigger fetch fails and user leaves | Vercel cron hitting /api/process-jobs every few minutes (needs vercel.json — owner decision, changes "no cron" design) |
 | /api/process-jobs is unauthenticated GET doing expensive OpenAI work | Anyone can burn OpenAI spend by hammering it | Require a shared secret header or auth check |
+| /api/team-summary is unauthenticated POST doing an OpenAI call (verified by external curl, Aug 26 2026) | Same open-spend exposure | Same auth pass; note the dashboard's server-side self-fetch sends no cookies, so the fix must allow that caller (shared secret header or extract to a lib function and drop the HTTP hop) |
 | One job per invocation, items sequential | 1000 orgs uploading = long queue latency | Per-org fairness / parallel item processing within Vercel time limits |
 | OpenAI rate limits / Vercel function timeout on huge jobs | Items fail mid-job (item claim makes this recoverable) | Batch-size cap per invocation + retry pass |
 
