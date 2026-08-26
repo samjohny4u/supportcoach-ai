@@ -122,12 +122,57 @@ function formatLabel(value: string | null | undefined) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-// Display-only formatter for stored raw transcripts that never got parsed into
-// conversation_messages rows. Mirrors the worker parser's segmentation (strip
-// page markers and date prefixes, skip the metadata header, split on trailing
-// H:MM:SS AM/PM timestamps) WITHOUT touching the real parser. Skipping the
-// header also keeps visitor email/phone off the page.
-function formatRawTranscriptForDisplay(raw: string): Array<{ time: string; text: string }> {
+// --- Transcript display model (display-only; the worker parser is untouched) ---
+
+type DisplayMessage = {
+  sender: string | null;
+  isSystem: boolean;
+  time: string;
+  text: string;
+};
+
+type DisplayGroup = {
+  sender: string | null;
+  isSystem: boolean;
+  messages: Array<{ time: string; text: string }>;
+};
+
+const BOT_SENDER_NAME = "contractor foreman support";
+
+const SYSTEM_TEXT_PATTERNS = [
+  /is sharing a file with you/i,
+  /forwarded the chat/i,
+  /accepted the chat/i,
+  /ended this chat/i,
+  /thanks for contacting us today/i,
+  /you will be connected/i,
+];
+
+function isSystemText(text: string): boolean {
+  return SYSTEM_TEXT_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function isBotSender(sender: string | null): boolean {
+  return (sender || "").trim().toLowerCase() === BOT_SENDER_NAME;
+}
+
+function matchesName(sender: string | null, target: string | null): boolean {
+  const senderNormalized = (sender || "").trim().toLowerCase();
+  const targetNormalized = (target || "").trim().toLowerCase();
+  if (!senderNormalized || !targetNormalized) return false;
+  return (
+    senderNormalized === targetNormalized ||
+    senderNormalized.startsWith(targetNormalized) ||
+    targetNormalized.startsWith(senderNormalized)
+  );
+}
+
+// Fallback for stored raw transcripts with no parsed conversation_messages rows.
+// Mirrors the worker parser's heuristics (multi-space sender split BEFORE
+// whitespace collapse, known-name prefix matching, continuation from the last
+// sender) and skips the metadata header, which also keeps visitor email/phone
+// off the page.
+function buildFallbackDisplayMessages(raw: string, seedNames: string[]): DisplayMessage[] {
   if (!raw || !raw.trim()) return [];
 
   let text = raw.replace(/---\s*Page\s*\d+\s*---/gi, " ");
@@ -139,20 +184,113 @@ function formatRawTranscriptForDisplay(raw: string): Array<{ time: string; text:
   }
 
   const timestampRegex = /(\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM))/gi;
-  const segments: Array<{ time: string; text: string }> = [];
+  const segments: Array<{ raw: string; time: string }> = [];
   let prevEnd = 0;
   let match;
 
   while ((match = timestampRegex.exec(text)) !== null) {
-    const segmentText = text.substring(prevEnd, match.index).replace(/\s+/g, " ").trim();
-    if (segmentText.length >= 2) {
-      segments.push({ time: match[1].trim(), text: segmentText });
+    const rawSegment = text.substring(prevEnd, match.index);
+    if (rawSegment.trim().length >= 2) {
+      segments.push({ raw: rawSegment, time: match[1].trim() });
     }
     prevEnd = match.index + match[0].length;
   }
 
-  return segments;
+  const knownNames = new Set<string>(
+    seedNames.map((name) => name.trim()).filter((name) => name.length > 0)
+  );
+  knownNames.add("Contractor Foreman Support");
+
+  const messages: DisplayMessage[] = [];
+  let lastSender: string | null = null;
+
+  for (const segment of segments) {
+    const collapsed = segment.raw.replace(/\s+/g, " ").trim();
+
+    if (isSystemText(collapsed)) {
+      messages.push({ sender: null, isSystem: true, time: segment.time, text: collapsed });
+      continue;
+    }
+
+    const senderSplit = segment.raw.replace(/\r?\n/g, " ").match(/^\s*(.{1,50}?)\s{2,}(\S.*)$/);
+    if (senderSplit) {
+      const possibleSender = senderSplit[1].replace(/\s+/g, " ").trim();
+      const messageText = senderSplit[2].replace(/\s+/g, " ").trim();
+      if (
+        possibleSender.length > 0 &&
+        possibleSender.length <= 50 &&
+        !possibleSender.includes("://") &&
+        possibleSender.split(" ").length <= 5 &&
+        messageText.length > 0
+      ) {
+        knownNames.add(possibleSender);
+        lastSender = possibleSender;
+        messages.push({
+          sender: possibleSender,
+          isSystem: isBotSender(possibleSender),
+          time: segment.time,
+          text: messageText,
+        });
+        continue;
+      }
+    }
+
+    // Longest known name first so "Jacob Smith" wins over "Jacob"
+    let matched = false;
+    for (const name of Array.from(knownNames).sort((a, b) => b.length - a.length)) {
+      if (collapsed.startsWith(name)) {
+        const remainder = collapsed.substring(name.length).trim();
+        if (remainder.length > 0) {
+          lastSender = name;
+          messages.push({
+            sender: name,
+            isSystem: isBotSender(name),
+            time: segment.time,
+            text: remainder,
+          });
+          matched = true;
+          break;
+        }
+      }
+    }
+    if (matched) continue;
+
+    messages.push({
+      sender: lastSender,
+      isSystem: lastSender ? isBotSender(lastSender) : true,
+      time: segment.time,
+      text: collapsed,
+    });
+  }
+
+  return messages;
 }
+
+function groupDisplayMessages(messages: DisplayMessage[]): DisplayGroup[] {
+  const groups: DisplayGroup[] = [];
+
+  for (const message of messages) {
+    const last = groups[groups.length - 1];
+    const continuesLast =
+      last &&
+      last.isSystem === message.isSystem &&
+      (message.isSystem || last.sender === message.sender);
+
+    if (continuesLast) {
+      last.messages.push({ time: message.time, text: message.text });
+    } else {
+      groups.push({
+        sender: message.sender,
+        isSystem: message.isSystem,
+        messages: [{ time: message.time, text: message.text }],
+      });
+    }
+  }
+
+  return groups;
+}
+
+// --- End transcript display model ---
 
 function formatOrdinal(count: number) {
   const ordinals = ["", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
@@ -503,7 +641,26 @@ export default async function AnalysisDetailPage({
     }
   }
 
-  const hasTranscript = transcriptMessages.length > 0 || rawTranscriptFallback.length > 0;
+  const transcriptDisplayMessages: DisplayMessage[] =
+    transcriptMessages.length > 0
+      ? transcriptMessages
+          .map((message) => ({
+            sender: message.sender_name,
+            isSystem:
+              message.sender_role === "system" ||
+              isBotSender(message.sender_name) ||
+              isSystemText(message.message_text || ""),
+            time: message.message_timestamp || "",
+            text: (message.message_text || "").trim(),
+          }))
+          .filter((message) => message.text.length > 0)
+      : buildFallbackDisplayMessages(rawTranscriptFallback, [
+          analysis.agent_name || "",
+          analysis.customer_name || "",
+        ]);
+
+  const transcriptGroups = groupDisplayMessages(transcriptDisplayMessages);
+  const hasTranscript = transcriptGroups.length > 0;
 
   const coachingMessage = analysis.copy_coaching_message?.trim() || "";
   const quickSummary = analysis.quick_summary?.trim() || "";
@@ -738,58 +895,6 @@ export default async function AnalysisDetailPage({
           </div>
         ) : null}
 
-        {hasTranscript ? (
-          <details className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
-            <summary className="cursor-pointer text-2xl font-semibold text-white">
-              View Transcript
-            </summary>
-            <p className="mt-2 text-sm text-gray-400">
-              The stored chat transcript this analysis was generated from — use it to verify
-              coaching claims and follow-through evidence without leaving the page.
-            </p>
-            <div className="mt-4 max-h-[32rem] space-y-2 overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-5 text-sm leading-6">
-              {transcriptMessages.length > 0 ? (
-                transcriptMessages.map((message, index) => {
-                  const time = message.message_timestamp
-                    ? `[${message.message_timestamp}] `
-                    : "";
-                  const name = message.sender_name || "Unknown";
-                  const text = (message.message_text || "").trim();
-                  if (!text) return null;
-
-                  if (message.sender_role === "system") {
-                    return (
-                      <p key={index} className="italic text-gray-500">
-                        {time}
-                        {text}
-                      </p>
-                    );
-                  }
-
-                  return (
-                    <p key={index} className="text-gray-200">
-                      <span className="text-gray-500">{time}</span>
-                      <span className="font-semibold text-white">{name}: </span>
-                      {text}
-                    </p>
-                  );
-                })
-              ) : formatRawTranscriptForDisplay(rawTranscriptFallback).length > 0 ? (
-                formatRawTranscriptForDisplay(rawTranscriptFallback).map((segment, index) => (
-                  <p key={index} className="text-gray-200">
-                    <span className="text-gray-500">[{segment.time}] </span>
-                    {segment.text}
-                  </p>
-                ))
-              ) : (
-                <pre className="whitespace-pre-wrap font-sans text-gray-200">
-                  {rawTranscriptFallback}
-                </pre>
-              )}
-            </div>
-          </details>
-        ) : null}
-
         <div className="mb-8">
           <CoachingMessageSection text={coachingMessage} analysisId={String(analysis.id)} />
         </div>
@@ -884,6 +989,71 @@ export default async function AnalysisDetailPage({
             items={analysis.summary_improvements}
           />
         </div>
+
+        {hasTranscript ? (
+          <details className="mt-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
+            <summary className="cursor-pointer text-2xl font-semibold text-white">
+              View Transcript
+            </summary>
+            <p className="mt-2 text-sm text-gray-400">
+              The stored chat this analysis was generated from — for verifying coaching
+              claims when an agent contests them. You should rarely need this.
+            </p>
+            <div className="mt-4 max-h-[32rem] space-y-4 overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-5 text-sm leading-6">
+              {transcriptGroups.map((group, groupIndex) => {
+                if (group.isSystem) {
+                  return (
+                    <div key={groupIndex} className="space-y-1">
+                      {group.messages.map((message, messageIndex) => (
+                        <p key={messageIndex} className="text-xs italic text-gray-600">
+                          {message.text}
+                        </p>
+                      ))}
+                    </div>
+                  );
+                }
+
+                const isAgent = matchesName(group.sender, analysis.agent_name);
+                const isCustomer =
+                  !isAgent && matchesName(group.sender, analysis.customer_name);
+
+                return (
+                  <div
+                    key={groupIndex}
+                    className={`border-l-2 pl-4 ${
+                      isAgent
+                        ? "border-emerald-400/50"
+                        : isCustomer
+                          ? "border-sky-400/40"
+                          : "border-white/10"
+                    }`}
+                  >
+                    <p
+                      className={`mb-1 text-xs font-semibold uppercase tracking-wide ${
+                        isAgent
+                          ? "text-emerald-300"
+                          : isCustomer
+                            ? "text-sky-300"
+                            : "text-gray-400"
+                      }`}
+                    >
+                      {group.sender || "Unknown"}
+                      {isAgent ? " · Agent" : isCustomer ? " · Customer" : ""}
+                    </p>
+                    <div className="space-y-1">
+                      {group.messages.map((message, messageIndex) => (
+                        <p key={messageIndex} className="text-gray-200">
+                          {message.text}{" "}
+                          <span className="text-xs text-gray-600">{message.time}</span>
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        ) : null}
       </div>
     </main>
   );
