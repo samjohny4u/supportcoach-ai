@@ -1333,6 +1333,31 @@ markers, no header dump; link label reads View original analysis.
 
 ---
 
+### PHASE 3 TASK 17: Transcript section — move to bottom, speaker-grouped rendering
+STATUS: ⏳ APPROVED (owner feedback August 26, 2026: transcript is the LAST thing a manager reads —
+"the whole point of the software is so I don't have to read a chat unless contested by an agent" —
+and the line-per-timestamp rendering is cluttered)
+
+**Edit:** `src/app/analysis/[id]/page.tsx` only:
+1. Move the View Transcript `<details>` block from below the follow-through section to the VERY
+   BOTTOM of the page (after the summary list sections).
+2. Replace flat `[time] text` rendering with speaker-grouped blocks for BOTH the parsed path and
+   the raw fallback: consecutive messages from the same sender group under one name header; the
+   analysis's agent gets an emerald accent + "(Agent)" tag, the customer a sky accent +
+   "(Customer)" tag; bot ("Contractor Foreman Support") and system/file-sharing lines render
+   muted, small, italic; timestamps small and de-emphasized per line.
+3. Fallback sender extraction: display-only heuristics mirroring the worker parser (multi-space
+   split BEFORE whitespace collapse, known-sender-name prefix matching seeded with the analysis's
+   stored agent_name/customer_name/bot, continuation from last sender) — the real parser stays
+   untouched.
+
+**Test (owner):** open an analysis → transcript is the last section on the page; expanded view
+shows conversation-style speaker blocks, agent visually distinct, bot noise muted.
+
+**Commit:** `Phase 3 Task 17: transcript at page bottom with speaker-grouped rendering`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
