@@ -1246,6 +1246,49 @@ dropdown values; change an override, copy again → text follows the override.
 
 ---
 
+### PHASE 3 TASK 13: Feed manager overrides back into future analyses ("learning from me")
+STATUS: 🔒 SCOPED (owner asked for scoping August 26, 2026 — say "go" to build)
+
+**What it is:** the model learns nothing from manager overrides today (stateless API calls).
+This task makes overrides INFLUENCE future analyses without any training: when
+`fetchPriorDeliveredCoachingPoints` assembles prior points for an agent, also fetch that agent's
+override history from `coaching_followthrough` (rows where `manager_override IS NOT NULL`, same
+org, window-bounded, capped ~10) and extend the follow-through prompt section with a
+CALIBRATION block, e.g.: "The manager corrected your earlier assessments: on point <id> you said
+repeated, the manager says no_opportunity. Weight these corrections when assessing the same or
+similar points — the manager knows context you cannot see."
+
+**Files:** `src/lib/coachingFollowthroughFetch.ts` only (shared by both workers — one edit).
+**Cost:** ~50-150 extra input tokens per analysis, only for agents that HAVE overrides.
+**Honest limits (state in handoff):** calibration, not learning — corrections bias the model's
+judgment on that agent's recurring points; they do not generalize across agents or persist beyond
+the prompt. Effect strongest when the same point_id is re-assessed.
+**Test (owner):** override an assessment to no_opportunity, upload/re-analyze another chat for the
+same agent where the same point is checked → the AI's new assessment should respect the correction
+pattern (spot-check, non-deterministic).
+
+---
+
+### PHASE 3 TASK 14: View Transcript on the analysis page
+STATUS: ⏳ APPROVED (owner asked "where is the view transcript option" — August 26, 2026)
+
+**Why:** verifying an AI follow-through assessment currently requires finding the chat in SalesIQ.
+The transcript is already stored (`conversation_messages` rows + `conversations.raw_transcript_text`)
+— it just isn't displayed.
+
+**Edit:** `src/app/analysis/[id]/page.tsx` — collapsible (native `<details>`) "View Transcript"
+section placed right after the follow-through block: fetch `conversation_messages` for the
+analysis's `conversation_id` (org-filtered), render `[time] Name: text` lines (system lines muted),
+scrollable container; fall back to `conversations.raw_transcript_text` when no parsed messages
+exist; render nothing when the analysis has no conversation.
+
+**Test (owner):** open an analysis → View Transcript expands with the full readable chat; evidence
+sentences from follow-through cards can be verified against it without leaving the page.
+
+**Commit:** `Phase 3 Task 14: collapsible transcript view on the analysis page`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
