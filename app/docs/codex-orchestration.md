@@ -1334,9 +1334,10 @@ markers, no header dump; link label reads View original analysis.
 ---
 
 ### PHASE 3 TASK 17: Transcript section — move to bottom, speaker-grouped rendering
-STATUS: ⏳ APPROVED (owner feedback August 26, 2026: transcript is the LAST thing a manager reads —
+STATUS: ✅ DONE (Aug 26, 2026) — as-built in `src/app/analysis/[id]/page.tsx`: `<details>` block moved to the very bottom (after the summary list sections); unified display model — `DisplayMessage`/`DisplayGroup` types, `isSystemText`/`isBotSender`/`matchesName`/`buildFallbackDisplayMessages`/`groupDisplayMessages` helpers (replacing `formatRawTranscriptForDisplay`); grouped speaker blocks with emerald Agent / sky Customer accents, muted system/bot lines, de-emphasized timestamps. Owner test pending.
+(Original rationale: transcript is the LAST thing a manager reads —
 "the whole point of the software is so I don't have to read a chat unless contested by an agent" —
-and the line-per-timestamp rendering is cluttered)
+and the line-per-timestamp rendering was cluttered)
 
 **Edit:** `src/app/analysis/[id]/page.tsx` only:
 1. Move the View Transcript `<details>` block from below the follow-through section to the VERY
