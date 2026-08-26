@@ -1185,7 +1185,7 @@ extraction reads the RAW transcript text separately.
 ---
 
 ### PHASE 3 TASK 11: Transferred chats — coach the agent who finished the chat
-STATUS: ⏳ APPROVED (owner directive August 26, 2026)
+STATUS: ✅ DONE (Aug 26, 2026) — as-built: `agent_name` block added at the top of FIELD-SPECIFIC RULES, identical text in BOTH `src/app/api/process-jobs/route.ts` and `src/app/api/reanalyze-analysis/route.ts`. Prompt-only; affects new and re-analyzed chats. Owner test pending: re-analyze a "Debbie / Vinisha Sekar" chat.
 
 **Problem:** the prompt has NO agent_name field rule, so on transferred chats the AI invents
 combined names ("Arjuna and Vinisha Sekar", "Debbie / Vinisha Sekar" — both live in production

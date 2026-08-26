@@ -638,6 +638,13 @@ Return this exact structure:
 
 === FIELD-SPECIFIC RULES ===
 
+agent_name:
+- The single support agent being coached in this analysis. agent_name must be exactly ONE person's name.
+- If more than one support agent handled the chat (the chat was transferred or forwarded), analyze the ENTIRE transcript for context, but set agent_name to the agent who FINISHED the chat — the last support agent who sent a message before the chat ended. That is the person being coached.
+- NEVER output combined names like "Arjuna and Vinisha Sekar" or "Debbie / Vinisha Sekar".
+- NEVER use the support bot (e.g. "Contractor Foreman Support") as agent_name — an automated greeting is not an agent.
+- When a transfer occurred: coaching may briefly acknowledge what happened before the transfer as context, but all scores, coaching points, and the coaching message apply to the finishing agent's portion of the chat. Do not penalize the finishing agent for the earlier agent's behavior, and do not coach the earlier agent in this analysis.
+
 chat_type:
 - Must be a short, consistent category name describing the product module or issue type.
 - Use general module-level categories, not overly specific descriptions.
