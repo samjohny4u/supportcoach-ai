@@ -1339,6 +1339,16 @@ STATUS: ✅ DONE (Aug 26, 2026) — as-built in `src/app/analysis/[id]/page.tsx`
 "the whole point of the software is so I don't have to read a chat unless contested by an agent" —
 and the line-per-timestamp rendering was cluttered)
 
+**Task 15 HOTFIX (Aug 26, 2026, commit `2a6c800`):** production defect on chat #239011 — the
+Since Last Coaching section said "no prior coaching came up" while the same response's
+coaching_followthrough array held 5 repeated + 1 followed_through. Root cause: generation order —
+`copy_coaching_message` preceded `coaching_followthrough` in the "Return this exact structure"
+template, so the message was written before the verdicts existed. As-built fix:
+`coaching_points`/`coaching_followthrough` now come FIRST in both routes' JSON templates (server
+parsing is order-independent), and the shared integration block gained an explicit
+assessments-first consistency rule plus an instruction to MERGE near-duplicate prior points into
+one bullet in the message (each still assessed individually in the array).
+
 **Edit:** `src/app/analysis/[id]/page.tsx` only:
 1. Move the View Transcript `<details>` block from below the follow-through section to the VERY
    BOTTOM of the page (after the summary list sections).
