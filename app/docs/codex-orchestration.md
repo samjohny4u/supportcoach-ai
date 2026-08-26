@@ -1419,6 +1419,17 @@ Existing clones are unaffected (separate decision if merging history is wanted).
 
 ---
 
+### PHASE 3 TASK 22: Fix NEXT_REDIRECT on settings save
+STATUS: ✅ DONE (Aug 26, 2026, commit `314e9d7`) — as-built in `src/app/settings/page.tsx`: both
+server actions (`saveCompanyCoachingContext`, `saveAutoMarkSetting`) collect a `saveErrorMessage`
+inside the try/catch and call `redirect()` only AFTER it. Root cause: `redirect()` throws
+NEXT_REDIRECT by design; the catch intercepted the success redirect and rendered it as an error —
+the save itself always worked. Closes the KNOWN ISSUE dating from the original billing build.
+Standing lesson (also in context.md): never call `redirect()` inside a try/catch in a server
+action or route handler.
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,

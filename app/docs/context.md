@@ -362,7 +362,7 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 - No active blockers
 - `src/app/api/extension-waitlist/route.ts` is now ORPHANED — the June 24 extension rebuild replaced the waitlist form with pricing CTAs, so nothing in the codebase calls this route any more. The route and the `extension_waitlist` Supabase table (which holds real signups) both still exist. Do NOT delete either without an explicit decision — the table has customer data and the route is the only thing that can write to it if the waitlist is ever restored.
 - AI team summary may still produce Unicode bullet characters — the API route strips them but the prompt also instructs plain ASCII
-- First save on settings page shows NEXT_REDIRECT before working on second click — minor, not blocking
+- Settings NEXT_REDIRECT on save — FIXED August 26, 2026 (Phase 3 Task 22, commit `314e9d7`): both server actions called `redirect()` inside try/catch; `redirect()` throws NEXT_REDIRECT by design, so the catch turned the success redirect into an error banner. Redirects now happen outside the try/catch. Standing lesson: NEVER call `redirect()` inside a try/catch in a server action or route handler.
 - subscription-status API route returns 401 when called from client-side fetch due to Route Handler cookie handling — TrialBanner and select-plan page use Supabase browser client directly as workaround
 - Supabase RLS returns 406 on client-side subscriptions query — non-blocking, page works without it
 - VS Code shows false TypeScript error "Cannot find module @/components/AppNav" — stale cache issue, does not affect Vercel build
