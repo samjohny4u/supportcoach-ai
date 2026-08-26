@@ -137,7 +137,8 @@
 
 ## CURRENT TASK
 - **Phase 3 (August 2026 bug fixes and hardening): Tasks 1, 2, 3, 5, 6, 7, 8 DONE (built + lint/build gated, August 26, 2026).** Task 4 waits on owner-run SQL (see REPEAT-COACHING DIAGNOSIS below). Task 9 (bi-weekly coaching digest) scoped, awaiting owner decisions. See PHASE 3 TASKS in codex-orchestration.md for as-built details.
-- Phase 3 completed items: Rule 8 appearance-coaching fix (both workers) · upload append-on-select fix · upload job-status polling · follow-through section above coaching + repeat counter · /dashboard/product-issues rollup · atomic job claim in process-jobs · rules.md rule 38 + pre-push drift hook.
+- Phase 3 completed items: Rule 8 appearance-coaching fix (both workers) · upload append-on-select fix · upload job-status polling · follow-through section above coaching + repeat counter · /dashboard/product-issues rollup · atomic job claim in process-jobs · rules.md rule 38 + pre-push drift hook · on-demand per-agent Coaching Digest (Task 9, built same day after owner locked the four decisions).
+- NOTE: the hard-coded `gpt-5.4` model id now has NINE call sites (Task 9 added `src/app/api/coaching-digest/route.ts`). A model swap must touch all nine.
 - Phase 2 Tasks 1, 2, 3, 4, 5, and 6a complete. Task 6b (agent coaching history view) remains — the only unbuilt Phase 2 task; queued behind Phase 3.
 
 ## REPEAT-COACHING DIAGNOSIS (August 26, 2026)

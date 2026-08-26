@@ -1114,7 +1114,7 @@ STATUS: ✅ DONE (Aug 26, 2026) — as-built: rules.md rule 38 (new Documentatio
 ---
 
 ### PHASE 3 TASK 9: Per-agent coaching digest (on-demand, 14-day window)
-STATUS: ⏳ APPROVED — owner locked all four decisions August 26, 2026:
+STATUS: ✅ DONE (Aug 26, 2026) — as-built: `src/app/api/coaching-digest/route.ts` (GET `?agent=`, constants `DIGEST_WINDOW_DAYS = 14` / `DIGEST_CHAT_LIMIT = 10`, helpers `buildSystemPrompt`/`buildUserPrompt`, gpt-5.4 — the 9th call site); `src/components/CoachingDigestPanel.tsx` (default export `CoachingDigestPanel`, props `{ agentName }`); panel rendered after Repeated Coaching in `src/app/dashboard/agent/[name]/page.tsx`. Owner test pending (see Test below). Decisions locked August 26, 2026:
 1. Trigger set: `attention_priority = 'high'` OR `churn_risk = 'high'` OR `customer_frustration_present = true` (proxy for problem chats — ratings unavailable, see blocking facts).
 2. Cadence: v1 is an on-demand "Generate Coaching Digest (last 14 days)" button on the agent page — no cron dependency. Bi-weekly automation revisited when the cron decision (Task 7 backlog) lands.
 3. Delivery: copy-to-clipboard, matching existing patterns.
@@ -1124,6 +1124,12 @@ STATUS: ⏳ APPROVED — owner locked all four decisions August 26, 2026:
 - **Create** `src/app/api/coaching-digest/route.ts` — GET `?agent=`; auth + org scope (update-coaching-delivery pattern); query `chat_analyses` org + exact agent + `.eq('excluded', false)` + last 14 days + the trigger-set `.or()` filter, newest first, LIMIT 10; one `gpt-5.4` call (9th call site); system prompt demands: supportive manager tone, consolidate duplicate themes (never "you were wrong in 3 places"), note repeat patterns encouragingly, exactly 3 concrete plan-of-action items with example phrasing, 250-400 words, plain ASCII only, no invented facts, reference chats by date. Returns `{ digest }`.
 - **Create** `src/components/CoachingDigestPanel.tsx` — client: generate button with loading state, digest rendered in a box, Copy button with Copied! state, friendly error state.
 - **Edit** `src/app/dashboard/agent/[name]/page.tsx` — render the panel after the Repeated Coaching section.
+
+**Test (owner):**
+1. Open an agent page for an agent with recent problem chats → click Generate Coaching Digest → digest appears with Opening / Patterns / What to keep doing / Your plan of action / Closing sections, 3 action items, ASCII only.
+2. Copy Digest → paste into a text editor → reads naturally, chats referenced by date, no invented facts.
+3. Agent with NO qualifying chats in 14 days → green "nothing to digest" note, no AI call made.
+4. Logged out → API returns 401, page still renders.
 
 Every two weeks, a per-agent summary of coaching from problem chats: where they're lagging,
 reminders of what was missed, and an actionable plan — doubling down on suggestive phrasing so the
