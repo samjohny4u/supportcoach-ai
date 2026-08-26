@@ -64,6 +64,10 @@ OpenAI, TypeScript, Tailwind CSS. Billing via Paddle.
 36. Price IDs are defined in `src/lib/paddle.ts` in the `PADDLE_PRICE_MAP` and `PLAN_PRICES` constants. If prices change in Paddle, update both places.
 37. The middleware subscription lock check must fail open (allow access) on errors — never lock paying customers out due to a DB glitch.
 
+### Documentation
+38. When marking a task DONE in any doc, record the AS-BUILT file paths and exported function names copied from the actual code — never the spec's proposed names. (Incident: Phase 2 Task 6a shipped `getAgentScorecard`/`getRepeatedCoachingForAgent` while docs said `getAgentFollowthroughScorecard`/`getAgentRepeatedCoachings`, causing months of drift.)
+    A warn-only pre-push hook at `.githooks/pre-push` flags pushes that change `app/src` without touching `app/docs`. Activate per machine: `git config core.hooksPath .githooks`
+
 ## PAST MISTAKES TO AVOID
 These happened during development and must not be repeated:
 

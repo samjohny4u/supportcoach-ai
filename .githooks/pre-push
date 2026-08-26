@@ -1,0 +1,26 @@
+#!/bin/sh
+# Warn-only drift guard: pushing app/src changes without app/docs changes
+# usually means context.md / codex-orchestration.md are falling behind.
+# See app/docs/rules.md rule 38. This hook never blocks the push.
+
+ZERO=0000000000000000000000000000000000000000
+
+while read local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$ZERO" ] && continue
+  if [ "$remote_sha" = "$ZERO" ]; then
+    range="$local_sha"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  src_changed=$(git diff --name-only "$range" -- app/src app/middleware.ts 2>/dev/null | head -n 1)
+  docs_changed=$(git diff --name-only "$range" -- app/docs 2>/dev/null | head -n 1)
+  if [ -n "$src_changed" ] && [ -z "$docs_changed" ]; then
+    echo ""
+    echo "WARNING: this push changes app/src but not app/docs."
+    echo "The docs of record (context.md / codex-orchestration.md) may be drifting."
+    echo "Push continues — this is a warning only (rules.md rule 38)."
+    echo ""
+  fi
+done
+
+exit 0
