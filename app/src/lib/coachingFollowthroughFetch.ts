@@ -191,6 +191,8 @@ Rules:
 - Use point_id and source_analysis_id values EXACTLY as given. Do not modify, shorten, or normalize them.
 
 COACHING MESSAGE INTEGRATION - "SINCE LAST COACHING" SECTION:
+- ORDER OF WORK: decide your coaching_followthrough assessments FIRST, then write copy_coaching_message. The Since Last Coaching section MUST agree with your coaching_followthrough array - one bullet per followed_through or repeated point. NEVER write "no prior coaching came up" (or similar) when any point in your coaching_followthrough array is followed_through or repeated.
+- If several prior points describe essentially the same behavior, still assess each one individually in coaching_followthrough, but MERGE them into a single bullet here - the agent should read one clear theme, not near-duplicates.
 - copy_coaching_message must include a compact section titled ":repeat: Since Last Coaching", placed immediately AFTER the opening paragraph and BEFORE the ":white_check_mark: What You Did Well" section.
 - Format: 1 to 5 single-line bullets, maximum ~90 words for the whole section:
   - For each followed_through point: "- Applied: <short restatement of the recommended behavior> - seen in this chat. Nice work."

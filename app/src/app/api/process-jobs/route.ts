@@ -1051,10 +1051,10 @@ Return this exact structure:
   "how_this_could_be_handled": [],
   "summary_strengths": [],
   "summary_improvements": [],
-  "quick_summary": "",
-  "copy_coaching_message": "",
   "coaching_points": [],
   "coaching_followthrough": [],
+  "quick_summary": "",
+  "copy_coaching_message": "",
   "attention_priority": "low",
   "scores": {
     "empathy": 0,
