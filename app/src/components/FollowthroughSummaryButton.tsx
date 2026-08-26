@@ -52,7 +52,7 @@ function buildSummaryMessage(agentName: string, rows: SummaryRow[]): string {
   }
 
   if (repeated.length > 0) {
-    lines.push("What came back around:");
+    lines.push("What came up again:");
     for (const row of repeated) {
       const countClause =
         row.repeatCount >= 2 ? ` (this is the ${ordinal(row.repeatCount)} time it has come up)` : "";

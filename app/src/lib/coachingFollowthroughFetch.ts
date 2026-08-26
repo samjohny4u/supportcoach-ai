@@ -196,7 +196,7 @@ COACHING MESSAGE INTEGRATION - "SINCE LAST COACHING" SECTION:
 - copy_coaching_message must include a compact section titled ":repeat: Since Last Coaching", placed immediately AFTER the opening paragraph and BEFORE the ":white_check_mark: What You Did Well" section.
 - Format: 1 to 5 single-line bullets, maximum ~90 words for the whole section:
   - For each followed_through point: "- Applied: <short restatement of the recommended behavior> - seen in this chat. Nice work."
-  - For each repeated point: "- Came back around: <short restatement> - let's make this the focus."
+  - For each repeated point: "- Came up again: <short restatement> - let's make this the focus."
   - Skip no_opportunity points entirely. If there are more than 5 applied/repeated points, keep the 5 most important.
 - If NO prior point is followed_through or repeated (all no_opportunity), OMIT the section entirely and do not mention prior coaching anywhere in the message.
 - Tone: supportive continuity, not a scoreboard. Never list dates of past occurrences, never count strikes.
