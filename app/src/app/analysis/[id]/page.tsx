@@ -112,6 +112,12 @@ function formatLabel(value: string | null | undefined) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function formatOrdinal(count: number) {
+  const ordinals = ["", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
+  if (count >= 1 && count < ordinals.length) return ordinals[count];
+  return `${count}th`;
+}
+
 function normalizeCoachingText(text: string) {
   return text
     .replace(/:white_check_mark:/g, "✅")
@@ -317,6 +323,7 @@ export default async function AnalysisDetailPage({
     source_recommended_behavior: string;
     source_area: string;
     source_date: string;
+    created_at: string;
   }> = [];
 
   if (followthroughRows.length > 0) {
@@ -371,6 +378,7 @@ export default async function AnalysisDetailPage({
         source_date: source.created_at
           ? new Date(source.created_at).toISOString().split("T")[0]
           : "",
+        created_at: row.created_at || "",
       });
     }
   }
@@ -379,6 +387,42 @@ export default async function AnalysisDetailPage({
     const finalStatus = row.manager_override || row.status;
     return finalStatus !== "no_opportunity";
   });
+
+  // For repeated points, count how many times the same source coaching point has
+  // been detected as repeated up to this chat, so the card can say "second time" /
+  // "third time" in an encouraging way.
+  const repeatCounts = new Map<string, number>();
+  const repeatedDisplayRows = followthroughDisplayRows.filter(
+    (row) => (row.manager_override || row.status) === "repeated"
+  );
+
+  if (repeatedDisplayRows.length > 0) {
+    const repeatedPointIds = Array.from(
+      new Set(repeatedDisplayRows.map((row) => row.source_coaching_point_id))
+    );
+
+    const { data: repeatHistory } = await supabase
+      .from("coaching_followthrough")
+      .select("source_analysis_id, source_coaching_point_id, status, manager_override, created_at")
+      .eq("organization_id", organizationId)
+      .in("source_coaching_point_id", repeatedPointIds);
+
+    for (const row of repeatedDisplayRows) {
+      const count = (repeatHistory || []).filter((history) => {
+        const historyFinalStatus = history.manager_override || history.status;
+        return (
+          String(history.source_analysis_id) === row.source_analysis_id &&
+          history.source_coaching_point_id === row.source_coaching_point_id &&
+          historyFinalStatus === "repeated" &&
+          typeof history.created_at === "string" &&
+          row.created_at.length > 0 &&
+          new Date(history.created_at).getTime() <= new Date(row.created_at).getTime()
+        );
+      }).length;
+
+      repeatCounts.set(row.id, count);
+    }
+  }
 
   const followthroughEvaluatedButNoAction =
     followthroughDisplayRows.length > 0 && visibleFollowthroughRows.length === 0;
@@ -507,19 +551,6 @@ export default async function AnalysisDetailPage({
           </p>
         </div>
 
-        <div className="mb-8">
-          <CoachingMessageSection text={coachingMessage} analysisId={String(analysis.id)} />
-        </div>
-
-        <div className="mb-8">
-          <CoachingDeliveryControls
-            analysisId={String(analysis.id)}
-            initialDelivered={analysis.coaching_delivered === true}
-            initialDeliveredAt={analysis.coaching_delivered_at}
-            initialNotes={analysis.coaching_notes || ""}
-          />
-        </div>
-
         {visibleFollowthroughRows.length > 0 ? (
           <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
             <h2 className="mb-2 text-2xl font-semibold text-white">
@@ -586,6 +617,14 @@ export default async function AnalysisDetailPage({
                       </div>
                     ) : null}
 
+                    {finalStatus === "repeated" && (repeatCounts.get(row.id) || 0) >= 2 ? (
+                      <div className="mb-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                        This is the {formatOrdinal(repeatCounts.get(row.id) || 0)} time this has
+                        come up since coaching — worth a focused follow-up conversation to help it
+                        stick.
+                      </div>
+                    ) : null}
+
                     <div className="mt-4 flex flex-wrap items-center gap-3">
                       <a
                         href={`/analysis/${row.source_analysis_id}`}
@@ -608,6 +647,19 @@ export default async function AnalysisDetailPage({
             Prior coaching evaluated for this chat — no action needed.
           </div>
         ) : null}
+
+        <div className="mb-8">
+          <CoachingMessageSection text={coachingMessage} analysisId={String(analysis.id)} />
+        </div>
+
+        <div className="mb-8">
+          <CoachingDeliveryControls
+            analysisId={String(analysis.id)}
+            initialDelivered={analysis.coaching_delivered === true}
+            initialDeliveredAt={analysis.coaching_delivered_at}
+            initialNotes={analysis.coaching_notes || ""}
+          />
+        </div>
 
         <div className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
           <div className="mb-4 flex flex-wrap items-center gap-3">
