@@ -15,6 +15,7 @@ const supabase = createClient(
 type Analysis = {
   id: string;
   organization_id: string | null;
+  conversation_id: string | null;
   file_name: string | null;
   agent_name: string | null;
   customer_name: string | null;
@@ -52,6 +53,14 @@ type CoachingPointRecord = {
   area?: unknown;
   specific_behavior?: unknown;
   recommended_behavior?: unknown;
+};
+
+type TranscriptMessage = {
+  sender_name: string | null;
+  sender_role: string | null;
+  message_text: string | null;
+  message_timestamp: string | null;
+  message_index: number | null;
 };
 
 function ListSection({
@@ -428,6 +437,40 @@ export default async function AnalysisDetailPage({
   const followthroughEvaluatedButNoAction =
     followthroughDisplayRows.length > 0 && visibleFollowthroughRows.length === 0;
 
+  // Transcript for in-page verification of coaching claims (Phase 3 Task 14).
+  // Parsed messages preferred; raw text is the fallback for unparsed chats.
+  let transcriptMessages: TranscriptMessage[] = [];
+  let rawTranscriptFallback = "";
+
+  if (analysis.conversation_id) {
+    const { data: messageRows } = await supabase
+      .from("conversation_messages")
+      .select("sender_name, sender_role, message_text, message_timestamp, message_index")
+      .eq("conversation_id", analysis.conversation_id)
+      .eq("organization_id", organizationId)
+      .order("message_index", { ascending: true });
+
+    transcriptMessages = Array.isArray(messageRows)
+      ? (messageRows as TranscriptMessage[])
+      : [];
+
+    if (transcriptMessages.length === 0) {
+      const { data: conversationRow } = await supabase
+        .from("conversations")
+        .select("raw_transcript_text")
+        .eq("id", analysis.conversation_id)
+        .eq("organization_id", organizationId)
+        .maybeSingle();
+
+      rawTranscriptFallback =
+        typeof conversationRow?.raw_transcript_text === "string"
+          ? conversationRow.raw_transcript_text.trim()
+          : "";
+    }
+  }
+
+  const hasTranscript = transcriptMessages.length > 0 || rawTranscriptFallback.length > 0;
+
   const coachingMessage = analysis.copy_coaching_message?.trim() || "";
   const quickSummary = analysis.quick_summary?.trim() || "";
   const isExcluded = analysis.excluded === true;
@@ -659,6 +702,51 @@ export default async function AnalysisDetailPage({
           <div className="mb-8 rounded-2xl border border-white/10 bg-[#081225] px-6 py-4 text-sm text-gray-400">
             Prior coaching evaluated for this chat — no action needed.
           </div>
+        ) : null}
+
+        {hasTranscript ? (
+          <details className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
+            <summary className="cursor-pointer text-2xl font-semibold text-white">
+              View Transcript
+            </summary>
+            <p className="mt-2 text-sm text-gray-400">
+              The stored chat transcript this analysis was generated from — use it to verify
+              coaching claims and follow-through evidence without leaving the page.
+            </p>
+            <div className="mt-4 max-h-[32rem] space-y-2 overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-5 text-sm leading-6">
+              {transcriptMessages.length > 0 ? (
+                transcriptMessages.map((message, index) => {
+                  const time = message.message_timestamp
+                    ? `[${message.message_timestamp}] `
+                    : "";
+                  const name = message.sender_name || "Unknown";
+                  const text = (message.message_text || "").trim();
+                  if (!text) return null;
+
+                  if (message.sender_role === "system") {
+                    return (
+                      <p key={index} className="italic text-gray-500">
+                        {time}
+                        {text}
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <p key={index} className="text-gray-200">
+                      <span className="text-gray-500">{time}</span>
+                      <span className="font-semibold text-white">{name}: </span>
+                      {text}
+                    </p>
+                  );
+                })
+              ) : (
+                <pre className="whitespace-pre-wrap font-sans text-gray-200">
+                  {rawTranscriptFallback}
+                </pre>
+              )}
+            </div>
+          </details>
         ) : null}
 
         <div className="mb-8">
