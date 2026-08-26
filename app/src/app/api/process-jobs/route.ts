@@ -428,6 +428,44 @@ function inferSenderRole(senderName: string | null): "agent" | "customer" | "sys
   return "unknown";
 }
 
+function isPlausibleAgentName(value: string): boolean {
+  return (
+    value.length > 0 &&
+    value.length <= 50 &&
+    !value.includes("://") &&
+    value.split(" ").length <= 5
+  );
+}
+
+// The SalesIQ PDF header names the agent directly ("Operator:   Vinisha Sekar").
+// This is ground truth — the first parsed sender is often the support bot
+// greeting, which must never be used as the agent for prior-coaching lookups.
+function extractOperatorNameFromHeader(transcriptText: string): string | null {
+  if (!transcriptText || !transcriptText.trim()) return null;
+
+  const durationIndex = transcriptText.search(/Chat\s+Duration\s*:/i);
+  const header =
+    durationIndex > 0 ? transcriptText.slice(0, durationIndex) : transcriptText;
+
+  // Primary: SalesIQ separates header fields with 2+ spaces
+  const multiSpaceMatch = header.match(/Operator\s*:\s*(.{1,60}?)\s{2,}/);
+  if (multiSpaceMatch) {
+    const name = multiSpaceMatch[1].replace(/\s+/g, " ").trim();
+    if (isPlausibleAgentName(name)) return name;
+  }
+
+  // Fallback: pdfjs sometimes collapses to single spaces — stop at the next known header field
+  const nextFieldMatch = header.match(
+    /Operator\s*:\s*(.{1,60}?)\s+(?:Website|Chat\s+Ended|Operating\s+System|Browser|Device|Average\s+Response|City|State|Country)\s*:/i
+  );
+  if (nextFieldMatch) {
+    const name = nextFieldMatch[1].replace(/\s+/g, " ").trim();
+    if (isPlausibleAgentName(name)) return name;
+  }
+
+  return null;
+}
+
 function parseTranscriptMessages(transcriptText: string): ParsedMessage[] {
   if (!transcriptText || !transcriptText.trim()) return [];
 
@@ -859,13 +897,17 @@ export async function GET() {
         // --- End Section 9k fetch ---
 
         const parsedMessages = parseTranscriptMessages(transcriptText);
-        // Best-effort agent identification before AI call (used for follow-through fetch)
-        const earlyAgentGuess = (() => {
-          const uniqueNames = Array.from(
-            new Set(parsedMessages.map((m) => m.sender_name?.trim()).filter(Boolean))
-          ) as string[];
-          return uniqueNames.length > 0 ? uniqueNames[0] : null;
-        })();
+        // Best-effort agent identification before AI call (used for follow-through fetch).
+        // The header's Operator field is authoritative; first-unique-sender is the
+        // legacy fallback and can pick up the bot greeting or the customer.
+        const earlyAgentGuess =
+          extractOperatorNameFromHeader(transcriptText) ||
+          (() => {
+            const uniqueNames = Array.from(
+              new Set(parsedMessages.map((m) => m.sender_name?.trim()).filter(Boolean))
+            ) as string[];
+            return uniqueNames.length > 0 ? uniqueNames[0] : null;
+          })();
 
         // --- Phase 2 Task 5: Fetch org plan and prior delivered coaching ---
         let plan: string | null = null;
