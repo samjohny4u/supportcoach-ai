@@ -137,9 +137,19 @@ export default function UploadPage() {
 
   function processFileList(files: File[]) {
     const pdfFiles = files.filter((f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
-    setSelectedFiles(pdfFiles);
     if (pdfFiles.length > 0) {
-      setStatus(`${pdfFiles.length} file(s) selected. Click "Upload and Analyze" to begin.`);
+      // Append to the existing selection (dedupe by name + size) so picking
+      // files one after another accumulates instead of replacing.
+      const merged = [...selectedFiles];
+      for (const file of pdfFiles) {
+        if (!merged.some((existing) => existing.name === file.name && existing.size === file.size)) {
+          merged.push(file);
+        }
+      }
+      setSelectedFiles(merged);
+      setStatus(
+        `${merged.length} ${merged.length === 1 ? "file" : "files"} selected. Click "Upload and Analyze" to begin.`
+      );
       setJobId("");
       setQueuedCount(0);
       setDuplicateResults([]);
@@ -151,6 +161,8 @@ export default function UploadPage() {
   function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || []);
     processFileList(files);
+    // Reset the input so selecting the same file again re-fires onChange.
+    event.target.value = "";
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -284,7 +296,7 @@ export default function UploadPage() {
             ) : (
               <>
                 <p className="mb-3 text-sm text-gray-400">
-                  {selectedFiles.length} file(s) ready:
+                  {selectedFiles.length} {selectedFiles.length === 1 ? "file" : "files"} ready:
                 </p>
                 <ul className="mb-5 space-y-1 text-center">
                   {selectedFiles.map((file, index) => (
@@ -321,7 +333,7 @@ export default function UploadPage() {
                   }}
                   className="mt-3 text-sm text-gray-500 transition-colors hover:text-gray-300"
                 >
-                  Choose different files
+                  Add more files
                 </button>
               </>
             )}
