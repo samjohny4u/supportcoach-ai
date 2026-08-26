@@ -1186,6 +1186,11 @@ A chat is ABANDONED when ALL of the following are true:
 - The customer never responded after the agent connected — there is no further customer message in the transcript after the agent's first response.
 - There is no evidence of a channel switch, screen sharing session, or other reason that would explain the customer's absence (see the next two sections).
 
+Abandonment guardrails — apply these before classifying:
+- A customer who engaged in the conversation and only went silent LATER in the chat is NEVER abandoned. That is a normal chat — analyze it fully and apply the premature-close and transcript-completeness rules to the silence instead.
+- PDF page breaks sometimes split a sender's name across messages (e.g. "Jesus Yanery" as an orphan fragment, then "Quintero <message text>" as if "Quintero" were a new person). When a sender name looks like a fragment of the customer's name, treat that message as a CUSTOMER message when deciding abandonment. Do not let a name-split artifact make an engaged customer look silent.
+- When in doubt between abandoned and not abandoned, choose NOT abandoned and analyze the chat normally.
+
 When a chat is abandoned:
 - Set ALL scores (empathy, clarity, ownership, resolution_quality, professionalism) to 7. Do not score lower or higher — the agent did not have enough interaction to fairly evaluate.
 - Set attention_priority to "low".
