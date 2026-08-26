@@ -1213,6 +1213,39 @@ becomes the finishing agent alone; coaching addresses that agent; no combined na
 
 ---
 
+### PHASE 3 TASK 12: Follow-through in the deliverable — prompt weave (A) + copy summary button (B)
+STATUS: ⏳ APPROVED (owner: "let's build both and see which one is better", August 26, 2026)
+
+**Gap:** follow-through results are manager-facing only; the coaching message the manager copies
+never mentions them, so there's no way to tell the agent "you applied X, but Y came back".
+
+**A — weave into the coaching message (prompt, both routes via the SHARED builder):**
+Edit `src/lib/coachingFollowthroughFetch.ts` `buildFollowthroughPromptSection()` — append a
+COACHING MESSAGE INTEGRATION block: credit followed-through points early (one specific sentence);
+address repeated points inside "Where the Experience Could Improve" as an encouraging continuation
+(never a reprimand, never a list of past occurrences); say nothing when all points were
+no_opportunity; never extend the message beyond its normal length. Because the section is only
+injected when prior points exist, the instruction is conditional automatically, and one edit
+covers BOTH workers.
+Known trade-off (recorded): baked at analysis time — a later manager override does not update the
+stored message. B covers that case.
+
+**B — "Copy follow-through summary" on the analysis page (template, no AI call):**
+Create `src/components/FollowthroughSummaryButton.tsx` — builds the message at CLICK time from the
+visible rows, so it always respects manager overrides: greeting, "what you applied" bullets
+(recommended behavior + date + evidence), "what came back" bullets (with ordinal count,
+encouraging framing), supportive close. Plain ASCII, "-" bullets. Copy-to-clipboard with Copied!
+state. Render in the follow-through section header of `src/app/analysis/[id]/page.tsx`.
+
+**Test (owner):** (A) re-analyze a chat for an agent with prior delivered coaching → coaching
+message credits applied points and folds repeats into the improvement section, within normal
+length. (B) click Copy follow-through summary → pasted text lists applied/repeated per the CURRENT
+dropdown values; change an override, copy again → text follows the override.
+
+**Commit:** `Phase 3 Task 12: follow-through woven into coaching message + copy summary button`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
