@@ -136,7 +136,8 @@
   - `/api` was added to the disallow list on July 3 because a crawler was probing `/api/logout`
 
 ## CURRENT TASK
-- **Phase 3 (August 2026 bug fixes and hardening) — in active build.** Tasks 1-8 approved August 26, 2026; see PHASE 3 TASKS in codex-orchestration.md. Task 9 (bi-weekly coaching digest) scoped, awaiting owner decisions.
+- **Phase 3 (August 2026 bug fixes and hardening): Tasks 1, 2, 3, 5, 6, 7, 8 DONE (built + lint/build gated, August 26, 2026).** Task 4 waits on owner-run SQL (see REPEAT-COACHING DIAGNOSIS below). Task 9 (bi-weekly coaching digest) scoped, awaiting owner decisions. See PHASE 3 TASKS in codex-orchestration.md for as-built details.
+- Phase 3 completed items: Rule 8 appearance-coaching fix (both workers) · upload append-on-select fix · upload job-status polling · follow-through section above coaching + repeat counter · /dashboard/product-issues rollup · atomic job claim in process-jobs · rules.md rule 38 + pre-push drift hook.
 - Phase 2 Tasks 1, 2, 3, 4, 5, and 6a complete. Task 6b (agent coaching history view) remains — the only unbuilt Phase 2 task; queued behind Phase 3.
 
 ## REPEAT-COACHING DIAGNOSIS (August 26, 2026)
@@ -346,9 +347,9 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 - subscription-status API route returns 401 when called from client-side fetch due to Route Handler cookie handling — TrialBanner and select-plan page use Supabase browser client directly as workaround
 - Supabase RLS returns 406 on client-side subscriptions query — non-blocking, page works without it
 - VS Code shows false TypeScript error "Cannot find module @/components/AppNav" — stale cache issue, does not affect Vercel build
-- Upload sequential-selection bug (root cause found August 26, 2026 — corrects the earlier guess): the file input HAS the `multiple` attribute; the real defects are (a) `processFileList` replaces `selectedFiles` instead of appending, so a second pick discards the first, and (b) the input value is never reset, so re-picking the same file doesn't fire onChange. Fix = Phase 3 Task 2.
-- Upload jobs list shows "processing" forever until manual refresh — `loadRecentJobs()` runs once at trigger time, no polling. Fix = Phase 3 Task 3.
-- Rule 8 loophole (production false coaching, Muibat chat #221584): AI coached an agent for "malformed text" created by the platform's reply/quote feature flattened by PDF export. Fix = Phase 3 Task 1.
+- Upload sequential-selection bug — FIXED August 26, 2026 (Phase 3 Task 2). Root cause corrected the earlier guess: input HAD `multiple`; `processFileList` replaced instead of appending, and the input value was never reset. Now appends with dedupe.
+- Upload jobs list stuck on "processing" until manual refresh — FIXED August 26, 2026 (Phase 3 Task 3): silent 5s polling while any visible job is active.
+- Rule 8 loophole (production false coaching, Muibat chat #221584) — PROMPT FIX SHIPPED August 26, 2026 (Phase 3 Task 1). Owner verification pending: re-analyze chat #221584 and spot-check 3-5 others. Affects only new/re-analyzed chats.
 - Zoho SalesIQ PDF export does NOT contain the chat rating or the customer's written review (verified against a real production PDF, August 26, 2026 — transcript ends at the agent's "please rate" message). `conversations.rating_value`/`rating_type` are always null. Rating-aware anything requires the SalesIQ API.
 - Lingering React hydration error #418 on the analysis page after Task 5 polish (May 1, 2026): page renders fully and all sections work, but DevTools console shows a soft hydration mismatch the AI auto-recovers from. Cause not yet diagnosed (the obvious one — toLocaleDateString — was fixed in the Task 5 ISO date hotfix). Non-blocking. Investigate during dashboard UI polish pass.
 - Coaching section heading rename (May 1, 2026, fixed): "Copy Coaching Message" was confusing because the section contains a coaching message AND a Copy button — the title described the action, not the content. Renamed to "Coaching".

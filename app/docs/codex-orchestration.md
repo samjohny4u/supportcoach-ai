@@ -945,7 +945,7 @@ Read the full file first. Add three new sections, in this order, above existing 
 Approved by owner August 26, 2026 from the production feedback list. Build in order.
 
 ### PHASE 3 TASK 1: Strengthen Rule 8 — never coach on message appearance
-STATUS: ⏳ APPROVED
+STATUS: ✅ DONE (Aug 26, 2026) — as-built: Rule 8 forbiddance bullet + new factual-accuracy rule 9 ("Never Coach on Message Appearance") in BOTH `src/app/api/process-jobs/route.ts` and `src/app/api/reanalyze-analysis/route.ts`. Owner test pending: re-analyze Muibat chat #221584.
 
 **Bug:** Production false coaching on Muibat chat #221584 — agent used the platform reply/quote
 feature, PDF export flattened it, AI coached the agent for "malformed or misattributed text".
@@ -974,7 +974,7 @@ Prompt-only. Do NOT modify parseTranscriptMessages or buildStructuredTranscript.
 ---
 
 ### PHASE 3 TASK 2: Upload — sequential file selection appends instead of replacing
-STATUS: ⏳ APPROVED
+STATUS: ✅ DONE (Aug 26, 2026) — as-built in `src/app/upload/page.tsx`: `processFileList` appends with name+size dedupe, `handleFileSelect` resets `event.target.value`, "Add more files" label, pluralization fixed on touched strings.
 
 **Bug (corrects the older KNOWN ISSUES guess):** the file input HAS `multiple`; the real defects:
 `processFileList` REPLACES `selectedFiles` (second pick discards the first), and the input value
@@ -992,7 +992,7 @@ duplicate. Drag-drop a third → appended. Cancel clears. Upload processes all s
 ---
 
 ### PHASE 3 TASK 3: Upload — job status polls to completion
-STATUS: ⏳ APPROVED
+STATUS: ✅ DONE (Aug 26, 2026) — as-built in `src/app/upload/page.tsx`: `loadRecentJobs(options?: { silent?: boolean })` + a 5-second polling `useEffect` over `recentJobs`; the Refresh button's onClick wrapped so the options param doesn't receive the MouseEvent.
 
 **Bug:** `loadRecentJobs()` runs once right after the worker is triggered; a job shown "processing"
 never flips to "completed" without manual refresh.
@@ -1008,7 +1008,7 @@ none are active.
 ---
 
 ### PHASE 3 TASK 4: Repeat-coaching diagnosis + test-org window fix (SQL, owner-run)
-STATUS: ⏳ APPROVED — no code; owner runs SQL in Supabase SQL Editor
+STATUS: ⏳ WAITING ON OWNER — diagnosis + window-fix SQL blocks are in context.md ("REPEAT-COACHING DIAGNOSIS"); run in Supabase SQL Editor
 
 **Diagnosis:** follow-through detection requires prior coaching that is delivered=true, same exact
 agent_name, non-excluded, AND within the plan lookback window — the test org is plan='trial' →
@@ -1029,7 +1029,7 @@ previously-coached agent → "Previous Coaching Follow-Through" appears on the n
 ---
 
 ### PHASE 3 TASK 5: Analysis page — follow-through section above coaching + repeat counter
-STATUS: ⏳ APPROVED
+STATUS: ✅ DONE (Aug 26, 2026) — as-built in `src/app/analysis/[id]/page.tsx`: follow-through block (both branches) moved above `CoachingMessageSection`; `repeatCounts` Map built from a `coaching_followthrough` history query; `formatOrdinal()` helper; encouraging amber line on repeated cards when the count reaches 2+.
 
 Owner decision August 26, 2026: repeat coaching is a filter on how coaching gets delivered, so it
 must be seen FIRST. This deliberately reverses the May 1, 2026 Task 5 polish decision that placed
@@ -1052,7 +1052,7 @@ dropdown still works.
 ---
 
 ### PHASE 3 TASK 6: Product Issues rollup page
-STATUS: ⏳ APPROVED
+STATUS: ✅ DONE (Aug 26, 2026) — as-built: `src/app/dashboard/product-issues/page.tsx` (default export `ProductIssuesPage`; helpers `formatLabel`, `getRiskClasses`, `formatDate`, `getRangeCutoffIso`); one "Product Issues" link added to the dashboard filter action row.
 
 Consolidates 1-star drivers that are NOT the agent's fault (bugs, glitches, product limitations)
 for the product team. Uses data that already exists: `product_limitation_chat = true`.
@@ -1073,7 +1073,7 @@ excluded chats absent; counts match a manual Supabase check.
 ---
 
 ### PHASE 3 TASK 7: Scale readiness — atomic job claim
-STATUS: ⏳ APPROVED (first item of the scale-readiness campaign below)
+STATUS: ✅ DONE (Aug 26, 2026) — as-built in `src/app/api/process-jobs/route.ts` GET: conditional pending→processing claim via `.update().eq("id", job.id).eq("status", "pending").select().maybeSingle()`; losing invocations return `{ message: "Job claimed by another worker" }`. Crash-resume of processing jobs unchanged. Backlog table below remains open.
 
 **Edit:** `src/app/api/process-jobs/route.ts` — the job-level claim is check-then-set (two
 concurrent invocations both proceed). Make claiming a PENDING job atomic: conditional
@@ -1099,7 +1099,7 @@ no duplicate analyses, second invocation returns the claimed message.
 ---
 
 ### PHASE 3 TASK 8: Docs anti-drift guardrails
-STATUS: ⏳ APPROVED
+STATUS: ✅ DONE (Aug 26, 2026) — as-built: rules.md rule 38 (new Documentation section); `.githooks/pre-push` warn-only hook; `.gitattributes` pins LF for hooks; `core.hooksPath=.githooks` set locally on the owner machine (per-machine step, documented in rule 38).
 
 1. **Edit:** `docs/rules.md` — add rule 38 (Documentation): when marking a task DONE in any doc,
    record the AS-BUILT file paths and exported function names copied from the code, never the
