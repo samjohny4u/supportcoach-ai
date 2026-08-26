@@ -1247,7 +1247,7 @@ dropdown values; change an override, copy again → text follows the override.
 ---
 
 ### PHASE 3 TASK 13: Feed manager overrides back into future analyses ("learning from me")
-STATUS: ⏳ APPROVED (owner: "Yes 'learning from me' can be built" — August 26, 2026)
+STATUS: ✅ DONE (Aug 26, 2026) — as-built: `fetchOverrideCalibrations()` + `OverrideCalibration` type in `src/lib/coachingFollowthroughFetch.ts` (last 10 rows where `manager_override` differs from AI `status`, matching-override rows skipped); `buildFollowthroughPromptSection(points, calibrations = [])` injects a MANAGER CALIBRATION block; both workers fetch calibrations only when prior points exist. Owner test pending (non-deterministic — spot-check).
 
 **What it is:** the model learns nothing from manager overrides today (stateless API calls).
 This task makes overrides INFLUENCE future analyses without any training: when
@@ -1290,7 +1290,7 @@ sentences from follow-through cards can be verified against it without leaving t
 ---
 
 ### PHASE 3 TASK 15: "Since Last Coaching" section in the coaching message
-STATUS: ⏳ APPROVED (owner judgment call August 26, 2026)
+STATUS: ✅ DONE (Aug 26, 2026) — as-built: COACHING MESSAGE INTEGRATION block rewritten in `buildFollowthroughPromptSection()` (`src/lib/coachingFollowthroughFetch.ts`, shared by both workers); renderer in `src/app/analysis/[id]/page.tsx` maps `:repeat:` → 🔁 and treats 🔁 as a section header. Supersedes Task 12-A's weave-only approach (owner verdict: one clause across six assessed points was too subtle). Owner test pending: re-analyze a coached chat.
 
 **Why:** Task 12-A's "weave naturally, no separate section" produced ONE continuation clause on a
 re-analysis that assessed SIX prior points — technically compliant, practically invisible. Owner
@@ -1316,7 +1316,7 @@ all points were no_opportunity.
 ---
 
 ### PHASE 3 TASK 16: Readable transcript fallback + link label fix
-STATUS: ⏳ APPROVED (owner feedback August 26, 2026: raw fallback "looks unreadable and overwhelming")
+STATUS: ✅ DONE (Aug 26, 2026) — as-built in `src/app/analysis/[id]/page.tsx`: `formatRawTranscriptForDisplay(raw)` display-only segmenter (page markers stripped, metadata header skipped — visitor email/phone no longer rendered, `[time] text` paragraphs, bare `<pre>` only when no timestamps parse); follow-through card link renamed to "View original analysis ->". Owner test pending on the #221584 analysis.
 
 **Edit:** `src/app/analysis/[id]/page.tsx`:
 1. `formatRawTranscriptForDisplay(raw)` — display-only formatter for conversations with no parsed
