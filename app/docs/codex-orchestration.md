@@ -1214,7 +1214,7 @@ becomes the finishing agent alone; coaching addresses that agent; no combined na
 ---
 
 ### PHASE 3 TASK 12: Follow-through in the deliverable — prompt weave (A) + copy summary button (B)
-STATUS: ⏳ APPROVED (owner: "let's build both and see which one is better", August 26, 2026)
+STATUS: ✅ DONE (Aug 26, 2026) — as-built: (A) COACHING MESSAGE INTEGRATION block in `buildFollowthroughPromptSection()` in `src/lib/coachingFollowthroughFetch.ts` (shared — one edit covers both workers); (B) `src/components/FollowthroughSummaryButton.tsx` (default export, props `{ agentName, rows }`, builds the message in `buildSummaryMessage()` at click time), rendered in the follow-through section header of `src/app/analysis/[id]/page.tsx`; PLUS `FollowthroughOverrideSelect` now calls `router.refresh()` after a successful save so the badge and summary follow a new override without manual reload. Owner test pending.
 
 **Gap:** follow-through results are manager-facing only; the coaching message the manager copies
 never mentions them, so there's no way to tell the agent "you applied X, but Y came back".
