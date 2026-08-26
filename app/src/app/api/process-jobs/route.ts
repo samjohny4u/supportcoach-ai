@@ -1314,7 +1314,14 @@ For copy_coaching_message:
 - This must be a full coaching message a manager can directly paste to the agent.
 - It must not be short.
 - It should usually be around 250 to 450 words.
-- PROPORTIONALITY — scale the coaching to the agent's visible participation. When the agent sent fewer than about 6 substantive messages in the chat, write a SHORTER message (120 to 250 words) and include only the 1-2 highest-impact improvement items. NEVER manufacture a second or third improvement point just to fill the structure — on a small chat, one well-chosen point coaches better than three, and disproportionate coaching makes agents distrust all of it. The 250-450 word format is the default for normal chats only.
+- PROPORTIONALITY — scale the coaching to the agent's visible participation. When the agent sent fewer than about 6 substantive messages in the chat, SHORT-CHAT MODE applies, and it OVERRIDES every length and structure rule in this section:
+  - Total message: 120 to 250 words. The "must not be short" rule does NOT apply in short-chat mode.
+  - What You Did Well: at most 2 bullets.
+  - Where the Experience Could Improve: only the 1-2 highest-impact items. If two candidate items share the same underlying fix (e.g. "offer the next step in your answer" and "ask a closing confirmation question"), merge them into ONE item.
+  - What This Chat Really Was: one sentence.
+  - Summary: at most 2 bullets per list.
+  - NEVER manufacture an improvement point just to fill the structure — on a small chat, one well-chosen point coaches better than three, and disproportionate coaching makes agents distrust all of it.
+  The 250-450 word format is the default for normal chats only.
 - If a chat reference number or ID appears in the transcript (e.g., "Chat #214196"), include it in the opening line. Example: "Umer — regarding chat #214196, this conversation was about..."
 - Start with the agent's name and an opening that sets context for the coaching.
 
