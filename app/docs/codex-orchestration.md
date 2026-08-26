@@ -1381,6 +1381,40 @@ abandoned. Prompt-only; affects new and re-analyzed chats.
 
 ---
 
+### PHASE 3 TASK 19: Proportional coaching for small chats
+STATUS: ⏳ APPROVED (owner: 3 improvement points + full-length message on a 9-minute chat is
+disproportionate and erodes agent trust in the coaching; "do your recommendation")
+
+**Edit BOTH** worker routes' COPY COACHING MESSAGE FORMAT: add a PROPORTIONALITY rule — when the
+agent sent fewer than ~6 substantive messages, the message shrinks to 120-250 words with only the
+1-2 highest-impact improvement items; never manufacture improvement points to fill the structure;
+the 250-450 word format remains the default for normal chats.
+
+---
+
+### PHASE 3 TASK 20: Plain-language repeat phrasing ("came up again")
+STATUS: ⏳ APPROVED (owner: agents will not understand "came back around")
+
+**Edit:** `src/lib/coachingFollowthroughFetch.ts` (Since Last Coaching bullet template) and
+`src/components/FollowthroughSummaryButton.tsx` (summary heading/bullets): replace "came back
+around" with plain "came up again".
+
+---
+
+### PHASE 3 TASK 21: Coaching-point dedup at creation time
+STATUS: 🔒 SCOPED — recommended next real task, not yet approved for build
+
+Every analyzed chat mints brand-new coaching points; recurring weaknesses create near-duplicate
+points across chats, and each clone is separately assessed forever (chat #239011 carried 3 cards
+for one behavior). Design: the AI already receives prior points in the prompt — when a new
+coaching point matches an existing one, it outputs `recurrence_of: "<existing point id>"` instead
+of a new point; the worker records a repeat of the EXISTING point rather than inserting a clone.
+Scorecards then count behaviors, not clones; the follow-through section shrinks permanently.
+Touches: both worker prompts + normalizeCoachingPoints + follow-through write path + display.
+Existing clones are unaffected (separate decision if merging history is wanted).
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
