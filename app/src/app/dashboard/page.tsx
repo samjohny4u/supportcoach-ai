@@ -655,6 +655,13 @@ export default async function DashboardPage({
               >
                 Generate Coaching Report
               </a>
+
+              <a
+                href="/dashboard/product-issues"
+                className="rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-3 font-semibold text-red-300 hover:bg-red-500/20"
+              >
+                Product Issues
+              </a>
             </div>
           </div>
         </form>
