@@ -1153,6 +1153,37 @@ agent gets a plan of action, not a "you were wrong in 3 places" list.
 
 ---
 
+### PHASE 3 TASK 10: Fix first-pass agent guess — read Operator from the PDF header
+STATUS: ⏳ APPROVED (root cause confirmed by owner-run diagnosis SQL, August 26, 2026)
+
+**Bug (supersedes the window-only diagnosis of Task 4):** `process-jobs` guesses the agent BEFORE
+the AI call as the FIRST unique parsed sender, and Zoho transcripts open with the
+"Contractor Foreman Support" bot greeting — so `fetchPriorDeliveredCoachingPoints` is queried for
+the BOT (or the customer), finds nothing, and the follow-through prompt section is silently
+omitted on nearly every upload. Evidence: diagnosis Query 1 shows delivered coaching through
+Aug 25-26 (well inside every window), yet Query 3 shows only 11 follow-through rows ever —
+traceable to May re-analyze tests (`reanalyze-analysis` uses the STORED agent_name and is
+unaffected).
+
+**Edit:** `src/app/api/process-jobs/route.ts` ONLY (reanalyze unaffected):
+- Add `extractOperatorNameFromHeader(transcriptText)` — reads the SalesIQ header region (text
+  before "Chat Duration :") for `Operator: <name>`, using the multi-space separator first and a
+  known-next-field fallback; validates length/word-count/no-URL.
+- `earlyAgentGuess` becomes: operator name from header, falling back to the existing
+  first-unique-sender heuristic when the header has no Operator line.
+- Downstream use unchanged (prior-coaching fetch + followthrough row agent_name).
+
+Scope guard: do NOT modify `parseTranscriptMessages` or `buildStructuredTranscript` — the
+extraction reads the RAW transcript text separately.
+
+**Test (owner):** upload a genuinely new chat for an agent with recent delivered coaching →
+"Previous Coaching Follow-Through" appears at the top of the new analysis; new
+`coaching_followthrough` rows carry the real agent name, never "Contractor Foreman Support".
+
+**Commit:** `Phase 3 Task 10: derive first-pass agent guess from the Operator header field`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
