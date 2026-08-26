@@ -5,6 +5,7 @@ import { createSupabaseServer } from "@/lib/supabaseServer";
 import { getCurrentOrganization } from "@/lib/currentOrganization";
 import {
   fetchPriorDeliveredCoachingPoints,
+  fetchOverrideCalibrations,
   buildFollowthroughPromptSection,
   type PriorCoachingPoint,
 } from "@/lib/coachingFollowthroughFetch";
@@ -566,7 +567,18 @@ export async function POST(req: Request) {
           plan,
           analysisId
         );
-        followthroughPromptSection = buildFollowthroughPromptSection(priorCoachingPoints);
+        const overrideCalibrations =
+          priorCoachingPoints.length > 0
+            ? await fetchOverrideCalibrations(
+                supabaseAdmin,
+                organizationId,
+                agentNameForFollowthrough
+              )
+            : [];
+        followthroughPromptSection = buildFollowthroughPromptSection(
+          priorCoachingPoints,
+          overrideCalibrations
+        );
       } catch {
         // Continue without follow-through detection if fetch fails
       }

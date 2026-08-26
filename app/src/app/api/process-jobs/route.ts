@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import {
   fetchPriorDeliveredCoachingPoints,
+  fetchOverrideCalibrations,
   buildFollowthroughPromptSection,
   type PriorCoachingPoint,
 } from "@/lib/coachingFollowthroughFetch";
@@ -934,7 +935,14 @@ export async function GET() {
               plan,
               null
             );
-            followthroughPromptSection = buildFollowthroughPromptSection(priorCoachingPoints);
+            const overrideCalibrations =
+              priorCoachingPoints.length > 0
+                ? await fetchOverrideCalibrations(supabase, organizationId, earlyAgentGuess)
+                : [];
+            followthroughPromptSection = buildFollowthroughPromptSection(
+              priorCoachingPoints,
+              overrideCalibrations
+            );
           } catch {
             // If fetch fails, continue without follow-through detection
           }

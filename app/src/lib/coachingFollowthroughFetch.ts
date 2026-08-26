@@ -88,8 +88,70 @@ export async function fetchPriorDeliveredCoachingPoints(
   return flat;
 }
 
+export type OverrideCalibration = {
+  point_id: string;
+  ai_status: string;
+  manager_status: string;
+  corrected_on: string;
+};
+
+// Manager overrides where the manager DISAGREED with the AI, newest first.
+// Fed back into future analyses as calibration — the closest this
+// architecture gets to "learning" from the manager (prompt-level only).
+export async function fetchOverrideCalibrations(
+  supabase: SupabaseClient,
+  organizationId: string,
+  agentName: string | null
+): Promise<OverrideCalibration[]> {
+  if (!agentName || !agentName.trim()) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from("coaching_followthrough")
+      .select("source_coaching_point_id, status, manager_override, created_at")
+      .eq("organization_id", organizationId)
+      .eq("agent_name", agentName.trim())
+      .not("manager_override", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error || !data) return [];
+
+    const calibrations: OverrideCalibration[] = [];
+
+    for (const row of data) {
+      const aiStatus = typeof row.status === "string" ? row.status.trim() : "";
+      const managerStatus =
+        typeof row.manager_override === "string" ? row.manager_override.trim() : "";
+      const pointId =
+        typeof row.source_coaching_point_id === "string"
+          ? row.source_coaching_point_id.trim()
+          : "";
+
+      // Only actual corrections teach anything — skip overrides that match the AI.
+      if (!pointId || !aiStatus || !managerStatus || aiStatus === managerStatus) continue;
+
+      calibrations.push({
+        point_id: pointId,
+        ai_status: aiStatus,
+        manager_status: managerStatus,
+        corrected_on: row.created_at
+          ? new Date(row.created_at).toISOString().split("T")[0]
+          : "",
+      });
+
+      if (calibrations.length >= 10) break;
+    }
+
+    return calibrations;
+  } catch {
+    return [];
+  }
+}
+
 export function buildFollowthroughPromptSection(
-  points: PriorCoachingPoint[]
+  points: PriorCoachingPoint[],
+  calibrations: OverrideCalibration[] = []
 ): string {
   if (points.length === 0) return "";
 
@@ -128,12 +190,30 @@ Rules:
 - For abandoned chats (per the Abandoned Chat Detection rules above), output coaching_followthrough: [] - there isn't enough interaction to assess any prior coaching.
 - Use point_id and source_analysis_id values EXACTLY as given. Do not modify, shorten, or normalize them.
 
-COACHING MESSAGE INTEGRATION:
-- Weave the follow-through results into copy_coaching_message naturally. Do NOT add a separate section header for them and do NOT extend the message beyond its normal length.
-- If any prior point is followed_through: credit it early in the message with one specific sentence (e.g. "Last time we talked about answering procedural questions directly - you did exactly that here."). Genuine credit first builds trust in the coaching.
-- If any prior point is repeated: address it inside the "Where the Experience Could Improve" section as a continuation of earlier coaching, in an encouraging way (e.g. "this one has come back around, so let's make it the focus this week") - never as a reprimand, and never list every past occurrence.
-- If ALL prior points are no_opportunity: do not mention prior coaching in copy_coaching_message at all.
-
+COACHING MESSAGE INTEGRATION - "SINCE LAST COACHING" SECTION:
+- copy_coaching_message must include a compact section titled ":repeat: Since Last Coaching", placed immediately AFTER the opening paragraph and BEFORE the ":white_check_mark: What You Did Well" section.
+- Format: 1 to 5 single-line bullets, maximum ~90 words for the whole section:
+  - For each followed_through point: "- Applied: <short restatement of the recommended behavior> - seen in this chat. Nice work."
+  - For each repeated point: "- Came back around: <short restatement> - let's make this the focus."
+  - Skip no_opportunity points entirely. If there are more than 5 applied/repeated points, keep the 5 most important.
+- If NO prior point is followed_through or repeated (all no_opportunity), OMIT the section entirely and do not mention prior coaching anywhere in the message.
+- Tone: supportive continuity, not a scoreboard. Never list dates of past occurrences, never count strikes.
+- Elsewhere in the message you may reference continuity briefly ("as we discussed before"), but do not restate the Since Last Coaching bullets in full.
+- The overall message must stay within its normal length - trim elsewhere to make room for this section.
+${
+    calibrations.length > 0
+      ? `
+MANAGER CALIBRATION - LEARN FROM THESE CORRECTIONS:
+The manager reviewed some of your past follow-through assessments for this agent and corrected them. The manager knows context you cannot see. Weight these corrections when assessing the points below, especially when the same point or a similar situation appears. Corrections, newest first:
+${calibrations
+          .map(
+            (c) =>
+              `- On point "${c.point_id}": you assessed "${c.ai_status}", the manager corrected it to "${c.manager_status}"${c.corrected_on ? ` (${c.corrected_on})` : ""}.`
+          )
+          .join("\n")}
+`
+      : ""
+  }
 Prior coaching points to assess:
 
 ${formatted}
