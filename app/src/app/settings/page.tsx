@@ -17,6 +17,11 @@ export default async function SettingsPage({
   async function saveCompanyCoachingContext(formData: FormData) {
     "use server";
 
+    // redirect() works by THROWING (NEXT_REDIRECT) — it must never be called
+    // inside the try/catch, or the catch turns the success redirect into an
+    // error message. Collect the outcome first, redirect after.
+    let saveErrorMessage = "";
+
     try {
       const { organizationId } = await getCurrentOrganization();
       const coachingContextValue = formData.get("coaching_context");
@@ -29,22 +34,25 @@ export default async function SettingsPage({
         .eq("id", organizationId);
 
       if (error) {
-        redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+        saveErrorMessage = error.message;
       }
-
-      revalidatePath("/settings");
-      redirect("/settings?saved=1");
     } catch (error: any) {
-      redirect(
-        `/settings?error=${encodeURIComponent(
-          error?.message || "Failed to save company coaching context."
-        )}`
-      );
+      saveErrorMessage = error?.message || "Failed to save company coaching context.";
     }
+
+    if (saveErrorMessage) {
+      redirect(`/settings?error=${encodeURIComponent(saveErrorMessage)}`);
+    }
+
+    revalidatePath("/settings");
+    redirect("/settings?saved=1");
   }
 
   async function saveAutoMarkSetting(formData: FormData) {
     "use server";
+
+    // Same pattern as above: never redirect() inside the try/catch.
+    let saveErrorMessage = "";
 
     try {
       const { organizationId } = await getCurrentOrganization();
@@ -56,18 +64,19 @@ export default async function SettingsPage({
         .eq("id", organizationId);
 
       if (error) {
-        redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+        saveErrorMessage = error.message;
       }
-
-      revalidatePath("/settings");
-      redirect("/settings?saved=1");
     } catch (error: any) {
-      redirect(
-        `/settings?error=${encodeURIComponent(
-          error?.message || "Failed to save coaching delivery tracking preference."
-        )}`
-      );
+      saveErrorMessage =
+        error?.message || "Failed to save coaching delivery tracking preference.";
     }
+
+    if (saveErrorMessage) {
+      redirect(`/settings?error=${encodeURIComponent(saveErrorMessage)}`);
+    }
+
+    revalidatePath("/settings");
+    redirect("/settings?saved=1");
   }
 
   const supabaseAuth = await createSupabaseServer();
