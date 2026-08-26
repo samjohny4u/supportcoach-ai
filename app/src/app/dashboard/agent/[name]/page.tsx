@@ -9,6 +9,7 @@ import {
 } from "../../../../lib/coachingFollowthrough";
 import { getFollowthroughWindowDays } from "../../../../lib/planAccess";
 import FollowupMessageButton from "../../../../components/FollowupMessageButton";
+import CoachingDigestPanel from "../../../../components/CoachingDigestPanel";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -336,6 +337,8 @@ export default async function AgentPage({
             </div>
           )}
         </div>
+
+        <CoachingDigestPanel agentName={agentName} />
 
         <div className="mb-10 grid gap-6 md:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-[#081225] p-8">
