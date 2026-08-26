@@ -1369,6 +1369,18 @@ shows conversation-style speaker blocks, agent visually distinct, bot noise mute
 
 ---
 
+### PHASE 3 TASK 18: Abandonment guardrails
+STATUS: ✅ DONE (Aug 26, 2026, commit `3498bf7`) — as-built: three guardrail bullets appended to
+the ABANDONED CHAT DETECTION section, identical in BOTH `src/app/api/process-jobs/route.ts` and
+`src/app/api/reanalyze-analysis/route.ts`: (1) engaged-then-silent is NEVER abandoned — apply
+premature-close/completeness rules to the silence instead; (2) name-fragment senders caused by PDF
+page breaks count as CUSTOMER messages when deciding abandonment (incident: chat #239011,
+"Jesus Yanery" / "Quintero <text>" split made the customer's screen-share request look like a
+third party, producing a false abandoned classification on first pass); (3) when in doubt, NOT
+abandoned. Prompt-only; affects new and re-analyzed chats.
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
