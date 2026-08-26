@@ -136,8 +136,64 @@
   - `/api` was added to the disallow list on July 3 because a crawler was probing `/api/logout`
 
 ## CURRENT TASK
-- Phase 2 Tasks 1, 2, 3, 4, 5, and 6a complete. Task 6b (agent coaching history view) remains — it is the only unbuilt Phase 2 task.
-- Recommended next: Task 6b.
+- **Phase 3 (August 2026 bug fixes and hardening) — in active build.** Tasks 1-8 approved August 26, 2026; see PHASE 3 TASKS in codex-orchestration.md. Task 9 (bi-weekly coaching digest) scoped, awaiting owner decisions.
+- Phase 2 Tasks 1, 2, 3, 4, 5, and 6a complete. Task 6b (agent coaching history view) remains — the only unbuilt Phase 2 task; queued behind Phase 3.
+
+## REPEAT-COACHING DIAGNOSIS (August 26, 2026)
+Symptom: repeated behaviors (e.g. 3-4 min gaps after "Please hold on") not flagged as repeat coaching.
+Root cause (by inspection): the test org is plan='trial' → 30-day lookback window
+(`getFollowthroughWindowDays`), and coaching history dates from ~May 2026 with a ~3-month usage gap —
+so no prior delivered coaching ever qualifies for any new analysis. Detection also only runs AT
+analysis time; historical chats are never retro-assessed. Delivery is not the broken link (owner
+confirms every coaching is copied → auto-marked delivered).
+
+**Read-only diagnosis SQL (owner runs in Supabase SQL Editor):**
+```sql
+-- 1. Delivered coaching points per agent (the source pool)
+SELECT agent_name, count(*) AS delivered_chats, min(created_at) AS oldest, max(created_at) AS newest
+FROM chat_analyses
+WHERE organization_id = '8e71dc46-e674-4131-8709-506223a35d7e'
+  AND excluded = false AND coaching_delivered = true AND coaching_points != '[]'::jsonb
+GROUP BY agent_name ORDER BY delivered_chats DESC;
+
+-- 2. Same, but only within the CURRENT 30-day trial window (expected: zero rows — the smoking gun)
+SELECT agent_name, count(*) FROM chat_analyses
+WHERE organization_id = '8e71dc46-e674-4131-8709-506223a35d7e'
+  AND excluded = false AND coaching_delivered = true AND coaching_points != '[]'::jsonb
+  AND created_at >= now() - interval '30 days'
+GROUP BY agent_name;
+
+-- 3. Follow-through rows ever written, by status
+SELECT status, manager_override, count(*) FROM coaching_followthrough
+WHERE organization_id = '8e71dc46-e674-4131-8709-506223a35d7e'
+GROUP BY status, manager_override;
+
+-- 4. Agent-name spelling variants (exact-match trap)
+SELECT DISTINCT agent_name FROM chat_analyses
+WHERE organization_id = '8e71dc46-e674-4131-8709-506223a35d7e' ORDER BY 1;
+```
+
+**Test-org window fix (owner runs in Supabase SQL Editor).** WARNING: `UPDATE organizations SET
+plan='enterprise'` ALONE locks the org out — middleware treats non-trial plan with no subscription
+row as locked. Run BOTH statements together:
+```sql
+-- Give the test org the enterprise 365-day follow-through window
+UPDATE organizations SET plan = 'enterprise'
+WHERE id = '8e71dc46-e674-4131-8709-506223a35d7e';
+
+-- Synthetic active subscription so the middleware does not lock the org
+-- (verify the subscriptions columns in Supabase first — schema is not in git)
+INSERT INTO subscriptions (organization_id, paddle_subscription_id, plan, status, seats, billing_interval, current_period_end)
+VALUES ('8e71dc46-e674-4131-8709-506223a35d7e', 'sub_test_enterprise_local', 'enterprise', 'active', 1, 'monthly', now() + interval '365 days')
+ON CONFLICT (paddle_subscription_id) DO UPDATE
+SET status = 'active', plan = 'enterprise', current_period_end = now() + interval '365 days';
+```
+**Revert when done testing:**
+```sql
+DELETE FROM subscriptions WHERE paddle_subscription_id = 'sub_test_enterprise_local';
+UPDATE organizations SET plan = 'trial', trial_ends_at = now() + interval '14 days'
+WHERE id = '8e71dc46-e674-4131-8709-506223a35d7e';
+```
 - All architectural decisions for Tasks 4 and 6 are locked in Section 10k of supportcoach-ai-context.md and the PHASE 2 TASKS section of codex-orchestration.md. No new design conversation needed before building.
 
 ## AS-BUILT vs SPEC — PHASE 2 TASK 6 NAMING
@@ -290,7 +346,10 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 - subscription-status API route returns 401 when called from client-side fetch due to Route Handler cookie handling — TrialBanner and select-plan page use Supabase browser client directly as workaround
 - Supabase RLS returns 406 on client-side subscriptions query — non-blocking, page works without it
 - VS Code shows false TypeScript error "Cannot find module @/components/AppNav" — stale cache issue, does not affect Vercel build
-- Upload page only accepts one file at a time despite UI saying "file(s)" and despite duplicate detection logic supporting multiple files. Likely a missing multiple attribute on the file input or drag-and-drop handler reading only the first file. Investigation deferred — fix as a small standalone task after Phase 2 Task 1 commits.
+- Upload sequential-selection bug (root cause found August 26, 2026 — corrects the earlier guess): the file input HAS the `multiple` attribute; the real defects are (a) `processFileList` replaces `selectedFiles` instead of appending, so a second pick discards the first, and (b) the input value is never reset, so re-picking the same file doesn't fire onChange. Fix = Phase 3 Task 2.
+- Upload jobs list shows "processing" forever until manual refresh — `loadRecentJobs()` runs once at trigger time, no polling. Fix = Phase 3 Task 3.
+- Rule 8 loophole (production false coaching, Muibat chat #221584): AI coached an agent for "malformed text" created by the platform's reply/quote feature flattened by PDF export. Fix = Phase 3 Task 1.
+- Zoho SalesIQ PDF export does NOT contain the chat rating or the customer's written review (verified against a real production PDF, August 26, 2026 — transcript ends at the agent's "please rate" message). `conversations.rating_value`/`rating_type` are always null. Rating-aware anything requires the SalesIQ API.
 - Lingering React hydration error #418 on the analysis page after Task 5 polish (May 1, 2026): page renders fully and all sections work, but DevTools console shows a soft hydration mismatch the AI auto-recovers from. Cause not yet diagnosed (the obvious one — toLocaleDateString — was fixed in the Task 5 ISO date hotfix). Non-blocking. Investigate during dashboard UI polish pass.
 - Coaching section heading rename (May 1, 2026, fixed): "Copy Coaching Message" was confusing because the section contains a coaching message AND a Copy button — the title described the action, not the content. Renamed to "Coaching".
 - To reset testing account after cancelling a subscription: run `UPDATE organizations SET plan='trial', trial_ends_at=now()+interval '14 days' WHERE id='8e71dc46-e674-4131-8709-506223a35d7e';` and `DELETE FROM subscriptions WHERE organization_id='8e71dc46-e674-4131-8709-506223a35d7e';`
@@ -349,6 +408,12 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
   - LIMIT 15 prior coaching points per analysis regardless of plan.
   - Manager overrides take precedence over AI status everywhere.
   - Existing copy_coaching_message preserved unchanged — coaching_points is additive structured data.
+- Phase 3 decisions (August 26, 2026):
+  - Follow-through/repeat-coaching section moves ABOVE the coaching message on the analysis page — it filters how coaching gets delivered, so the manager sees it first. This deliberately REVERSES the May 1, 2026 polish decision that placed it below.
+  - Repeat cards state the occurrence ("second time", "third time") in encouraging, non-punitive phrasing.
+  - Per-chat re-analysis context box: deferred (expensive). Rating-aware coaching: impossible from PDF (see KNOWN ISSUES), deferred to SalesIQ API direction.
+  - Scale readiness is a pre-launch requirement: atomic job claim built now (Phase 3 Task 7); remaining backlog (cron, worker auth, counter races, fairness) recorded in codex-orchestration.md.
+  - Docs anti-drift: rules.md rule 38 (as-built names in DONE entries) + warn-only pre-push hook at .githooks/pre-push (activate per machine: `git config core.hooksPath .githooks`).
 - Phase 2 Task 5 display filter (May 1, 2026): the analysis page hides coaching_followthrough rows where the final status (manager_override or AI status) is "no_opportunity". This filter is DISPLAY-ONLY on the analysis page. The DB rows still exist for all three statuses. Task 6 (agent page scorecard) MUST count all three statuses (followed_through, repeated, no_opportunity) when building the scorecard totals — do NOT inherit this filter into Task 6. The scorecard is meant to be honest about what was evaluated; the analysis page filter exists only to reduce per-chat noise for the manager.
 
 ## FILES THAT MUST NOT BREAK

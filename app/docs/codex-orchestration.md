@@ -940,9 +940,219 @@ Read the full file first. Add three new sections, in this order, above existing 
 
 ---
 
+## PHASE 3 TASKS — AUGUST 2026 BUG FIXES AND HARDENING
+
+Approved by owner August 26, 2026 from the production feedback list. Build in order.
+
+### PHASE 3 TASK 1: Strengthen Rule 8 — never coach on message appearance
+STATUS: ⏳ APPROVED
+
+**Bug:** Production false coaching on Muibat chat #221584 — agent used the platform reply/quote
+feature, PDF export flattened it, AI coached the agent for "malformed or misattributed text".
+Rule 8 says "don't coach on quoted content" but never forbids coaching on the message's
+APPEARANCE — the loophole the false coaching came through.
+
+**Edit BOTH** `src/app/api/process-jobs/route.ts` AND `src/app/api/reanalyze-analysis/route.ts`
+(duplicate prompts — both-routes rule):
+1. Append to Rule 8 (Misattributed Messages and Reply/Quote Detection): when quoted/replied-to
+   customer text is detected inside an agent message, treat the entire message as quote + original
+   response; do NOT coach on the message looking confusing, malformed, or misattributed; do NOT
+   mention the appearance in any coaching field; the PDF export commonly flattens reply structures
+   and this is a known artifact, not an agent error.
+2. Add new rule 9 "Never Coach on Message Appearance" to the FACTUAL ACCURACY RULES: coach only
+   on content the agent actually authored, never on how a message looks; garbled/quoted/unusually
+   structured messages are assumed export artifacts and silently ignored.
+
+Prompt-only. Do NOT modify parseTranscriptMessages or buildStructuredTranscript.
+
+**Test (owner):** Re-analyze Muibat chat #221584 (`SELECT id FROM chat_analyses WHERE file_name LIKE '%221584%';`)
+— malformed-text coaching point gone. Spot-check 3-5 other re-analyses — legitimate coaching
+(empathy, ownership, response time) unchanged. Only affects new/re-analyzed chats.
+
+**Commit:** `Phase 3 Task 1: Rule 8 — never coach on message appearance (both workers)`
+
+---
+
+### PHASE 3 TASK 2: Upload — sequential file selection appends instead of replacing
+STATUS: ⏳ APPROVED
+
+**Bug (corrects the older KNOWN ISSUES guess):** the file input HAS `multiple`; the real defects:
+`processFileList` REPLACES `selectedFiles` (second pick discards the first), and the input value
+is never reset so re-picking the same file doesn't fire `onChange`.
+
+**Edit:** `src/app/upload/page.tsx` — append + dedupe (name+size) in `processFileList`; reset
+`event.target.value` in `handleFileSelect`; rename "Choose different files" to "Add more files";
+correct pluralization on the touched strings (rule 31). Cancel button already clears selection.
+
+**Test (owner):** pick file A, then pick file B via Add more files → both listed. Pick A again → no
+duplicate. Drag-drop a third → appended. Cancel clears. Upload processes all selected.
+
+**Commit:** `Phase 3 Task 2: Upload selection appends across multiple picks`
+
+---
+
+### PHASE 3 TASK 3: Upload — job status polls to completion
+STATUS: ⏳ APPROVED
+
+**Bug:** `loadRecentJobs()` runs once right after the worker is triggered; a job shown "processing"
+never flips to "completed" without manual refresh.
+
+**Edit:** `src/app/upload/page.tsx` — add a polling effect: while any visible job is
+pending/processing, silently re-fetch job status every 5 seconds (no loading flash); stop when
+none are active.
+
+**Test (owner):** upload a PDF, wait on the page — status badge flips to COMPLETED without refresh.
+
+**Commit:** `Phase 3 Task 3: Poll job status on upload page until completion`
+
+---
+
+### PHASE 3 TASK 4: Repeat-coaching diagnosis + test-org window fix (SQL, owner-run)
+STATUS: ⏳ APPROVED — no code; owner runs SQL in Supabase SQL Editor
+
+**Diagnosis:** follow-through detection requires prior coaching that is delivered=true, same exact
+agent_name, non-excluded, AND within the plan lookback window — the test org is plan='trial' →
+30 days. Coaching history is from ~May 2026; any upload today finds ZERO qualifying prior points.
+Detection also only runs at analysis time — historical chats are never retro-assessed.
+
+**Read-only diagnosis SQL** (org `8e71dc46-e674-4131-8709-506223a35d7e`) — see context.md
+"REPEAT-COACHING DIAGNOSIS" for the four queries (delivered points per agent, points within
+window, followthrough rows by status, agent-name spellings).
+
+**Window fix SQL:** setting `organizations.plan='enterprise'` ALONE locks the org out (middleware:
+non-trial plan + no subscription row = locked). The fix pairs the plan change with a synthetic
+active subscription row — SQL block in context.md. Revert SQL provided alongside.
+
+**Test (owner):** after SQL, dashboard still loads (not locked out); upload a new chat for a
+previously-coached agent → "Previous Coaching Follow-Through" appears on the new analysis.
+
+---
+
+### PHASE 3 TASK 5: Analysis page — follow-through section above coaching + repeat counter
+STATUS: ⏳ APPROVED
+
+Owner decision August 26, 2026: repeat coaching is a filter on how coaching gets delivered, so it
+must be seen FIRST. This deliberately reverses the May 1, 2026 Task 5 polish decision that placed
+follow-through below the coaching message.
+
+**Edit:** `src/app/analysis/[id]/page.tsx`:
+1. Move the "Previous Coaching Follow-Through" block (both branches, incl. the evaluated-no-action
+   note) ABOVE the Coaching message section.
+2. For each row whose final status is `repeated`, count prior `repeated` detections of the same
+   source coaching point (same org, `created_at <=` this row's) and show an encouraging ordinal
+   line when count >= 2, e.g. "This is the second time this has come up since coaching — worth a
+   focused follow-up conversation." Supportive phrasing, never punitive.
+
+**Test (owner):** open an analysis with follow-through rows → section renders above Coaching;
+a point repeated twice shows "second time" line; no_opportunity rows still hidden; override
+dropdown still works.
+
+**Commit:** `Phase 3 Task 5: Follow-through section first + encouraging repeat counter`
+
+---
+
+### PHASE 3 TASK 6: Product Issues rollup page
+STATUS: ⏳ APPROVED
+
+Consolidates 1-star drivers that are NOT the agent's fault (bugs, glitches, product limitations)
+for the product team. Uses data that already exists: `product_limitation_chat = true`.
+
+**Create:** `src/app/dashboard/product-issues/page.tsx` — auth + org resolution like the analysis
+page; query `chat_analyses` (org filter + `.eq('excluded', false)`) where
+`product_limitation_chat = true`; group by `chat_type`, sorted by count desc; each group lists
+date, agent, customer, issue_summary, churn risk badge, link to the analysis. Range filter 30/90/all.
+
+**Edit:** `src/app/dashboard/page.tsx` — add ONE "Product Issues" link in the filter action row
+next to "Generate Coaching Report". No other dashboard changes (protected file).
+
+**Test (owner):** /dashboard/product-issues lists only product-limitation chats for the org;
+excluded chats absent; counts match a manual Supabase check.
+
+**Commit:** `Phase 3 Task 6: Product Issues rollup page`
+
+---
+
+### PHASE 3 TASK 7: Scale readiness — atomic job claim
+STATUS: ⏳ APPROVED (first item of the scale-readiness campaign below)
+
+**Edit:** `src/app/api/process-jobs/route.ts` — the job-level claim is check-then-set (two
+concurrent invocations both proceed). Make claiming a PENDING job atomic: conditional
+`update({status:'processing'}).eq('id', job.id).eq('status','pending').select().maybeSingle()`;
+if no row comes back, another worker won — return `{ message: "Job claimed by another worker" }`.
+Jobs already in `processing` are still picked up (crash-resume behavior preserved); the EXISTING
+per-item atomic claim remains the guard for concurrent workers on the same processing job.
+
+**Test (owner):** upload a job, rapidly click Process Now twice / two tabs — job completes once,
+no duplicate analyses, second invocation returns the claimed message.
+
+**Commit:** `Phase 3 Task 7: Atomic job claim in process-jobs`
+
+**SCALE READINESS BACKLOG (documented, build before external launch):**
+| Item | Risk today | Fix when scheduled |
+|---|---|---|
+| `processed_files` counter races under concurrent workers on one job | Progress % may miscount; cosmetic | Recompute count from completed items instead of local counter |
+| No cron — worker only runs when a browser triggers it | Stuck pending jobs if trigger fetch fails and user leaves | Vercel cron hitting /api/process-jobs every few minutes (needs vercel.json — owner decision, changes "no cron" design) |
+| /api/process-jobs is unauthenticated GET doing expensive OpenAI work | Anyone can burn OpenAI spend by hammering it | Require a shared secret header or auth check |
+| One job per invocation, items sequential | 1000 orgs uploading = long queue latency | Per-org fairness / parallel item processing within Vercel time limits |
+| OpenAI rate limits / Vercel function timeout on huge jobs | Items fail mid-job (item claim makes this recoverable) | Batch-size cap per invocation + retry pass |
+
+---
+
+### PHASE 3 TASK 8: Docs anti-drift guardrails
+STATUS: ⏳ APPROVED
+
+1. **Edit:** `docs/rules.md` — add rule 38 (Documentation): when marking a task DONE in any doc,
+   record the AS-BUILT file paths and exported function names copied from the code, never the
+   spec's proposed names. (The Task 6a naming drift is the incident behind this rule.)
+2. **Create:** `.githooks/pre-push` (repo root) — warn-only hook: if the pushed range changes
+   `app/src` or `app/middleware.ts` without changing `app/docs`, print a drift warning (push
+   still proceeds). Activate locally with `git config core.hooksPath .githooks` (per-machine;
+   documented here because git hooks don't travel with clones).
+
+**Commit:** `Phase 3 Task 8: docs anti-drift rule + pre-push drift warning hook`
+
+---
+
+### PHASE 3 TASK 9: Bi-weekly per-agent coaching digest
+STATUS: 🔒 SCOPED — awaiting owner decisions, do not build yet
+
+Every two weeks, a per-agent summary of coaching from problem chats: where they're lagging,
+reminders of what was missed, and an actionable plan — doubling down on suggestive phrasing so the
+agent gets a plan of action, not a "you were wrong in 3 places" list.
+
+**Blocking facts (verified August 26, 2026):**
+- "1-star rated chats" cannot be the trigger — the Zoho SalesIQ PDF export does NOT contain the
+  rating or the customer's written review (verified against a real production PDF; the transcript
+  ends at the agent's "please rate" message). `conversations.rating_value/rating_type` columns
+  exist but are always null. Rating data would require the SalesIQ API (Section 10c direction).
+- There is no cron; "every two weeks" has no scheduler to run on.
+
+**Open decisions for the owner:**
+1. Trigger set proxy: `attention_priority='high'` OR `churn_risk='high'` OR
+   `customer_frustration_present=true` within the 14-day window? (Recommended.)
+2. Cadence mechanism: v1 as an on-demand "Coaching digest (last 14 days)" button on the agent page
+   (no cron needed), vs waiting for the cron decision in Task 7's backlog?
+3. Delivery: copy-to-clipboard (matches existing patterns) vs email later?
+4. Generation: template from existing coaching_points/followthrough data (free) vs one AI call per
+   digest (better prose, ~manager-report cost)?
+
+---
+
+## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
+
+- **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
+  DEFERRED by owner as expensive. Natural insertion point when revived: optional textarea on the
+  analysis page injected into the reanalyze prompt like coaching_context.
+- **Rating-aware coaching**: impossible from PDF export (verified — rating not present). Requires
+  SalesIQ API integration. Deferred until API direction (Section 10c) is picked up.
+- **KB-as-lens chatbot** and **Master-database Q&A with KB lens + duplicate check**: not this
+  product/repo — belong to the KB-owning system.
+- **Supabase free-project keep-alive cron**: ops task outside this repo (GitHub Action or
+  scheduled ping); needs the owner's list of project URLs.
+
 ## SCOPE LOCK
 
-MVP and Phase 1 (Paddle billing, landing page, extension marketing page) are complete. Phase 2 (Coaching Effectiveness Tracker) is in progress per the task list above.
+MVP and Phase 1 (Paddle billing, landing page, extension marketing page) are complete. Phase 2 (Coaching Effectiveness Tracker) is in progress per the task list above. Phase 3 (August 2026 bug fixes and hardening) is approved per the task list above.
 
 The orchestration guide remains the source of truth for any future tasks. Do not build anything outside the documented task list. New tasks must be added to this file before any code is written.
 
