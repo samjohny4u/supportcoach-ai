@@ -1382,8 +1382,10 @@ abandoned. Prompt-only; affects new and re-analyzed chats.
 ---
 
 ### PHASE 3 TASK 19: Proportional coaching for small chats
-STATUS: ⏳ APPROVED (owner: 3 improvement points + full-length message on a 9-minute chat is
-disproportionate and erodes agent trust in the coaching; "do your recommendation")
+STATUS: ✅ DONE (Aug 26, 2026, commit `b56d209`) — as-built: PROPORTIONALITY rule appended to the
+COPY COACHING MESSAGE FORMAT length bullets, identical in both worker routes (<~6 substantive
+agent messages → 120-250 words, 1-2 highest-impact items, never manufacture points to fill the
+structure). Owner rationale: disproportionate coaching erodes agent trust.
 
 **Edit BOTH** worker routes' COPY COACHING MESSAGE FORMAT: add a PROPORTIONALITY rule — when the
 agent sent fewer than ~6 substantive messages, the message shrinks to 120-250 words with only the
@@ -1393,7 +1395,9 @@ the 250-450 word format remains the default for normal chats.
 ---
 
 ### PHASE 3 TASK 20: Plain-language repeat phrasing ("came up again")
-STATUS: ⏳ APPROVED (owner: agents will not understand "came back around")
+STATUS: ✅ DONE (Aug 26, 2026, commit `b56d209`) — as-built: "Came up again" in the Since Last
+Coaching bullet template (`src/lib/coachingFollowthroughFetch.ts`) and "What came up again:" in
+`src/components/FollowthroughSummaryButton.tsx`.
 
 **Edit:** `src/lib/coachingFollowthroughFetch.ts` (Since Last Coaching bullet template) and
 `src/components/FollowthroughSummaryButton.tsx` (summary heading/bullets): replace "came back
