@@ -1184,6 +1184,35 @@ extraction reads the RAW transcript text separately.
 
 ---
 
+### PHASE 3 TASK 11: Transferred chats — coach the agent who finished the chat
+STATUS: ⏳ APPROVED (owner directive August 26, 2026)
+
+**Problem:** the prompt has NO agent_name field rule, so on transferred chats the AI invents
+combined names ("Arjuna and Vinisha Sekar", "Debbie / Vinisha Sekar" — both live in production
+data). Combined names break exact-match follow-through lookups and split coaching history.
+
+**Owner decision:** analyze the ENTIRE transcript for context, but attribute the analysis and
+coaching to the agent who FINISHED the chat — the last support agent who sent a message before the
+chat ended.
+
+**Edit BOTH** `src/app/api/process-jobs/route.ts` AND `src/app/api/reanalyze-analysis/route.ts`
+(both-routes rule): add an `agent_name` block at the top of FIELD-SPECIFIC RULES — single agent
+only, finisher on transfers, never combined names, never the support bot, coaching/scores apply to
+the finishing agent's portion (context from before the transfer allowed, no penalizing the
+finisher for the earlier agent's behavior).
+
+**Known limitation (recorded):** the pre-AI prior-coaching fetch uses the header Operator field
+(Task 10); on transferred chats that may name a different agent than the finisher, in which case
+follow-through assessment is skipped or mismatched for that chat. Acceptable for v1 — transfers
+are a minority; revisit only if data shows otherwise.
+
+**Test (owner):** re-analyze one chat currently attributed to "Debbie / Vinisha Sekar" → agent_name
+becomes the finishing agent alone; coaching addresses that agent; no combined names on new uploads.
+
+**Commit:** `Phase 3 Task 11: transferred chats coach the finishing agent (both workers)`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
