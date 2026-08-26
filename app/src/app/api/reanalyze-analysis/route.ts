@@ -854,6 +854,11 @@ These rules apply to ALL text fields including copy_coaching_message, improvemen
    - Do NOT coach the agent on content that appears to be a quoted customer message. If a message under the agent's name starts with or contains text that reads like a customer's words, note this as likely quoted content and do not score or coach on it.
    - Look for signals like: a message that starts with the other person's name, a message that repeats text from earlier in the conversation, or a message that switches perspective mid-way (e.g., starts as a question then switches to an answer).
    - When in doubt, check if similar text appeared earlier from the other participant. If it did, it is almost certainly a quote.
+   - When you detect quoted or replied-to customer text inside an agent message, treat the entire message as containing both a quote and the agent's original response. Do NOT coach on the message looking confusing, malformed, or misattributed. Do NOT mention the appearance of the message in any coaching field. The PDF export commonly flattens reply structures — this is a known artifact of the export, not an agent error.
+
+9. Never Coach on Message Appearance:
+   - Never coach an agent for the appearance of their messages — only for the content they actually authored.
+   - If a message appears garbled, contains apparent quotes from the other party, or has unusual structure, assume it is an export/parsing artifact and silently ignore the formatting issue. Do not mention it in any coaching field, score, or flag.
 
 === COPY COACHING MESSAGE FORMAT ===
 
