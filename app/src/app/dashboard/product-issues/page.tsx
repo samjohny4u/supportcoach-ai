@@ -50,6 +50,12 @@ function formatDate(value: string | null) {
   return date.toISOString().split("T")[0];
 }
 
+function getRangeCutoffIso(days: number) {
+  const now = new Date();
+  now.setDate(now.getDate() - days);
+  return now.toISOString();
+}
+
 export default async function ProductIssuesPage({
   searchParams,
 }: {
@@ -99,15 +105,9 @@ export default async function ProductIssuesPage({
     .order("created_at", { ascending: false });
 
   if (selectedRange === "30d") {
-    query = query.gte(
-      "created_at",
-      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-    );
+    query = query.gte("created_at", getRangeCutoffIso(30));
   } else if (selectedRange === "90d") {
-    query = query.gte(
-      "created_at",
-      new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
-    );
+    query = query.gte("created_at", getRangeCutoffIso(90));
   }
 
   let rows: ProductIssueRow[] = [];
