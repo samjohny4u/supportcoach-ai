@@ -68,27 +68,52 @@ export default function UploadPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
-  async function loadRecentJobs() {
+  async function loadRecentJobs(options?: { silent?: boolean }) {
+    const silent = options?.silent === true;
     try {
-      setLoadingJobs(true);
+      if (!silent) {
+        setLoadingJobs(true);
+      }
       const res = await fetch("/api/job-status", { cache: "no-store" });
       if (!res.ok) {
-        setRecentJobs([]);
+        if (!silent) {
+          setRecentJobs([]);
+        }
         return;
       }
       const data = (await res.json()) as JobsResponse;
       setRecentJobs(data.jobs || []);
     } catch (error) {
       console.error("Failed to load recent jobs:", error);
-      setRecentJobs([]);
+      if (!silent) {
+        setRecentJobs([]);
+      }
     } finally {
-      setLoadingJobs(false);
+      if (!silent) {
+        setLoadingJobs(false);
+      }
     }
   }
 
   useEffect(() => {
     loadRecentJobs();
   }, []);
+
+  // While any visible job is still pending/processing, silently re-check status
+  // every 5 seconds so the badge flips to completed without a manual refresh.
+  useEffect(() => {
+    const hasActiveJob = recentJobs
+      .slice(0, 5)
+      .some((job) => job.status === "pending" || job.status === "processing");
+    if (!hasActiveJob) return;
+
+    const timer = setTimeout(() => {
+      void loadRecentJobs({ silent: true });
+    }, 5000);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recentJobs]);
 
   async function extractPdfText(file: File): Promise<string> {
     const arrayBuffer = await file.arrayBuffer();
