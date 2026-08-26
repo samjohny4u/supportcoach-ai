@@ -766,7 +766,25 @@ export async function GET() {
     const job = jobs[0];
 
     if (job.status !== "processing") {
-      await supabase.from("analysis_jobs").update({ status: "processing" }).eq("id", job.id);
+      // Atomic claim: only one concurrent invocation can move the job from
+      // pending to processing — losers exit here instead of double-working.
+      // Jobs already in "processing" are still picked up (crash-resume); the
+      // per-item conditional claim below guards that path.
+      const { data: claimedJob, error: jobClaimError } = await supabase
+        .from("analysis_jobs")
+        .update({ status: "processing" })
+        .eq("id", job.id)
+        .eq("status", "pending")
+        .select("id")
+        .maybeSingle();
+
+      if (jobClaimError) {
+        return NextResponse.json({ error: jobClaimError.message }, { status: 500 });
+      }
+
+      if (!claimedJob) {
+        return NextResponse.json({ message: "Job claimed by another worker" });
+      }
     }
 
     const { data: items, error: itemsError } = await supabase
