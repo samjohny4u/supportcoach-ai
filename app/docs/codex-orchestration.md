@@ -1270,7 +1270,7 @@ pattern (spot-check, non-deterministic).
 ---
 
 ### PHASE 3 TASK 14: View Transcript on the analysis page
-STATUS: ⏳ APPROVED (owner asked "where is the view transcript option" — August 26, 2026)
+STATUS: ✅ DONE (Aug 26, 2026) — as-built in `src/app/analysis/[id]/page.tsx`: `TranscriptMessage` type; `transcriptMessages` fetched from `conversation_messages` by the analysis's `conversation_id` (org-filtered), `rawTranscriptFallback` from `conversations.raw_transcript_text` when unparsed; native `<details>` "View Transcript" section rendered after the follow-through block, system lines muted, scrollable. Owner test pending.
 
 **Why:** verifying an AI follow-through assessment currently requires finding the chat in SalesIQ.
 The transcript is already stored (`conversation_messages` rows + `conversations.raw_transcript_text`)
