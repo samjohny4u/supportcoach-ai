@@ -1388,6 +1388,14 @@ COPY COACHING MESSAGE FORMAT length bullets, identical in both worker routes (<~
 agent messages → 120-250 words, 1-2 highest-impact items, never manufacture points to fill the
 structure). Owner rationale: disproportionate coaching erodes agent trust.
 
+**HOTFIX (Aug 26, 2026, commit `4a1a410`):** verified failure on chat #239277 (2 substantive agent
+messages, 3m26s) — the soft bullet lost to the older structure rules ("must not be short", all
+sections mandatory) and produced ~400 words / 3 items anyway. As-built fix: SHORT-CHAT MODE now
+explicitly OVERRIDES the section's length/structure rules, with per-section caps (max 2 did-well
+bullets, 1-2 improvement items with same-fix merging, one-sentence What This Chat Really Was, max
+2 summary bullets per list). Both routes. Lesson recorded: a new prompt rule that contradicts
+older mandatory rules must state its precedence explicitly or the model follows the structure.
+
 **Edit BOTH** worker routes' COPY COACHING MESSAGE FORMAT: add a PROPORTIONALITY rule — when the
 agent sent fewer than ~6 substantive messages, the message shrinks to 120-250 words with only the
 1-2 highest-impact improvement items; never manufacture improvement points to fill the structure;
