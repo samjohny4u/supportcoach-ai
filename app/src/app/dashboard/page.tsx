@@ -554,10 +554,6 @@ export default async function DashboardPage({
     ? `${selectedAgent} Chats Needing Attention`
     : "Chats Needing Attention";
 
-  const attentionViewDescription = isAttentionView
-    ? "Showing only chats where attention priority is high."
-    : "Use the view filter to focus only on high-priority chats.";
-
   return (
     <main className="px-6 py-0">
       <TrialBanner />
@@ -572,16 +568,16 @@ export default async function DashboardPage({
           <p className="max-w-3xl text-gray-300">{pageSubtitle}</p>
         </div>
 
-        <form className="mb-8 rounded-3xl border border-white/10 bg-[#081225] p-6">
-          <div className="grid gap-4 md:grid-cols-4">
+        <form className="mb-6 rounded-2xl border border-white/10 bg-[#081225] p-4">
+          <div className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-300">
+              <label className="mb-1 block text-xs font-medium text-gray-400">
                 Date Range
               </label>
               <select
                 name="range"
                 defaultValue={selectedRange}
-                className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white"
+                className="rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-white"
               >
                 <option value="all">All Time</option>
                 <option value="7d">Last 7 Days</option>
@@ -590,13 +586,13 @@ export default async function DashboardPage({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-300">
+              <label className="mb-1 block text-xs font-medium text-gray-400">
                 Agent
               </label>
               <select
                 name="agent"
                 defaultValue={selectedAgent}
-                className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white"
+                className="rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-white"
               >
                 <option value="all">All Agents</option>
                 {allAgentNames.map((agent) => (
@@ -608,74 +604,69 @@ export default async function DashboardPage({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-300">
+              <label className="mb-1 block text-xs font-medium text-gray-400">
                 View
               </label>
               <select
                 name="view"
                 defaultValue={selectedView}
-                className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white"
+                className="rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-white"
               >
                 <option value="all">All Chats</option>
                 <option value="attention">Chats Needing Attention</option>
               </select>
             </div>
 
-            <div className="flex flex-wrap items-end gap-3">
-              <button
-                type="submit"
-                className="rounded-xl bg-white px-5 py-3 font-semibold text-black hover:bg-gray-200"
-              >
-                Apply Filters
-              </button>
+            <button
+              type="submit"
+              className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-200"
+            >
+              Apply Filters
+            </button>
 
-              <a
-                href="/dashboard"
-                className="rounded-xl border border-white/10 px-5 py-3 font-semibold text-gray-300 hover:bg-white/5 hover:text-white"
-              >
-                Reset
-              </a>
+            <a
+              href="/dashboard"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-white/5 hover:text-white"
+            >
+              Reset
+            </a>
 
-              <a
-                href={`/api/export?agent=${encodeURIComponent(
-                  selectedAgent
-                )}&range=${encodeURIComponent(selectedRange)}`}
-                className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-5 py-3 font-semibold text-emerald-300 hover:bg-emerald-500/15"
-              >
-                Export CSV
-              </a>
+            <a
+              href={`/api/export?agent=${encodeURIComponent(
+                selectedAgent
+              )}&range=${encodeURIComponent(selectedRange)}`}
+              className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/15"
+            >
+              Export CSV
+            </a>
 
-              <a
-                href={`/dashboard/report?agent=${encodeURIComponent(
-                  selectedAgent
-                )}&days=${
-                  selectedRange === "7d" ? "7" : selectedRange === "30d" ? "30" : "7"
-                }`}
-                className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-5 py-3 font-semibold text-indigo-300 hover:bg-indigo-500/20"
-              >
-                Generate Coaching Report
-              </a>
+            <a
+              href={`/dashboard/report?agent=${encodeURIComponent(
+                selectedAgent
+              )}&days=${
+                selectedRange === "7d" ? "7" : selectedRange === "30d" ? "30" : "7"
+              }`}
+              className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-300 hover:bg-indigo-500/20"
+            >
+              Generate Coaching Report
+            </a>
 
-              <a
-                href="/dashboard/product-issues"
-                className="rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-3 font-semibold text-red-300 hover:bg-red-500/20"
-              >
-                Product Issues
-              </a>
-            </div>
+            <a
+              href="/dashboard/product-issues"
+              className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-500/20"
+            >
+              Product Issues
+            </a>
           </div>
         </form>
 
-        <div className="mb-4 rounded-2xl border border-white/10 bg-[#081225] p-4 text-sm text-gray-300">
-          {attentionViewDescription}
-        </div>
-
-        <div className="mb-6 rounded-2xl border border-white/10 bg-[#081225] p-4 text-sm text-gray-300">
+        <p className="mb-6 text-sm text-gray-400">
           Showing {totalChats} included {totalChats === 1 ? "chat" : "chats"}
           {typeof excludedCount === "number" && excludedCount > 0
             ? ` - ${excludedCount} excluded from reports`
             : ""}
-        </div>
+          {isAttentionView ? " - attention view: only high-priority chats are shown." : ""}
+        </p>
 
         <div className="mb-10 grid gap-6 md:grid-cols-4">
           <div className="rounded-2xl border border-white/10 bg-[#081225] p-6">
@@ -701,6 +692,68 @@ export default async function DashboardPage({
             <p className="mt-2 text-xs text-gray-500">
               {highAttentionCount} high / {mediumAttentionCount} medium
             </p>
+          </div>
+        </div>
+
+        <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
+          <h2 className="mb-6 text-2xl font-semibold">{performanceSummaryTitle}</h2>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {agentSummaries.length === 0 ? (
+              <p className="text-gray-400">No agent data yet.</p>
+            ) : (
+              agentSummaries.map((agent) => (
+                <div
+                  key={agent.agentName}
+                  className="rounded-2xl border border-white/10 bg-black/20 p-6"
+                >
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <h3 className="text-2xl font-bold">{agent.agentName}</h3>
+                    <a
+                      href={`/dashboard/agent/${encodeURIComponent(agent.agentName)}`}
+                      className="text-sm text-indigo-300 hover:text-indigo-200"
+                    >
+                      {"View Agent →"}
+                    </a>
+                  </div>
+
+                  <div className="mb-5 grid gap-3 text-sm text-gray-300">
+                    <div className="flex justify-between">
+                      <span>Chats Reviewed</span>
+                      <span>{agent.chatsCount}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span>High Churn Risk</span>
+                      <span>{agent.highChurnCount}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span>Deleted Messages</span>
+                      <span>{agent.deletedMessageCount}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span>Missed Confirmations</span>
+                      <span>{agent.missedConfirmationCount}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span>Premature Closes</span>
+                      <span>{agent.prematureCloseCount}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <ScoreBar label="Empathy" value={agent.avgEmpathy} />
+                    <ScoreBar label="Clarity" value={agent.avgClarity} />
+                    <ScoreBar label="Ownership" value={agent.avgOwnership} />
+                    <ScoreBar label="Resolution Quality" value={agent.avgResolutionQuality} />
+                    <ScoreBar label="Professionalism" value={agent.avgProfessionalism} />
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -780,101 +833,6 @@ export default async function DashboardPage({
             <ScoreBar label="Ownership" value={teamAverageScores.ownership} />
             <ScoreBar label="Resolution Quality" value={teamAverageScores.resolutionQuality} />
             <ScoreBar label="Professionalism" value={teamAverageScores.professionalism} />
-          </div>
-        </div>
-
-        <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
-          <h2 className="mb-2 text-2xl font-semibold">{attentionSectionTitle}</h2>
-          <p className="mb-6 text-sm text-gray-400">
-            {"High-priority chats based on the worker's computed attention score."}
-          </p>
-
-          <div className="space-y-4">
-            {attentionChats.length === 0 ? (
-              <p className="text-gray-400">No high-priority chats found in this view.</p>
-            ) : (
-              attentionChats.map((chat) => (
-                <div
-                  key={chat.id}
-                  className="rounded-2xl border border-white/10 bg-black/20 p-5"
-                >
-                  <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-semibold text-white">
-                        {isKnownAgentName(chat.agent_name) ? chat.agent_name : "Unknown Agent"}{" → "}
-                        {chat.customer_name || "Unknown Customer"}
-                      </p>
-                      <p className="text-sm text-gray-400">{chat.file_name}</p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <div
-                        className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getPriorityClasses(
-                          chat.attention_priority
-                        )}`}
-                      >
-                        {(chat.attention_priority || "low")} priority
-                      </div>
-
-                      <div
-                        className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getRiskClasses(
-                          chat.churn_risk
-                        )}`}
-                      >
-                        {(chat.churn_risk || "low")} churn risk
-                      </div>
-                    </div>
-                  </div>
-
-                  <p className="mb-2 text-sm text-gray-400">
-                    {normalizeLabel(chat.chat_type)}
-                  </p>
-
-                  <p className="mb-3 text-gray-300">
-                    {chat.quick_summary?.trim() || chat.issue_summary || "No quick summary."}
-                  </p>
-
-                  <div className="mb-4 flex flex-wrap gap-2">
-                    {chat.customer_frustration_present ? (
-                      <span className={getSignalClasses("danger")}>Customer Frustration</span>
-                    ) : null}
-
-                    {chat.premature_close ? (
-                      <span className={getSignalClasses("warning")}>Premature Close</span>
-                    ) : null}
-
-                    {chat.missed_confirmation ? (
-                      <span className={getSignalClasses("warning")}>Missed Confirmation</span>
-                    ) : null}
-
-                    {chat.product_limitation_chat ? (
-                      <span className={getSignalClasses("info")}>Product Limitation</span>
-                    ) : null}
-
-                    {String(chat.churn_risk || "").toLowerCase() === "high" ? (
-                      <span className={getSignalClasses("danger")}>High Churn Risk</span>
-                    ) : null}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    {chat.copy_coaching_message?.trim() ? (
-                      <CopyButton
-                        text={chat.copy_coaching_message}
-                        idleLabel="Copy Coaching Message"
-                        className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/15"
-                      />
-                    ) : null}
-
-                    <a
-                      href={`/analysis/${chat.id}`}
-                      className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
-                    >
-                      {"View Analysis →"}
-                    </a>
-                  </div>
-                </div>
-              ))
-            )}
           </div>
         </div>
 
@@ -1011,60 +969,93 @@ export default async function DashboardPage({
         </div>
 
         <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
-          <h2 className="mb-6 text-2xl font-semibold">{performanceSummaryTitle}</h2>
+          <h2 className="mb-2 text-2xl font-semibold">{attentionSectionTitle}</h2>
+          <p className="mb-6 text-sm text-gray-400">
+            {"High-priority chats based on the worker's computed attention score."}
+          </p>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            {agentSummaries.length === 0 ? (
-              <p className="text-gray-400">No agent data yet.</p>
+          <div className="space-y-4">
+            {attentionChats.length === 0 ? (
+              <p className="text-gray-400">No high-priority chats found in this view.</p>
             ) : (
-              agentSummaries.map((agent) => (
+              attentionChats.map((chat) => (
                 <div
-                  key={agent.agentName}
-                  className="rounded-2xl border border-white/10 bg-black/20 p-6"
+                  key={chat.id}
+                  className="rounded-2xl border border-white/10 bg-black/20 p-5"
                 >
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <h3 className="text-2xl font-bold">{agent.agentName}</h3>
+                  <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold text-white">
+                        {isKnownAgentName(chat.agent_name) ? chat.agent_name : "Unknown Agent"}{" → "}
+                        {chat.customer_name || "Unknown Customer"}
+                      </p>
+                      <p className="text-sm text-gray-400">{chat.file_name}</p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <div
+                        className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getPriorityClasses(
+                          chat.attention_priority
+                        )}`}
+                      >
+                        {(chat.attention_priority || "low")} priority
+                      </div>
+
+                      <div
+                        className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${getRiskClasses(
+                          chat.churn_risk
+                        )}`}
+                      >
+                        {(chat.churn_risk || "low")} churn risk
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="mb-2 text-sm text-gray-400">
+                    {normalizeLabel(chat.chat_type)}
+                  </p>
+
+                  <p className="mb-3 text-gray-300">
+                    {chat.quick_summary?.trim() || chat.issue_summary || "No quick summary."}
+                  </p>
+
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {chat.customer_frustration_present ? (
+                      <span className={getSignalClasses("danger")}>Customer Frustration</span>
+                    ) : null}
+
+                    {chat.premature_close ? (
+                      <span className={getSignalClasses("warning")}>Premature Close</span>
+                    ) : null}
+
+                    {chat.missed_confirmation ? (
+                      <span className={getSignalClasses("warning")}>Missed Confirmation</span>
+                    ) : null}
+
+                    {chat.product_limitation_chat ? (
+                      <span className={getSignalClasses("info")}>Product Limitation</span>
+                    ) : null}
+
+                    {String(chat.churn_risk || "").toLowerCase() === "high" ? (
+                      <span className={getSignalClasses("danger")}>High Churn Risk</span>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    {chat.copy_coaching_message?.trim() ? (
+                      <CopyButton
+                        text={chat.copy_coaching_message}
+                        idleLabel="Copy Coaching Message"
+                        className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/15"
+                      />
+                    ) : null}
+
                     <a
-                      href={`/dashboard/agent/${encodeURIComponent(agent.agentName)}`}
-                      className="text-sm text-indigo-300 hover:text-indigo-200"
+                      href={`/analysis/${chat.id}`}
+                      className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
                     >
-                      {"View Agent →"}
+                      {"View Analysis →"}
                     </a>
-                  </div>
-
-                  <div className="mb-5 grid gap-3 text-sm text-gray-300">
-                    <div className="flex justify-between">
-                      <span>Chats Reviewed</span>
-                      <span>{agent.chatsCount}</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span>High Churn Risk</span>
-                      <span>{agent.highChurnCount}</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span>Deleted Messages</span>
-                      <span>{agent.deletedMessageCount}</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span>Missed Confirmations</span>
-                      <span>{agent.missedConfirmationCount}</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span>Premature Closes</span>
-                      <span>{agent.prematureCloseCount}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <ScoreBar label="Empathy" value={agent.avgEmpathy} />
-                    <ScoreBar label="Clarity" value={agent.avgClarity} />
-                    <ScoreBar label="Ownership" value={agent.avgOwnership} />
-                    <ScoreBar label="Resolution Quality" value={agent.avgResolutionQuality} />
-                    <ScoreBar label="Professionalism" value={agent.avgProfessionalism} />
                   </div>
                 </div>
               ))
