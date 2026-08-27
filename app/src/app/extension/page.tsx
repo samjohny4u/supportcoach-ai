@@ -508,6 +508,9 @@ export default function ExtensionPage() {
 
         {/* FOOTER LINKS */}
         <footer style={{ paddingBottom: "48px", textAlign: "center", display: "flex", justifyContent: "center", gap: "20px", flexWrap: "wrap" }}>
+          <Link href="/security" style={{ fontSize: "13px", color: "rgba(255,255,255,0.45)", textDecoration: "none" }}>
+            Security &amp; IT Review
+          </Link>
           <Link href="/privacy" style={{ fontSize: "13px", color: "rgba(255,255,255,0.45)", textDecoration: "none" }}>
             Privacy Policy
           </Link>

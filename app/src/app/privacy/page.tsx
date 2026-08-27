@@ -133,6 +133,14 @@ export default function PrivacyPage() {
               extension provides real-time coaching while a support agent composes a reply; it does
               not upload or store conversation transcripts.
             </p>
+            <p className="mt-3">
+              If you are reviewing the extension for an IT or security team, our{" "}
+              <Link href="/security" className="text-emerald-400 hover:text-emerald-300 underline">
+                Security and IT Review
+              </Link>{" "}
+              page covers the permissions it requests, the exact payload it transmits, and how to
+              deploy it across a managed Chrome fleet.
+            </p>
 
             <p className="font-medium text-white mt-3 mb-1">What the extension accesses</p>
             <p>
