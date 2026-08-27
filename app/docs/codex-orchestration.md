@@ -1580,6 +1580,14 @@ curiosity and confusion, not focus. The digest is a HIGH-LEVEL overview and memo
 never chat-by-chat. NOTE the surface split: cite-by-date stays CORRECT for per-chat coaching
 messages; it is banned only in the digest.)
 
+**HOTFIX (Aug 27, 2026):** owner-observed on a 1-chat digest (Shakir): "1 of your chats" reads
+badly, and the aggregate prompt generalized four themes and "the same core habits" from ONE data
+point. As-built: `countPhrase` templated server-side (singular: "the one tougher chat you had");
+SINGLE-CHAT MODE when chatCount === 1 — no pattern claims ("keeps showing up" banned with one data
+point; say "in this chat" honestly), max 2 themes, exactly 2 plan-of-action items, 120-220 words,
+"we've talked about this before" only when it matches a coaching point in the data; general rule
+softened to "2-3 suggestions (2 when the data is thin)".
+
 **Edits:**
 1. `src/app/api/coaching-digest/route.ts` — rewrite the digest system prompt: opening MUST state
    the review context (N chats, past X days); NEVER reference an individual chat, date, customer,
