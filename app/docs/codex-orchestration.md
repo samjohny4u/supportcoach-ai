@@ -1439,6 +1439,36 @@ action or route handler.
 
 ---
 
+### PHASE 3 TASK 23: Product Friction Report — copyable leadership summary on /dashboard/product-issues
+STATUS: ⏳ APPROVED (owner, August 27, 2026: the page has all the data but no copyable synthesis —
+"impressive but also completely useless" for reporting; a manager shouldn't have to open every
+analysis to build the leadership report)
+
+**Build:**
+1. **Edit** `src/app/dashboard/product-issues/page.tsx` — add a "Last 7 Days" range option
+   (release-week bug view) alongside 30d/90d/all; render the new report panel above the topic
+   groups, wired to the selected range.
+2. **Create** `src/app/api/product-issues-report/route.ts` — GET `?range=7d|30d|90d|all`; auth +
+   org scoping (coaching-digest pattern); queries the SAME rows as the page (org +
+   `.eq('excluded', false)` + `product_limitation_chat = true` + range, LIMIT 200, no agent names —
+   this is a product report, not an agent report); ONE `gpt-5.4` call (the 10TH call site — model
+   swaps must now touch ten) producing a plain-ASCII leadership report with exactly:
+   - Header: period covered (explicit from/to dates), total product-blocker chats, topic count.
+   - Per-topic consolidated summaries: what feature/behavior soured the experience, synthesized
+     across all of that topic's chats — grounded in the issue summaries, never invented.
+   - High churn risk callouts: date, customer, topic, and WHY the risk was rated high.
+   - Medium-churn aggregate count.
+3. **Create** `src/components/ProductReportPanel.tsx` — Generate button (loading state), report
+   rendered pre-wrap, Copy button with Copied! state, friendly error/empty states.
+
+**Test (owner):** on /dashboard/product-issues pick Last 7 Days → Generate → report shows correct
+count/date range/topics for the filter; per-topic sections consolidate rather than list; every
+high-churn callout carries a why; Copy pastes clean ASCII into Slack/email.
+
+**Commit:** `Phase 3 Task 23: Product Friction Report (copyable leadership summary)`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
