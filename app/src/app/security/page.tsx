@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 const glance: { q: string; a: string; good: boolean }[] = [
-  { q: "Chrome permissions requested", a: "storage only", good: true },
+  { q: "Chrome permissions requested", a: "Storage only", good: true },
   { q: "Sites it can run on", a: "Five help-desk domains. Nothing else.", good: true },
   { q: "Customer messages transmitted", a: "No. They never leave the browser.", good: true },
   { q: "Agent draft reply transmitted", a: "Yes, over HTTPS, to our API and OpenAI", good: false },
