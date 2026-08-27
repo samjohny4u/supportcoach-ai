@@ -1471,9 +1471,11 @@ high-churn callout carries a why; Copy pastes clean ASCII into Slack/email.
 ---
 
 ### PHASE 3 TASK 23 HOTFIX: report denominator with honest sampling caveat
-STATUS: ⏳ APPROVED (owner, Aug 27: "117 out of how many? That's the first question leadership
-would ask" — but uploaded chats are a manager-selected sample (mostly 1-star/neutral, sometimes
-5-star), so the share must be labeled as a share of ANALYZED chats, never of all support volume)
+STATUS: ✅ DONE (Aug 27, 2026) — as-built in `src/app/api/product-issues-report/route.ts`: second
+head-count query (`totalAnalyzed`, same org/excluded/range filters without the product filter);
+overview line "N of M analyzed chats (P%)" + mandatory sampling-caveat line in the prompt.
+(Owner rationale: "out of how many?" is leadership's first question; the base is the
+manager-selected analyzed sample, never total support volume.)
 
 **Edit:** `src/app/api/product-issues-report/route.ts` — second count query (same org + excluded +
 range filters, WITHOUT the product_limitation_chat filter) passed to the prompt; overview line
@@ -1483,9 +1485,17 @@ manager-selected sample analyzed in SupportCoach, not total support volume.
 ---
 
 ### PHASE 3 TASK 24: Coaching digest — paste-ready format + cadence tracking
-STATUS: ⏳ APPROVED (owner, Aug 27: digest prints literal "Opening"/"Closing" labels and doesn't
-start with the agent's name, so it can't be pasted; and there is no way to know when 14 days are
-up — a manager returning in week 3 or 4 silently leaves coverage gaps the fixed window hides)
+STATUS: ✅ DONE (Aug 27, 2026, commits `Task 24 (1/3)`-`(3/3)`, HEAD `55a515b`) — as-built:
+paste-ready prompt (starts "<FirstName> -", no printed section labels, only "Your plan of action:"
+allowed) in `src/app/api/coaching-digest/route.ts`; dynamic window `clamp(days since last digest,
+14, 30)` via `DIGEST_WINDOW_MAX_DAYS`; successful generations INSERT into `coaching_digests`
+(try/catch silent until the SQL below is run); response carries `window_days`/`last_digest_at`;
+agent page fetches cadence info (`daysSinceIso` helper) and `CoachingDigestPanel` shows
+"Last digest: <date> (N days ago)" + DUE badge at 14+/never, "just now" after generating.
+**WAITING ON OWNER: run the coaching_digests SQL below in Supabase SQL Editor — until then the
+digest works exactly as before (fixed 14 days, no cadence line).**
+(Owner rationale: literal "Opening"/"Closing" labels made the digest un-pasteable; a fixed
+14-day window hides the coverage gaps a manager creates by returning in week 3 or 4)
 
 **SQL (owner runs in Supabase SQL Editor BEFORE the feature activates; code ships defensively and
 simply hides cadence info until the table exists):**
