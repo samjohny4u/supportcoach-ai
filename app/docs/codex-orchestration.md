@@ -1440,7 +1440,8 @@ action or route handler.
 ---
 
 ### PHASE 3 TASK 23: Product Friction Report — copyable leadership summary on /dashboard/product-issues
-STATUS: ⏳ APPROVED (owner, August 27, 2026: the page has all the data but no copyable synthesis —
+STATUS: ✅ DONE (Aug 27, 2026, commit `7800bf8`) — as-built: `src/app/api/product-issues-report/route.ts` (GET `?range=7d|30d|90d|all`, auth + org scoped, `REPORT_CHAT_LIMIT = 200`, helpers `buildSystemPrompt`/`buildUserPrompt`/`getRangeDays`/`getRangeLabel`, gpt-5.4 — now the 10TH call site); `src/components/ProductReportPanel.tsx` (default export, props `{ range, rangeLabel }`); page gained the "Last 7 Days" filter and renders the panel above the topic groups. Owner test pending.
+(Owner rationale, August 27, 2026: the page had all the data but no copyable synthesis —
 "impressive but also completely useless" for reporting; a manager shouldn't have to open every
 analysis to build the leadership report)
 

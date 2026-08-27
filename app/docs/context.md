@@ -140,7 +140,8 @@
 - Task 4 SQL was run by owner (diagnosis queries + enterprise window fix — test org is now plan='enterprise' with synthetic subscription `sub_test_enterprise_local`; revert SQL in REPEAT-COACHING DIAGNOSIS below when testing ends).
 - **Task 21 (coaching-point dedup at creation, `recurrence_of`) is NEXT — owner scheduled it for ~August 28** after 2 days of normal uploads validate today's changes. It is scoped in codex-orchestration.md; build it as the only moving variable.
 - Owner expanded `organizations.coaching_context` (Settings) on August 26 with: (a) ISSUE IDENTIFICATION rules (404 from menu→reports = access/privileges → direct to admin, no call; recurring bugs → developers, not Zoom; 15-min Zoom with Chris ONLY for identified single-issue device troubleshooting), and (b) feel-heard-before-the-no guidance (acknowledge the customer's goal and confirm understanding BEFORE delivering a limitation; instant no+suggestion feels dismissive). DB-stored, invisible to git — recorded here. Applies to analyses from Aug 26 evening onward.
-- NOTE: the hard-coded `gpt-5.4` model id now has NINE call sites (Task 9 added `src/app/api/coaching-digest/route.ts`). A model swap must touch all nine.
+- NOTE: the hard-coded `gpt-5.4` model id now has TEN call sites (Task 9 added `src/app/api/coaching-digest/route.ts`; Task 23 added `src/app/api/product-issues-report/route.ts`). A model swap must touch all ten.
+- Phase 3 Task 23 (Aug 27): Product Friction Report — copyable per-topic leadership synthesis on /dashboard/product-issues with a new Last 7 Days filter. See codex-orchestration.md Task 23 for as-built.
 - Phase 2 Tasks 1, 2, 3, 4, 5, and 6a complete. Task 6b (agent coaching history view) remains — the only unbuilt Phase 2 task; queued behind Phase 3.
 
 ## REPEAT-COACHING DIAGNOSIS (August 26, 2026 — CORRECTED same day by owner-run SQL)
