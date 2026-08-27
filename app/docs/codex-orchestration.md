@@ -1470,6 +1470,64 @@ high-churn callout carries a why; Copy pastes clean ASCII into Slack/email.
 
 ---
 
+### PHASE 3 TASK 23 HOTFIX: report denominator with honest sampling caveat
+STATUS: ⏳ APPROVED (owner, Aug 27: "117 out of how many? That's the first question leadership
+would ask" — but uploaded chats are a manager-selected sample (mostly 1-star/neutral, sometimes
+5-star), so the share must be labeled as a share of ANALYZED chats, never of all support volume)
+
+**Edit:** `src/app/api/product-issues-report/route.ts` — second count query (same org + excluded +
+range filters, WITHOUT the product_limitation_chat filter) passed to the prompt; overview line
+becomes "N of M analyzed chats (P%)" plus a mandatory caveat line that the base is the
+manager-selected sample analyzed in SupportCoach, not total support volume.
+
+---
+
+### PHASE 3 TASK 24: Coaching digest — paste-ready format + cadence tracking
+STATUS: ⏳ APPROVED (owner, Aug 27: digest prints literal "Opening"/"Closing" labels and doesn't
+start with the agent's name, so it can't be pasted; and there is no way to know when 14 days are
+up — a manager returning in week 3 or 4 silently leaves coverage gaps the fixed window hides)
+
+**SQL (owner runs in Supabase SQL Editor BEFORE the feature activates; code ships defensively and
+simply hides cadence info until the table exists):**
+```sql
+CREATE TABLE IF NOT EXISTS coaching_digests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  agent_name text NOT NULL,
+  window_days integer NOT NULL,
+  chat_count integer,
+  generated_at timestamptz DEFAULT now()
+);
+ALTER TABLE coaching_digests ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "coaching_digests_org_isolation" ON coaching_digests
+  FOR ALL USING (organization_id IN (
+    SELECT organization_id FROM organization_memberships WHERE user_id = auth.uid()
+  ));
+CREATE INDEX IF NOT EXISTS idx_coaching_digests_org_agent
+  ON coaching_digests(organization_id, agent_name, generated_at DESC);
+```
+
+**Edits:**
+1. `src/app/api/coaching-digest/route.ts` — (a) paste-ready prompt: starts with the agent's first
+   name, NO printed section labels (the only literal label allowed is "Your plan of action:"),
+   flowing short paragraphs, ready to send with zero editing; (b) dynamic window: read the agent's
+   last digest row — window = clamp(days since last digest, 14, 30) so returning late EXTENDS the
+   window (no gaps) and returning early overlaps harmlessly; 14 when no prior digest; cap note at
+   30; (c) on success, INSERT a coaching_digests row (try/catch silent — feature-gates on the
+   table existing); (d) response returns window_days + last_digest_at.
+2. `src/app/dashboard/agent/[name]/page.tsx` — fetch the agent's last digest row (try/catch,
+   null-safe) and pass lastDigestDate/daysSinceLastDigest to the panel.
+3. `src/components/CoachingDigestPanel.tsx` — cadence line: "Last digest: <date> (N days ago)" with
+   a DUE badge at 14+ days, "No digest yet for this agent" when none; description reflects the
+   dynamic window.
+
+**Test (owner):** run the SQL; generate a digest → message starts with the agent's first name, no
+Opening/Closing labels, pasteable as-is; page then shows "Last digest: today"; revisit later →
+days counter and DUE badge at 14+; generating after 20 days covers 20 days (check the report's
+own period statement).
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
