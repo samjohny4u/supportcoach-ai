@@ -32,6 +32,13 @@ type ChatAnalysisRow = {
   premature_close: boolean | null;
 };
 
+function daysSinceIso(iso: string): number | null {
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return null;
+  const now = new Date();
+  return Math.max(0, Math.floor((now.getTime() - then.getTime()) / (24 * 60 * 60 * 1000)));
+}
+
 function average(values: Array<number | null>) {
   const valid = values.filter((v): v is number => typeof v === "number");
   if (valid.length === 0) return 0;
@@ -165,6 +172,29 @@ export default async function AgentPage({
     getAgentScorecard(organizationId, agentName, windowDays),
     getRepeatedCoachingForAgent(organizationId, agentName, windowDays),
   ]);
+
+  // Digest cadence info (Phase 3 Task 24). try/catch: the coaching_digests
+  // table may not exist yet — the panel then shows no cadence line.
+  let lastDigestDate: string | null = null;
+  let daysSinceLastDigest: number | null = null;
+  try {
+    const { data: lastDigestRow } = await supabase
+      .from("coaching_digests")
+      .select("generated_at")
+      .eq("organization_id", organizationId)
+      .eq("agent_name", agentName)
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (typeof lastDigestRow?.generated_at === "string") {
+      lastDigestDate = new Date(lastDigestRow.generated_at).toISOString().split("T")[0];
+      daysSinceLastDigest = daysSinceIso(lastDigestRow.generated_at);
+    }
+  } catch {
+    lastDigestDate = null;
+    daysSinceLastDigest = null;
+  }
 
   const chats = ((data ?? []) as unknown as ChatAnalysisRow[]) || [];
 
@@ -338,7 +368,11 @@ export default async function AgentPage({
           )}
         </div>
 
-        <CoachingDigestPanel agentName={agentName} />
+        <CoachingDigestPanel
+          agentName={agentName}
+          lastDigestDate={lastDigestDate}
+          daysSinceLastDigest={daysSinceLastDigest}
+        />
 
         <div className="mb-10 grid gap-6 md:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-[#081225] p-8">
