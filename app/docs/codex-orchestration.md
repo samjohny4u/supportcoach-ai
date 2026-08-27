@@ -1568,6 +1568,33 @@ reset, agent view, attention view).
 
 ---
 
+### PHASE 3 TASK 26: Digest voice — aggregate framing + agent page reorder
+STATUS: ⏳ APPROVED (owner, Aug 27: "especially in a chat where the customer was already
+frustrated" is confusing — the agent doesn't know N chats were reviewed, and an unidentifiable
+chat reference creates curiosity and confusion, not focus. The digest is a HIGH-LEVEL overview:
+"here are the N chats I reviewed over the past two weeks, here's where you're great, here's the
+overarching focus" — a memory refresher for coaching already received, never chat-by-chat.)
+
+**Edits:**
+1. `src/app/api/coaching-digest/route.ts` — rewrite the digest system prompt: opening MUST state
+   the review context (N chats, past X days); NEVER reference an individual chat, date, customer,
+   or quoted line (per-chat dates in the payload are for the model's analysis only); speak in
+   aggregate patterns ("in several of these chats"); encourage first when the data shows
+   improvement; themes phrased as memory refreshers for prior coaching; 200-350 words.
+   This deliberately REVERSES the reference-chats-by-date rule for the digest surface only — that
+   rule remains correct for the per-chat coaching message, where the agent can open the analysis.
+2. `src/app/dashboard/agent/[name]/page.tsx` — move CoachingDigestPanel from after Repeated
+   Coaching to directly after the Coaching Effectiveness scorecard (position 4); Repeated Coaching
+   follows it. Owner: digest is the most-used part of the page; repeated cards are occasional.
+
+**Test (owner):** generate a digest → opens with "<Name> - I went through N of your chats from the
+past two weeks..."; no dates, customers, or single-chat references anywhere; agent page shows
+digest panel fourth, repeated coaching after it.
+
+**Commit:** `Phase 3 Task 26: digest speaks in aggregates + digest panel promoted on agent page`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
