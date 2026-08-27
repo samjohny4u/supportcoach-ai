@@ -1569,11 +1569,16 @@ reset, agent view, attention view).
 ---
 
 ### PHASE 3 TASK 26: Digest voice — aggregate framing + agent page reorder
-STATUS: ⏳ APPROVED (owner, Aug 27: "especially in a chat where the customer was already
-frustrated" is confusing — the agent doesn't know N chats were reviewed, and an unidentifiable
-chat reference creates curiosity and confusion, not focus. The digest is a HIGH-LEVEL overview:
-"here are the N chats I reviewed over the past two weeks, here's where you're great, here's the
-overarching focus" — a memory refresher for coaching already received, never chat-by-chat.)
+STATUS: ✅ DONE (Aug 27, 2026, commit `59b4fc7`) — as-built: `buildSystemPrompt(agentName,
+windowDays, chatCount)` in `src/app/api/coaching-digest/route.ts` (opening states the review
+context; individual chats/dates/customers/quotes banned from the message; aggregate patterns
+only; encourage first; memory-refresher framing; 200-350 words); `CoachingDigestPanel` moved above
+Repeated Coaching in `src/app/dashboard/agent/[name]/page.tsx`.
+(Owner rationale: "especially in a chat where the customer was already frustrated" is confusing —
+the agent doesn't know N chats were reviewed, and an unidentifiable chat reference creates
+curiosity and confusion, not focus. The digest is a HIGH-LEVEL overview and memory refresher,
+never chat-by-chat. NOTE the surface split: cite-by-date stays CORRECT for per-chat coaching
+messages; it is banned only in the digest.)
 
 **Edits:**
 1. `src/app/api/coaching-digest/route.ts` — rewrite the digest system prompt: opening MUST state
