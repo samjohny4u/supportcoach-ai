@@ -1538,6 +1538,30 @@ own period statement).
 
 ---
 
+### PHASE 3 TASK 25: Dashboard layout reorder by usage + compact filter bar
+STATUS: ⏳ APPROVED (owner, Aug 27: the agent workflow — performance summary → agent pages →
+digests — is the only part of the dashboard in actual use; Chats Needing Attention is only
+relevant once API ingestion exists (today's uploads are already manager-curated); the filter card
+takes half the screen for three dropdowns)
+
+**Edit:** `src/app/dashboard/page.tsx` only — layout, no data/query changes:
+1. Filter card → slim single-row bar: compact selects with small labels, smaller buttons, p-4.
+2. The attention-view note card + "Showing N chats" card → ONE plain text line (attention note
+   only shown when the attention view is active).
+3. MOVE Agent Performance Summary to directly after the stat tiles (top content position).
+4. MOVE Chats Needing Attention to just above Recent Analyzed Chats (bottom).
+5. Everything else keeps its relative order: tiles → performance summary → trend chart → AI weekly
+   summary → score charts → pattern analyzer → insights/focus → chat types/leaderboard →
+   attention → recent chats.
+
+**Test (owner):** dashboard loads identically data-wise; filter bar is one row; Agent Performance
+Summary is the first big section; attention chats near the bottom; filters still work (apply,
+reset, agent view, attention view).
+
+**Commit:** `Phase 3 Task 25: dashboard reordered by usage, compact filter bar`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
