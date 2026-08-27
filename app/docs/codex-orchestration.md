@@ -1539,10 +1539,16 @@ own period statement).
 ---
 
 ### PHASE 3 TASK 25: Dashboard layout reorder by usage + compact filter bar
-STATUS: ⏳ APPROVED (owner, Aug 27: the agent workflow — performance summary → agent pages →
-digests — is the only part of the dashboard in actual use; Chats Needing Attention is only
-relevant once API ingestion exists (today's uploads are already manager-curated); the filter card
-takes half the screen for three dropdowns)
+STATUS: ✅ DONE (Aug 27, 2026, commit `a332f93`) — as-built in `src/app/dashboard/page.tsx`, layout
+only: Agent Performance Summary moved to directly after the stat tiles; Chats Needing Attention
+moved to just above Recent Chats; filter card is now a single-row `flex flex-wrap items-end` bar
+(compact selects + text-sm buttons, p-4); the two note cards collapsed into one plain text line
+(`attentionViewDescription` variable removed — attention note renders only in attention view).
+New section order: tiles → performance summary → trend → AI weekly summary → score charts →
+pattern analyzer → insights/focus → chat types/leaderboard → attention → recent chats.
+(Owner rationale: the agent workflow is the only part of the dashboard in actual use; attention
+chats become relevant once API ingestion exists — today's uploads are manager-curated; the filter
+card took half the screen for three dropdowns)
 
 **Edit:** `src/app/dashboard/page.tsx` only — layout, no data/query changes:
 1. Filter card → slim single-row bar: compact selects with small labels, smaller buttons, p-4.
