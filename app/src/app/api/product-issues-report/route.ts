@@ -54,7 +54,8 @@ STRUCTURE (use exactly these plain-text section headers):
 PRODUCT FRICTION REPORT - <period label> (<earliest date> to <latest date>)
 
 OVERVIEW
-- Total chats where the product was the blocker: <n>
+- Total chats where the product was the blocker: <n> of <total_analyzed> analyzed chats (<percent>%)
+- Note: the base is chats analyzed in SupportCoach for this period - a manager-selected sample (often weighted toward low-rated chats), NOT the team's total support volume.
 - Topics affected: <n>
 - High churn risk chats: <n> | Medium: <n> | Customers showing frustration: <n>
 
@@ -80,7 +81,11 @@ RULES:
 - Return ONLY the report text. No preamble, no AI sign-off, no offers of further help.`;
 }
 
-function buildUserPrompt(rangeLabel: string, rows: ProductIssueRow[]): string {
+function buildUserPrompt(
+  rangeLabel: string,
+  rows: ProductIssueRow[],
+  totalAnalyzed: number
+): string {
   const chats = rows.map((row) => ({
     date: toDateOnly(row.created_at),
     customer: row.customer_name || "Unknown",
@@ -92,6 +97,7 @@ function buildUserPrompt(rangeLabel: string, rows: ProductIssueRow[]): string {
   }));
 
   return `Period: ${rangeLabel}
+Total chats analyzed in this period (all analyzed chats, not just product-blocker ones): ${totalAnalyzed}
 Product-blocker chats (newest first):
 ${JSON.stringify(chats, null, 2)}`;
 }
@@ -155,6 +161,29 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Denominator: ALL analyzed chats in the same period (not just product-blocker
+    // ones) — leadership's first question is "out of how many?". The prompt labels
+    // it as the manager-selected analyzed sample, never total support volume.
+    let totalAnalyzed = 0;
+    try {
+      let countQuery = supabaseAdmin
+        .from("chat_analyses")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", organizationId)
+        .eq("excluded", false);
+
+      if (rangeDays !== null) {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - rangeDays);
+        countQuery = countQuery.gte("created_at", cutoff.toISOString());
+      }
+
+      const { count } = await countQuery;
+      totalAnalyzed = typeof count === "number" ? count : 0;
+    } catch {
+      totalAnalyzed = 0;
+    }
+
     const rows = (data || []) as ProductIssueRow[];
 
     if (rows.length === 0) {
@@ -170,7 +199,7 @@ export async function GET(req: Request) {
       temperature: 0.2,
       messages: [
         { role: "system", content: buildSystemPrompt() },
-        { role: "user", content: buildUserPrompt(getRangeLabel(range), rows) },
+        { role: "user", content: buildUserPrompt(getRangeLabel(range), rows, totalAnalyzed) },
       ],
     });
 
