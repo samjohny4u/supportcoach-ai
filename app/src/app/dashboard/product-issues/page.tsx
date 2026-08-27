@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "../../../lib/supabaseServer";
 import { getCurrentOrganization } from "../../../lib/currentOrganization";
+import ProductReportPanel from "../../../components/ProductReportPanel";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -90,7 +91,9 @@ export default async function ProductIssuesPage({
 
   const resolvedSearchParams = (await searchParams) || {};
   const selectedRange =
-    resolvedSearchParams.range === "30d" || resolvedSearchParams.range === "90d"
+    resolvedSearchParams.range === "7d" ||
+    resolvedSearchParams.range === "30d" ||
+    resolvedSearchParams.range === "90d"
       ? resolvedSearchParams.range
       : "all";
 
@@ -104,7 +107,9 @@ export default async function ProductIssuesPage({
     .eq("product_limitation_chat", true)
     .order("created_at", { ascending: false });
 
-  if (selectedRange === "30d") {
+  if (selectedRange === "7d") {
+    query = query.gte("created_at", getRangeCutoffIso(7));
+  } else if (selectedRange === "30d") {
     query = query.gte("created_at", getRangeCutoffIso(30));
   } else if (selectedRange === "90d") {
     query = query.gte("created_at", getRangeCutoffIso(90));
@@ -140,11 +145,13 @@ export default async function ProductIssuesPage({
   );
 
   const rangeLabel =
-    selectedRange === "30d"
-      ? "last 30 days"
-      : selectedRange === "90d"
-        ? "last 90 days"
-        : "all time";
+    selectedRange === "7d"
+      ? "last 7 days"
+      : selectedRange === "30d"
+        ? "last 30 days"
+        : selectedRange === "90d"
+          ? "last 90 days"
+          : "all time";
 
   return (
     <main className="px-6 py-16">
@@ -173,6 +180,7 @@ export default async function ProductIssuesPage({
 
         <div className="mb-8 flex flex-wrap items-center gap-3">
           {[
+            { value: "7d", label: "Last 7 Days" },
             { value: "30d", label: "Last 30 Days" },
             { value: "90d", label: "Last 90 Days" },
             { value: "all", label: "All Time" },
@@ -190,6 +198,8 @@ export default async function ProductIssuesPage({
             </a>
           ))}
         </div>
+
+        <ProductReportPanel range={selectedRange} rangeLabel={rangeLabel} />
 
         {loadError ? (
           <div className="rounded-3xl border border-red-500/20 bg-red-500/10 p-8 text-red-300">
