@@ -29,19 +29,23 @@ type DigestChatRow = {
   customer_frustration_present: boolean | null;
 };
 
-function buildSystemPrompt(agentName: string, windowDays: number): string {
+function buildSystemPrompt(agentName: string, windowDays: number, chatCount: number): string {
   const firstName = agentName.trim().split(/\s+/)[0] || agentName.trim();
+  const periodPhrase = windowDays === 14 ? "the past two weeks" : `the past ${windowDays} days`;
 
-  return `You are writing a coaching digest for a support agent named ${agentName}, on behalf of their manager. It consolidates coaching themes from the agent's toughest chats over the last ${windowDays} days into ONE supportive, actionable message.
+  return `You are writing a coaching digest for a support agent named ${agentName}, on behalf of their manager. The manager reviewed ${chatCount} of the agent's tougher chats from ${periodPhrase}; this message consolidates that review into ONE supportive, HIGH-LEVEL check-in.
 
 THE MESSAGE MUST BE READY TO SEND AS-IS - the manager pastes it to the agent with ZERO editing:
-- Start directly with the agent's first name and a dash: "${firstName} -" followed by a warm opening line acknowledging real effort over the period.
-- Do NOT print any section labels or headers of any kind (never write "Opening", "Patterns", "Strengths", "Closing", or anything similar as a label). The ONLY literal label allowed is "Your plan of action:" introducing the action list.
-- Flow, as natural short paragraphs: warm opening -> the 1-3 consolidated themes worth attention (the specific behavior and which chat dates it appeared in; if the same behavior shows up in several chats, present it ONCE as a theme, encouragingly - e.g. "this one keeps sneaking back in, so let's make it the focus" - never shame, never pile on) -> one or two genuine strengths from the data -> "Your plan of action:" with exactly 3 concrete, doable suggestions, each with a short example phrasing the agent can use verbatim in a chat -> one encouraging closing sentence.
-- Ground every claim in the provided data. Never invent chats, quotes, or behaviors that are not in the data. Reference chats by their date (e.g. "your chat on 2026-08-20").
+- Start directly with the agent's first name and a dash: "${firstName} -", then an opening that gives the agent the context they need for everything that follows: that this is a review of ${chatCount} ${chatCount === 1 ? "chat" : "chats"} from ${periodPhrase}. Example shape (vary the wording naturally): "${firstName} - I went through ${chatCount} of your chats from ${periodPhrase}, and here is where things stand."
+- HIGH-LEVEL ONLY. NEVER reference an individual chat, a specific date, a customer name, or a quoted line - the agent cannot look any of them up from this message, so a mention like "in a chat where the customer was frustrated" only creates confusion and curiosity. Speak in aggregate patterns instead: "in several of these chats", "a pattern that keeps showing up", "when customers push back". The per-chat dates in the data are for YOUR analysis only - never cite them.
+- Encourage first: if the data shows genuine improvement or consistent strengths, open with that before anything else.
+- Then the 1-3 overarching themes to work on, phrased as a memory refresher for coaching the agent has already received (e.g. "we've talked about confirming before closing - it's still the thing holding your tougher chats back"), consolidated across ALL the chats. If the same behavior shows up in several chats, present it ONCE. Never itemize chat-by-chat, never shame, never pile on.
+- Do NOT print any section labels or headers of any kind. The ONLY literal label allowed is "Your plan of action:" introducing exactly 3 concrete, doable suggestions, each with a short example phrasing the agent can use verbatim in a chat.
+- End with one encouraging closing sentence.
 
 FORMAT RULES:
-- 250 to 400 words total; shorter when the data is thin.
+- 200 to 350 words total; shorter when the data is thin.
+- Ground every theme in the provided data - you are generalizing FROM the data, never adding to it.
 - Plain ASCII characters only. No Unicode bullets, em dashes, arrows, or emoji. Use "-" for bullets.
 - Return ONLY the message text. No preamble, no meta commentary, no sign-off as an AI.`;
 }
@@ -173,7 +177,7 @@ export async function GET(req: Request) {
       model: "gpt-5.4",
       temperature: 0.2,
       messages: [
-        { role: "system", content: buildSystemPrompt(agentName, windowDays) },
+        { role: "system", content: buildSystemPrompt(agentName, windowDays, rows.length) },
         { role: "user", content: buildUserPrompt(agentName, rows, windowDays) },
       ],
     });

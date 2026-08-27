@@ -295,6 +295,12 @@ export default async function AgentPage({
           </div>
         </div>
 
+        <CoachingDigestPanel
+          agentName={agentName}
+          lastDigestDate={lastDigestDate}
+          daysSinceLastDigest={daysSinceLastDigest}
+        />
+
         <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
           <h2 className="mb-2 text-2xl font-semibold">Repeated Coaching</h2>
           <p className="mb-6 text-sm text-gray-400">
@@ -367,12 +373,6 @@ export default async function AgentPage({
             </div>
           )}
         </div>
-
-        <CoachingDigestPanel
-          agentName={agentName}
-          lastDigestDate={lastDigestDate}
-          daysSinceLastDigest={daysSinceLastDigest}
-        />
 
         <div className="mb-10 grid gap-6 md:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-[#081225] p-8">
