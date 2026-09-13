@@ -1608,6 +1608,42 @@ digest panel fourth, repeated coaching after it.
 
 ---
 
+### PHASE 3 TASK 27: Expired session redirects to login instead of dead-ending
+STATUS: ⏳ APPROVED (owner, Sep 13: upload attempt with an expired session showed
+"Failed: Not authenticated" and just sat there — "why can't it just log me out?")
+
+**Root cause:** /upload is the one protected page with no auth handling. Server-rendered pages
+(dashboard, analysis, settings) redirect to /login themselves; the middleware deliberately passes
+unauthenticated requests through expecting the page to handle it; the client-rendered upload page
+renders without a session and then prints the API's 401 as status text.
+
+**Second symptom (owner, same day):** clicking Logout lands on an "HTTP ERROR 405 — This page
+isn't working" dead-end at /login. Root cause: `api/logout` redirects with NextResponse.redirect's
+DEFAULT status 307, which PRESERVES the form's POST — the browser then POSTs to /login (a page,
+no POST handler) and gets 405. The route also builds the redirect from
+`NEXT_PUBLIC_SITE_URL || localhost` — before that env var existed in Vercel (added Aug 27),
+production logout redirected to localhost:3000.
+
+**Edits (3 files — middleware.ts is a FILES-THAT-MUST-NOT-BREAK entry, so scope is surgical):**
+1. `src/app/api/logout/route.ts` — redirect with `{ status: 303 }` (See Other → browser follows
+   with GET), and base the URL on the incoming `request.url` instead of the env var.
+2. `middleware.ts` — when `user` is null AND the request is for a protected PAGE path
+   (/dashboard, /upload, /jobs, /analysis), redirect to /login. API paths are untouched — they
+   must keep returning JSON errors, and the subscription-lock fail-open behavior (rule 37) is
+   not modified in any way.
+3. `src/app/upload/page.tsx` — if /api/create-analysis-job answers 401 (session expired while the
+   page was already open), show "Your session has expired. Redirecting to login..." and navigate
+   to /login instead of dead-ending.
+
+**Test (owner):** (a) click Logout from the dashboard → lands ON the login page, no 405;
+(b) while logged out, open /upload directly → lands on /login; (c) open /upload while logged in,
+log out in another tab, click Upload and Analyze → brief session-expired message, then /login;
+(d) normal logged-in upload unchanged.
+
+**Commit:** `Phase 3 Task 27: logout 303 redirect + expired sessions route to login`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
