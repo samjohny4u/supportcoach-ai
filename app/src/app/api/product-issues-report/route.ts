@@ -2,7 +2,6 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { getCurrentOrganization } from "@/lib/currentOrganization";
-import { createSupabaseServer } from "@/lib/supabaseServer";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -103,26 +102,26 @@ ${JSON.stringify(chats, null, 2)}`;
 }
 
 export async function GET(req: Request) {
-  try {
-    const supabaseAuth = await createSupabaseServer();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAuth.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-    }
-  } catch {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
-  }
-
+  // getCurrentOrganization performs the auth check itself — a separate
+  // getUser here meant auth ran twice per request, and a failure in the
+  // second run was misreported as a membership problem. One check, and the
+  // two failure modes get distinct, truthful responses.
   let organizationId: string;
 
   try {
     const organization = await getCurrentOrganization();
     organizationId = organization.organizationId;
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    console.error("Product issues report: auth/org resolution failed:", message);
+
+    if (message.includes("User not authenticated")) {
+      return NextResponse.json(
+        { error: "Your session has expired. Please refresh the page and log in again." },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
       { error: "User is not assigned to an organization." },
       { status: 403 }
