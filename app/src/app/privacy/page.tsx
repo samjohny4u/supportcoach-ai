@@ -5,7 +5,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-black text-gray-300">
       <div className="max-w-3xl mx-auto px-6 py-16">
         <h1 className="text-3xl font-bold text-white mb-2">Privacy Policy</h1>
-        <p className="text-gray-500 mb-10">Last updated: June 23, 2026</p>
+        <p className="text-gray-500 mb-10">Last updated: September 13, 2026</p>
 
         <div className="space-y-8 text-sm leading-relaxed">
           <section>
@@ -42,7 +42,9 @@ export default function PrivacyPage() {
             <p className="font-medium text-white mt-3 mb-1">Usage Data</p>
             <p>
               We may collect basic usage information such as login times, pages visited, and features
-              used. This data is used to improve the Service and is not shared with third parties.
+              used. This data is used to improve the Service. It is processed on our behalf by our
+              analytics provider, PostHog (see Section 6), and is not sold, rented, or shared with
+              anyone else.
             </p>
           </section>
 
@@ -96,7 +98,10 @@ export default function PrivacyPage() {
               <li><span className="text-gray-300">Supabase</span> — database hosting and authentication</li>
               <li><span className="text-gray-300">OpenAI</span> — AI analysis of chat transcripts</li>
               <li><span className="text-gray-300">Vercel</span> — application hosting</li>
+              <li><span className="text-gray-300">Railway</span> — API hosting</li>
+              <li><span className="text-gray-300">Resend</span> — transactional and weekly summary email</li>
               <li><span className="text-gray-300">Paddle</span> — payment processing</li>
+              <li><span className="text-gray-300">PostHog</span> — product analytics on how the Service is used. Receives account and organisation identifiers, the organisation name, and usage events. Never receives chat transcripts, draft replies, names, or email addresses</li>
             </ul>
             <p className="mt-2">
               We do not sell, rent, or share your personal information or chat data with any other
@@ -164,10 +169,20 @@ export default function PrivacyPage() {
               The draft reply text is processed transiently and is{" "}
               <span className="text-white">not stored in our database</span>. It may be held briefly
               in a short-lived in-memory cache (up to 60 seconds, keyed by a non-reversible hash) to
-              avoid duplicate processing, after which it is discarded. We retain only aggregate
-              coaching statistics &mdash; which coaching rule types were triggered and counts of
-              suggestions shown, accepted, or dismissed. These statistics contain no message content,
-              no customer data, and no draft text.
+              avoid duplicate processing, after which it is discarded. In our own database we retain
+              only aggregate coaching statistics &mdash; which coaching rule types were triggered and
+              counts of suggestions shown, accepted, or dismissed. These statistics contain no message
+              content, no customer data, and no draft text.
+            </p>
+            <p>
+              Separately, we record product analytics events in PostHog (Section 6) so we can see how
+              the Service is used &mdash; for example that a check completed, that a suggestion was
+              accepted, or that a check failed. Unlike the statistics above, these events are
+              attributed to an organisation and an agent by internal identifier, so they are not
+              aggregate. They carry counts, durations, rule-family names, the extension version and
+              the organisation name. They never carry draft text, chat transcripts, customer data,
+              names, or email addresses &mdash; those field names are refused outright, over-long
+              values are dropped rather than shortened, and location is not derived from them.
             </p>
 
             <p className="font-medium text-white mt-3 mb-1">Limited use</p>
@@ -215,7 +230,10 @@ export default function PrivacyPage() {
             <h2 className="text-lg font-semibold text-white mb-3">11. Cookies</h2>
             <p>
               We use essential cookies for authentication and session management. We do not use
-              tracking cookies, advertising cookies, or third-party analytics cookies.
+              tracking cookies, advertising cookies, or third-party analytics cookies. This remains
+              true with PostHog in place: our product analytics are sent from our own servers, not
+              from your browser, so no analytics script or analytics cookie is loaded on this site,
+              in the admin console, or in the Chrome extension.
             </p>
           </section>
 

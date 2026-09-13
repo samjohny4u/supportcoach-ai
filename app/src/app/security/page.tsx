@@ -31,6 +31,7 @@ const subprocessors: { name: string; purpose: string; receives: string }[] = [
   { name: "Vercel", purpose: "Hosts the admin console and this site", receives: "Account details" },
   { name: "Resend", purpose: "Sends transactional and weekly summary email", receives: "Name, email address" },
   { name: "Paddle", purpose: "Merchant of record for billing", receives: "Billing details you enter at checkout" },
+  { name: "PostHog", purpose: "Product analytics on how the service is used", receives: "Account identifiers, organisation name, usage events. No message or draft text" },
 ];
 
 function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
@@ -55,7 +56,7 @@ export default function SecurityPage() {
           extension can access, what leaves the browser, what we store, and how to deploy it across a
           managed fleet.
         </p>
-        <p className="text-gray-500 mb-10">Last updated: August 20, 2026</p>
+        <p className="text-gray-500 mb-10">Last updated: September 13, 2026</p>
 
         <div className="mb-12 rounded-lg border border-gray-800 overflow-hidden">
           <div className="bg-gray-900/60 px-5 py-3 text-white text-sm font-semibold">At a glance</div>
@@ -156,6 +157,16 @@ export default function SecurityPage() {
               aggregate coaching statistics: which categories of coaching rule were triggered, and
               counts of suggestions shown, accepted, or dismissed. These statistics contain no message
               content, no draft text, and no customer data.
+            </p>
+            <p>
+              We also record product analytics in PostHog so we can see how the service is used
+              &mdash; that a check completed, that a suggestion was accepted, that a sign-in happened,
+              that a check failed. These events identify an organisation and an agent by internal
+              identifiers, and carry the organisation name, counts, durations, rule-family names and
+              the extension version. They never carry draft text, customer messages, agent names or
+              email addresses: those field names are refused by a deny list, values longer than 200
+              characters are dropped, and nested objects are discarded whole rather than inspected.
+              Location is not derived &mdash; GeoIP is switched off on every event.
             </p>
             <p>
               Full detail on retention, deletion, and the Chrome Web Store Limited Use requirements is
