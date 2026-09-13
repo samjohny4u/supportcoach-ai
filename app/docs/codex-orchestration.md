@@ -1651,8 +1651,13 @@ log out in another tab, click Upload and Analyze → brief session-expired messa
 ---
 
 ### PHASE 3 TASK 28: Dashboard renders immediately; AI summary streams in AND is cached
-STATUS: ⏳ APPROVED (owner, Sep 13: sign-in to dashboard takes 6-7 seconds — "unacceptable"; and
-"1000 users logging in and a new AI generated summary is going to cost the company")
+STATUS: ✅ DONE (Sep 13, 2026, commit `82ab63e`) — as-built in `src/app/dashboard/page.tsx`:
+`getCachedTeamAISummary(organizationId, cacheKey, payload)` (sha256 payload_hash, best-effort
+read/upsert on `team_summaries`, falls back to live `getTeamAISummary` until the SQL below is
+run); async `AiWeeklySummarySection` rendered in `<Suspense>` with a generating-state fallback
+card; `cacheKey` = \`agent|range|view\`. WAITING ON OWNER: run the team_summaries SQL below.
+(Owner symptoms, Sep 13: 6-7s sign-in-to-dashboard; "1000 users logging in and a new AI generated
+summary is going to cost the company — why can't it be in memory?")
 
 **Root cause:** `dashboard/page.tsx` awaits `getTeamAISummary()` — a live gpt-5.4 call, measured
 at ~5.2s — before rendering ANY of the page, on EVERY dashboard load. Two problems in one line:
