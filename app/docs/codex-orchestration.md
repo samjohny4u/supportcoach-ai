@@ -1650,6 +1650,57 @@ log out in another tab, click Upload and Analyze → brief session-expired messa
 
 ---
 
+### PHASE 3 TASK 28: Dashboard renders immediately; AI summary streams in AND is cached
+STATUS: ⏳ APPROVED (owner, Sep 13: sign-in to dashboard takes 6-7 seconds — "unacceptable"; and
+"1000 users logging in and a new AI generated summary is going to cost the company")
+
+**Root cause:** `dashboard/page.tsx` awaits `getTeamAISummary()` — a live gpt-5.4 call, measured
+at ~5.2s — before rendering ANY of the page, on EVERY dashboard load. Two problems in one line:
+latency (every load blocks on an LLM) and cost (an AI call per page view). Login itself is fast.
+
+**Why not in-process memory (owner asked):** Vercel serverless instances are ephemeral — a Map in
+code forgets on every cold start and is never shared across instances, so at scale it would still
+regenerate constantly. Supabase is the durable shared memory.
+
+**SQL (owner runs in Supabase SQL Editor; code ships defensively and falls back to live
+generation until the table exists):**
+```sql
+CREATE TABLE IF NOT EXISTS team_summaries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  cache_key text NOT NULL,
+  payload_hash text NOT NULL,
+  summary jsonb NOT NULL,
+  generated_at timestamptz DEFAULT now(),
+  UNIQUE (organization_id, cache_key)
+);
+ALTER TABLE team_summaries ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "team_summaries_org_isolation" ON team_summaries
+  FOR ALL USING (organization_id IN (
+    SELECT organization_id FROM organization_memberships WHERE user_id = auth.uid()
+  ));
+```
+
+**Edit:** `src/app/dashboard/page.tsx` only (FILES-THAT-MUST-NOT-BREAK — surgical, no query or
+payload changes):
+1. `getCachedTeamAISummary(organizationId, cacheKey, payload)` — cache_key is the filter combo
+   (agent|range|view); payload_hash is sha256 of the aggregate payload, so the summary regenerates
+   ONLY when the underlying data actually changes (new/excluded analyses), never per login. Cache
+   read/write are try/catch best-effort.
+2. AI Weekly Team Summary block extracted into async `AiWeeklySummarySection` rendered inside
+   `<Suspense>` with a "Generating AI summary..." fallback — the page shell streams immediately;
+   a cache hit fills in ~instantly, a regeneration in ~5s, and neither blocks the page.
+
+**Still recorded, not built:** the unbounded dashboard `select("*")` grows with data.
+
+**Test (owner):** run the SQL; sign in → dashboard shell in ~1-2s, summary arrives; reload →
+summary appears instantly (cache hit, no OpenAI call); upload or exclude a chat, reload → summary
+regenerates once; per-agent and attention views cache separately.
+
+**Commit:** `Phase 3 Task 28: stream + cache the AI weekly summary`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
