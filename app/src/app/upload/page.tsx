@@ -234,6 +234,14 @@ export default function UploadPage() {
         body: JSON.stringify({ files: extractedFiles }),
       });
 
+      // Session expired while the page was open — route to login instead of
+      // dead-ending on "Failed: Not authenticated".
+      if (res.status === 401) {
+        setStatus("Your session has expired. Redirecting to login...");
+        window.location.href = "/login";
+        return;
+      }
+
       const data = (await res.json()) as QueueResponse;
       const duplicates = Array.isArray(data.duplicates) ? data.duplicates : [];
 

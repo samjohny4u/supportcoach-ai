@@ -29,12 +29,20 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // If not authenticated, let Next.js handle it (login redirect etc.)
+  const pathname = request.nextUrl.pathname;
+
+  // If not authenticated: send protected PAGE requests to /login. Server-
+  // rendered pages redirect themselves, but client-rendered pages (/upload)
+  // otherwise render without a session and dead-end on the first API 401.
+  // API paths are deliberately left alone — they must keep returning JSON
+  // errors, never HTML redirects.
   if (!user) {
+    const protectedPagePaths = ["/dashboard", "/upload", "/jobs", "/analysis"];
+    if (protectedPagePaths.some((p) => pathname.startsWith(p))) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
     return response;
   }
-
-  const pathname = request.nextUrl.pathname;
 
   // Skip subscription check for these paths — they must always be accessible
   const skipPaths = [
