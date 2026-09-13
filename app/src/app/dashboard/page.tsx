@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { createHash } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "../../lib/supabaseServer";
@@ -257,6 +259,143 @@ async function getTeamAISummary(payload: unknown): Promise<TeamSummaryResult | n
   }
 }
 
+
+// Cache-backed, Suspense-streamed AI summary (Phase 3 Task 28). The summary
+// regenerates ONLY when the aggregate payload actually changes (payload_hash),
+// never per login; cache read/write are best-effort until the team_summaries
+// table exists. Rendering inside <Suspense> keeps the page shell instant.
+async function getCachedTeamAISummary(
+  organizationId: string,
+  cacheKey: string,
+  payload: unknown
+): Promise<TeamSummaryResult | null> {
+  const payloadHash = createHash("sha256")
+    .update(JSON.stringify(payload))
+    .digest("hex");
+
+  try {
+    const { data: cached } = await supabase
+      .from("team_summaries")
+      .select("summary, payload_hash")
+      .eq("organization_id", organizationId)
+      .eq("cache_key", cacheKey)
+      .maybeSingle();
+
+    if (cached && cached.payload_hash === payloadHash && cached.summary) {
+      return cached.summary as TeamSummaryResult;
+    }
+  } catch {
+    // Table not created yet — fall through to live generation.
+  }
+
+  const summary = await getTeamAISummary(payload);
+
+  if (summary) {
+    try {
+      await supabase.from("team_summaries").upsert(
+        {
+          organization_id: organizationId,
+          cache_key: cacheKey,
+          payload_hash: payloadHash,
+          summary,
+          generated_at: new Date().toISOString(),
+        },
+        { onConflict: "organization_id,cache_key" }
+      );
+    } catch {
+      // Cache write is best-effort; the summary still renders.
+    }
+  }
+
+  return summary;
+}
+
+async function AiWeeklySummarySection({
+  organizationId,
+  cacheKey,
+  payload,
+  titles,
+}: {
+  organizationId: string;
+  cacheKey: string;
+  payload: unknown;
+  titles: {
+    summary: string;
+    strengths: string;
+    opportunities: string;
+    risk: string;
+    focus: string;
+    attention: string;
+  };
+}) {
+  const aiWeeklySummary = await getCachedTeamAISummary(organizationId, cacheKey, payload);
+
+  return (
+    <>
+      <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
+        <h2 className="mb-6 text-2xl font-semibold">{titles.summary}</h2>
+
+        {aiWeeklySummary ? (
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-6 md:col-span-2">
+              <p className="text-lg font-semibold text-white">
+                {aiWeeklySummary.headline}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-6">
+              <h3 className="mb-4 text-lg font-semibold">{titles.strengths}</h3>
+              <ul className="space-y-2 text-gray-300">
+                {aiWeeklySummary.top_strengths?.map((item, index) => (
+                  <li key={index}>- {item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-6">
+              <h3 className="mb-4 text-lg font-semibold">{titles.opportunities}</h3>
+              <ul className="space-y-2 text-gray-300">
+                {aiWeeklySummary.top_coaching_opportunities?.map((item, index) => (
+                  <li key={index}>- {item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-6">
+              <h3 className="mb-4 text-lg font-semibold">{titles.risk}</h3>
+              <ul className="space-y-2 text-gray-300">
+                {aiWeeklySummary.risk_patterns?.map((item, index) => (
+                  <li key={index}>- {item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-6">
+              <h3 className="mb-4 text-lg font-semibold">{titles.focus}</h3>
+              <ul className="space-y-2 text-gray-300">
+                {aiWeeklySummary.manager_focus_next?.map((item, index) => (
+                  <li key={index}>- {item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-6 md:col-span-2">
+              <h3 className="mb-4 text-lg font-semibold">{titles.attention}</h3>
+              <ul className="space-y-2 text-gray-300">
+                {aiWeeklySummary.agents_needing_attention?.map((item, index) => (
+                  <li key={index}>- {item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <p className="text-gray-400">AI summary could not be generated yet.</p>
+        )}
+      </div>
+    </>
+  );
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -479,8 +618,6 @@ export default async function DashboardPage({
     viewContext: isSingleAgentView ? "single-agent" : "team",
     selectedAgent: isSingleAgentView ? selectedAgent : null,
   };
-
-  const aiWeeklySummary = await getTeamAISummary(aiSummaryPayload);
 
   const pageTitle = isSingleAgentView
     ? `${selectedAgent} Coaching Dashboard`
@@ -761,66 +898,30 @@ export default async function DashboardPage({
           <TrendChart data={trendData} title={trendSectionTitle} subtitle={trendSectionSubtitle} />
         </div>
 
-        <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
-          <h2 className="mb-6 text-2xl font-semibold">{summaryTitle}</h2>
-
-          {aiWeeklySummary ? (
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-6 md:col-span-2">
-                <p className="text-lg font-semibold text-white">
-                  {aiWeeklySummary.headline}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-6">
-                <h3 className="mb-4 text-lg font-semibold">{summaryStrengthsTitle}</h3>
-                <ul className="space-y-2 text-gray-300">
-                  {aiWeeklySummary.top_strengths?.map((item, index) => (
-                    <li key={index}>- {item}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-6">
-                <h3 className="mb-4 text-lg font-semibold">{summaryOpportunitiesTitle}</h3>
-                <ul className="space-y-2 text-gray-300">
-                  {aiWeeklySummary.top_coaching_opportunities?.map((item, index) => (
-                    <li key={index}>- {item}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-6">
-                <h3 className="mb-4 text-lg font-semibold">{summaryRiskTitle}</h3>
-                <ul className="space-y-2 text-gray-300">
-                  {aiWeeklySummary.risk_patterns?.map((item, index) => (
-                    <li key={index}>- {item}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-6">
-                <h3 className="mb-4 text-lg font-semibold">{summaryFocusTitle}</h3>
-                <ul className="space-y-2 text-gray-300">
-                  {aiWeeklySummary.manager_focus_next?.map((item, index) => (
-                    <li key={index}>- {item}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-6 md:col-span-2">
-                <h3 className="mb-4 text-lg font-semibold">{summaryAttentionTitle}</h3>
-                <ul className="space-y-2 text-gray-300">
-                  {aiWeeklySummary.agents_needing_attention?.map((item, index) => (
-                    <li key={index}>- {item}</li>
-                  ))}
-                </ul>
-              </div>
+        <Suspense
+          fallback={
+            <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
+              <h2 className="mb-6 text-2xl font-semibold">{summaryTitle}</h2>
+              <p className="animate-pulse text-gray-400">
+                Generating AI summary from the latest analyses...
+              </p>
             </div>
-          ) : (
-            <p className="text-gray-400">AI summary could not be generated yet.</p>
-          )}
-        </div>
+          }
+        >
+          <AiWeeklySummarySection
+            organizationId={organizationId}
+            cacheKey={`${selectedAgent}|${selectedRange}|${selectedView}`}
+            payload={aiSummaryPayload}
+            titles={{
+              summary: summaryTitle,
+              strengths: summaryStrengthsTitle,
+              opportunities: summaryOpportunitiesTitle,
+              risk: summaryRiskTitle,
+              focus: summaryFocusTitle,
+              attention: summaryAttentionTitle,
+            }}
+          />
+        </Suspense>
 
         <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
           <h2 className="mb-6 text-2xl font-semibold">
