@@ -1707,8 +1707,13 @@ regenerates once; per-agent and attention views cache separately.
 ---
 
 ### PHASE 3 TASK 29: Unmask auth/org errors in the AI report routes
-STATUS: ⏳ APPROVED (owner, Sep 13: Product Friction Report button shows "User is not assigned to
-an organization" while the SAME page resolved the org fine and renders 166 chats / 34 topics)
+STATUS: ✅ DONE (Sep 13, 2026, commit `c2f04bc`) — as-built: standalone getUser blocks removed
+from both `src/app/api/product-issues-report/route.ts` and `src/app/api/coaching-digest/route.ts`
+(unused `createSupabaseServer` imports dropped); single `getCurrentOrganization()` check with
+message-branched responses (401 session-expired vs 403 not-assigned) and `console.error` of the
+underlying message for Vercel logs. AWAITING OWNER RETEST — the next click names the real failure.
+(Owner symptom, Sep 13: Product Friction Report button showed "User is not assigned to an
+organization" while the SAME page resolved the org fine and rendered 166 chats / 34 topics)
 
 **Diagnosis so far:** unauthenticated baselines behave as coded (verified by live curl: both
 routes 401). The route's own getUser passed for the owner (no 401), then getCurrentOrganization()
