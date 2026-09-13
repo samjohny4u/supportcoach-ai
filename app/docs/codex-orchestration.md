@@ -1706,6 +1706,34 @@ regenerates once; per-agent and attention views cache separately.
 
 ---
 
+### PHASE 3 TASK 29: Unmask auth/org errors in the AI report routes
+STATUS: ⏳ APPROVED (owner, Sep 13: Product Friction Report button shows "User is not assigned to
+an organization" while the SAME page resolved the org fine and renders 166 chats / 34 topics)
+
+**Diagnosis so far:** unauthenticated baselines behave as coded (verified by live curl: both
+routes 401). The route's own getUser passed for the owner (no 401), then getCurrentOrganization()
+threw — but the route maps BOTH of its distinct failures ("User not authenticated" from its
+internal getUser, and "User is not assigned to an organization" from the membership lookup) to the
+same 403 message, so the on-screen error is uninformative. Precedent: the rule-35
+subscription-status incident (route-handler auth flaking on client-side fetches while pages work).
+
+**Edit:** `src/app/api/product-issues-report/route.ts` and `src/app/api/coaching-digest/route.ts` —
+remove the redundant standalone getUser block (getCurrentOrganization performs the same check, so
+auth was being verified twice per request with the second failure misreported); branch on
+getCurrentOrganization's error message: "User not authenticated" → 401 "Your session has expired.
+Please refresh the page and log in again."; otherwise → 403 not-assigned. console.error the
+underlying message (no PII) so Vercel logs show the truth.
+
+**Test (owner):** click Generate Report once after deploy — the message now names the real
+failure. If it says session expired → refresh/login and retry (and we chase the rule-35 cookie
+behavior); if it still says not-assigned → run
+`SELECT user_id, count(*) FROM organization_memberships GROUP BY user_id HAVING count(*) > 1;`
+(the helper's `.single()` also fails when a user has MULTIPLE membership rows).
+
+**Commit:** `Phase 3 Task 29: single auth check + truthful errors in AI report routes`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
