@@ -1609,8 +1609,14 @@ digest panel fourth, repeated coaching after it.
 ---
 
 ### PHASE 3 TASK 27: Expired session redirects to login instead of dead-ending
-STATUS: ⏳ APPROVED (owner, Sep 13: upload attempt with an expired session showed
-"Failed: Not authenticated" and just sat there — "why can't it just log me out?")
+STATUS: ✅ DONE (Sep 13, 2026, commit `28ee874`) — as-built: `src/app/api/logout/route.ts` POST
+takes `request` and redirects `new URL("/login", request.url)` with `{ status: 303 }`;
+`middleware.ts` redirects unauthenticated requests for the four protected page paths to /login
+before the subscription check (API paths and rule-37 fail-open untouched); upload page maps a 401
+from create-analysis-job to a session-expired notice + /login redirect. Owner test pending
+(4-step checklist below).
+(Owner symptoms, Sep 13: upload with an expired session dead-ended on
+"Failed: Not authenticated" — "why can't it just log me out?")
 
 **Root cause:** /upload is the one protected page with no auth handling. Server-rendered pages
 (dashboard, analysis, settings) redirect to /login themselves; the middleware deliberately passes
