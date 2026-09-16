@@ -87,7 +87,7 @@ export default function ExtensionPage() {
 
         {/* NAV */}
         <nav className="mb-16 flex items-center justify-between">
-          <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.3em", color: "#6ee7b7" }}>
+          <span style={{ fontSize: "15px", fontWeight: 700, letterSpacing: "0.25em", color: "#6ee7b7" }}>
             SUPPORTCOACH
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -139,20 +139,22 @@ export default function ExtensionPage() {
               CHROME EXTENSION FOR SUPPORT TEAMS
             </div>
 
+            {/* Approved primary positioning line (docs/POSITIONING.md §3, support-coach-extension
+                repo): kills the "our help desk already does this" objection in the headline. */}
             <h1
               style={{
-                fontSize: "clamp(40px, 6vw, 72px)",
+                fontSize: "clamp(34px, 4.6vw, 56px)",
                 fontWeight: 700,
-                lineHeight: 1.02,
-                color: "#ffffff",
+                lineHeight: 1.08,
                 marginBottom: "24px",
               }}
             >
-              Prevent bad support replies before they happen.
+              <span style={{ color: "rgba(255,255,255,0.55)" }}>Your help desk&apos;s AI rewrites replies when agents ask.</span>{" "}
+              <span style={{ color: "#ffffff" }}>Support Coach speaks up when they don&apos;t.</span>
             </h1>
 
             <p style={{ fontSize: "18px", lineHeight: 1.7, color: "rgba(255,255,255,0.6)", maxWidth: "520px", marginBottom: "36px" }}>
-              Support Coach AI watches your agents&apos; drafts in real time, detects risky replies, and suggests a complete rewrite &mdash; before the customer ever sees it.
+              Catches the reply that escalates &mdash; three seconds before your customer reads it. Support Coach watches the draft as your agent types and suggests a complete, ready-to-send rewrite.
             </p>
 
             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
