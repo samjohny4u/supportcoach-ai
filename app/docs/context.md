@@ -361,6 +361,29 @@ Each prior coaching point in the prompt adds ~100-200 input tokens plus AI reaso
 | 90 days | 10-20 | ~$0.02-0.04 |
 | 365 days (capped at 30) | 20-30 | ~$0.04-0.08 |
 
+## API INGESTION — STANDING CHECKLIST (mandatory read when building SalesIQ/API auto-ingestion)
+Several shipped designs are CORRECT ONLY WHILE UPLOADS ARE MANAGER-CURATED. The session that builds
+automatic chat ingestion (master doc Section 10c direction) must work through this list — these
+decisions were made deliberately and each one inverts when uncurated data starts flowing:
+
+1. **Re-add a severity filter to the coaching digest** — Task 30 (Sep 17, 2026) removed the
+   attention/churn/frustration filter because manager curation WAS the selection. With auto-ingest,
+   every routine chat would flood digests. The old trigger set is in the Task 30 entry.
+2. **Re-promote "Chats Needing Attention" on the dashboard** — Task 25 demoted it to near-bottom
+   precisely because "attention triage is relevant when the API is connected" (owner's words).
+   With auto-ingest, triage becomes the front page again.
+3. **Rating-aware coaching becomes possible** — deferred Aug 26 because the PDF export contains no
+   ratings/review text. The API carries them: wire rating context into the analysis prompt and the
+   digest/report trigger logic (the original ask was "1-star chats").
+4. **The PDF-artifact guardrails become legacy** — reply-quote flattening, page-break name splits,
+   the abandonment guardrails' artifact clauses, and the transcript-view raw fallback all exist
+   because of PDF export quality. Keep them for historical chats; API-ingested chats won't need them.
+5. **Worker auth + real scheduler become mandatory, not backlog** — auto-ingest means the worker
+   runs unattended: /api/process-jobs needs authentication and a cron (Task 7 scale backlog), and
+   volume-based cost controls need review (per-analysis spend currently gated by manual upload).
+6. **Bi-weekly digest automation unblocks** — Task 9's cadence automation was blocked on the cron
+   decision; the same scheduler that drives ingestion can drive digests.
+
 ## KNOWN ISSUES / BLOCKERS
 - No active blockers
 - AI Weekly Team Summary empty in production — RESOLVED August 26, 2026 (config, not code). Root cause: `NEXT_PUBLIC_SITE_URL` was never added to Vercel, so the dashboard's self-fetch fell back to localhost:3000 inside the lambda; the summary had NEVER worked in production. Fix applied by owner: Vercel env var `NEXT_PUBLIC_SITE_URL` = `https://www.supportcoach.io` added as type Config (not Secret — NEXT_PUBLIC_ values are browser-exposed by design), Production scope, redeployed. Owner confirmed the summary populates. Vercel-dashboard change — invisible to git, recorded here.
