@@ -13,7 +13,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Tunable digest constants
 const DIGEST_WINDOW_DAYS = 14; // default and minimum window
 const DIGEST_WINDOW_MAX_DAYS = 30; // cap when the manager returns late
-const DIGEST_CHAT_LIMIT = 10;
+const DIGEST_CHAT_LIMIT = 20;
 
 type DigestChatRow = {
   id: string;
@@ -33,8 +33,8 @@ function buildSystemPrompt(agentName: string, windowDays: number, chatCount: num
   const periodPhrase = windowDays === 14 ? "the past two weeks" : `the past ${windowDays} days`;
   const isSingleChat = chatCount === 1;
   const countPhrase = isSingleChat
-    ? `the one tougher chat you had over ${periodPhrase}`
-    : `${chatCount} of your tougher chats from ${periodPhrase}`;
+    ? `the one chat of yours reviewed over ${periodPhrase}`
+    : `the ${chatCount} chats of yours reviewed over ${periodPhrase}`;
 
   const singleChatRules = isSingleChat
     ? `
@@ -47,12 +47,13 @@ SINGLE-CHAT MODE (only ONE chat was reviewed - scale everything down):
 - 120 to 220 words total.`
     : "";
 
-  return `You are writing a coaching digest for a support agent named ${agentName}, on behalf of their manager. The manager reviewed ${countPhrase}; this message consolidates that review into ONE supportive, HIGH-LEVEL check-in.
+  return `You are writing a coaching digest for a support agent named ${agentName}, on behalf of their manager. The manager reviewed ${countPhrase}; this message consolidates that review into ONE supportive, HIGH-LEVEL check-in. The reviewed chats are a mix - some tough, some may have gone well.
 
 THE MESSAGE MUST BE READY TO SEND AS-IS - the manager pastes it to the agent with ZERO editing:
 - Start directly with the agent's first name and a dash: "${firstName} -", then an opening that gives the agent the context they need for everything that follows: that this is a review of ${countPhrase}. Example shape (vary the wording naturally): "${firstName} - I went through ${countPhrase}, and here is where things stand." Always spell the count naturally in words when it is small (one, two, three) - never write "1 of your chats".
 - HIGH-LEVEL ONLY. NEVER reference an individual chat, a specific date, a customer name, or a quoted line - the agent cannot look any of them up from this message, so a mention like "in a chat where the customer was frustrated" only creates confusion and curiosity. Speak in aggregate patterns instead: "in several of these chats", "a pattern that keeps showing up", "when customers push back". The per-chat dates in the data are for YOUR analysis only - never cite them.
 - Encourage first: if the data shows genuine improvement or consistent strengths, open with that before anything else.
+- Some reviewed chats may be clean - treat those as evidence of strengths. NEVER manufacture a criticism from a chat whose data shows it went well; coach only where the data supports it.
 - Then the 1-3 overarching themes to work on - never more themes than the data honestly supports - phrased as a memory refresher for coaching the agent has already received (e.g. "we've talked about confirming before closing - it's still the thing holding your tougher chats back"), consolidated across ALL the chats. If the same behavior shows up in several chats, present it ONCE. Never itemize chat-by-chat, never shame, never pile on.
 - Do NOT print any section labels or headers of any kind. The ONLY literal label allowed is "Your plan of action:" introducing 3 concrete, doable suggestions (2 when the data is thin), each with a short example phrasing the agent can use verbatim in a chat.
 - End with one encouraging closing sentence.
@@ -80,7 +81,7 @@ function buildUserPrompt(agentName: string, rows: DigestChatRow[], windowDays: n
   }));
 
   return `Agent: ${agentName}
-Problem chats from the last ${windowDays} days (newest first):
+Chats reviewed in the last ${windowDays} days (newest first):
 ${JSON.stringify(chats, null, 2)}`;
 }
 
@@ -165,9 +166,9 @@ export async function GET(req: Request) {
       .eq("agent_name", agentName)
       .eq("excluded", false)
       .gte("created_at", cutoff.toISOString())
-      .or(
-        "attention_priority.eq.high,churn_risk.eq.high,customer_frustration_present.eq.true"
-      )
+      // No severity filter (Task 30): uploads are manager-curated, so the
+      // curation IS the selection — the digest covers every analyzed chat in
+      // the window. Re-add a filter when API auto-ingestion brings uncurated data.
       .order("created_at", { ascending: false })
       .limit(DIGEST_CHAT_LIMIT);
 
@@ -181,7 +182,7 @@ export async function GET(req: Request) {
       return NextResponse.json({
         digest: "",
         empty: true,
-        message: `No high-attention, high-churn-risk, or frustration-flagged chats found for ${agentName} in the last ${windowDays} days. Nothing to digest — that is good news.`,
+        message: `No analyzed chats found for ${agentName} in the last ${windowDays} days — nothing to digest.`,
         window_days: windowDays,
         last_digest_at: lastDigestAt,
       });

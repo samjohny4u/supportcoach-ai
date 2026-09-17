@@ -6,6 +6,7 @@ type CoachingDigestPanelProps = {
   agentName: string;
   lastDigestDate?: string | null;
   daysSinceLastDigest?: number | null;
+  chatsInWindow?: number | null;
 };
 
 type DigestResponse = {
@@ -22,6 +23,7 @@ export default function CoachingDigestPanel({
   agentName,
   lastDigestDate = null,
   daysSinceLastDigest = null,
+  chatsInWindow = null,
 }: CoachingDigestPanelProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [digest, setDigest] = useState("");
@@ -101,12 +103,15 @@ export default function CoachingDigestPanel({
       </div>
 
       <p className="mb-1 text-sm text-gray-400">
-        Consolidates this agent&apos;s high-attention, high-churn-risk, and
-        frustration-flagged chats into one supportive, paste-ready message with a plan of
-        action. Covers everything since the last digest (minimum 14 days, capped at 30).
+        Consolidates every chat analyzed for this agent into one supportive, paste-ready
+        message with a plan of action. Covers everything since the last digest (minimum 14
+        days, capped at 30).
       </p>
 
       <p className="mb-4 text-sm text-gray-500">
+        {typeof chatsInWindow === "number"
+          ? `${chatsInWindow} ${chatsInWindow === 1 ? "chat" : "chats"} analyzed in the current window. `
+          : ""}
         {generatedJustNow
           ? "Last digest: just now."
           : lastDigestDate

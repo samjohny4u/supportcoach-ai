@@ -196,6 +196,30 @@ export default async function AgentPage({
     daysSinceLastDigest = null;
   }
 
+  // Transparency count (Task 30): how many analyzed chats fall in the current
+  // digest window, using the same clamp the digest route applies.
+  let chatsInDigestWindow: number | null = null;
+  try {
+    const digestWindowDays =
+      daysSinceLastDigest === null
+        ? 14
+        : Math.min(30, Math.max(14, daysSinceLastDigest));
+    const windowCutoff = new Date();
+    windowCutoff.setDate(windowCutoff.getDate() - digestWindowDays);
+
+    const { count } = await supabase
+      .from("chat_analyses")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("agent_name", agentName)
+      .eq("excluded", false)
+      .gte("created_at", windowCutoff.toISOString());
+
+    chatsInDigestWindow = typeof count === "number" ? count : null;
+  } catch {
+    chatsInDigestWindow = null;
+  }
+
   const chats = ((data ?? []) as unknown as ChatAnalysisRow[]) || [];
 
   const totalChats = chats.length;
@@ -299,6 +323,7 @@ export default async function AgentPage({
           agentName={agentName}
           lastDigestDate={lastDigestDate}
           daysSinceLastDigest={daysSinceLastDigest}
+          chatsInWindow={chatsInDigestWindow}
         />
 
         <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
