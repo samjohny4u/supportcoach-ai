@@ -1739,6 +1739,35 @@ behavior); if it still says not-assigned → run
 
 ---
 
+### PHASE 3 TASK 30: Digest covers every analyzed chat in the window
+STATUS: ⏳ APPROVED (owner, Sep 17: "more is better since it is already there")
+
+**Supersedes Task 9 decision #1 (the trigger proxy).** Owner-run SQL on Victor proved the trigger
+(attention HIGH or churn HIGH or frustration) sits ABOVE the bar the manager already applies when
+choosing what to upload: all four of Victor's window chats analyzed medium/medium, so two were
+silently dropped and the digest count contradicted the manager's memory. Since uploads are
+manager-curated, the curation IS the filter — the digest now covers ALL analyzed chats for the
+agent in the window. RE-EVALUATE when API auto-ingestion lands (uncurated data will need a filter
+again — this is recorded so that day doesn't rediscover it).
+
+**Edits:**
+1. `src/app/api/coaching-digest/route.ts` — drop the `.or(...)` trigger filter (org + agent +
+   excluded + window + LIMIT remain); `DIGEST_CHAT_LIMIT` 10 → 20; prompt rewording ("tougher
+   chats" → "chats reviewed"; explicit rule: clean chats are evidence of strengths, never
+   manufacture criticism from them); empty-state message updated.
+2. `src/app/dashboard/agent/[name]/page.tsx` — count analyzed chats in the current digest window
+   (same clamp as the route) and pass to the panel.
+3. `src/components/CoachingDigestPanel.tsx` — transparency line: "N chats analyzed in the current
+   window"; description no longer claims a flag filter.
+
+**Test (owner):** Victor's panel shows the window chat count (should match your memory); generate
+→ opening says "the N chats of yours reviewed..."; calm chats contribute strengths, not
+manufactured criticism.
+
+**Commit:** `Phase 3 Task 30: digest covers all analyzed chats in the window`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
