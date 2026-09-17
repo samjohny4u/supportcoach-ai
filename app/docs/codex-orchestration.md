@@ -1740,7 +1740,13 @@ behavior); if it still says not-assigned → run
 ---
 
 ### PHASE 3 TASK 30: Digest covers every analyzed chat in the window
-STATUS: ⏳ APPROVED (owner, Sep 17: "more is better since it is already there")
+STATUS: ✅ DONE (Sep 17, 2026, commit `c85dd6b`) — as-built: `.or(...)` severity filter removed
+from the digest query; `DIGEST_CHAT_LIMIT` = 20; `countPhrase` reworded to "the N chats of yours
+reviewed over ..."; clean-chats-are-strength-evidence rule added to the prompt; empty-state message
+updated; agent page computes `chatsInDigestWindow` (same 14-30 clamp as the route) and
+`CoachingDigestPanel` shows "N chats analyzed in the current window". Owner test pending on
+Victor's page.
+(Owner, Sep 17: "more is better since it is already there")
 
 **Supersedes Task 9 decision #1 (the trigger proxy).** Owner-run SQL on Victor proved the trigger
 (attention HIGH or churn HIGH or frustration) sits ABOVE the bar the manager already applies when
