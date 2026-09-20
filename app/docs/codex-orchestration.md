@@ -1415,7 +1415,18 @@ around" with plain "came up again".
 ---
 
 ### PHASE 3 TASK 21: Coaching-point dedup at creation time
-STATUS: ⏳ APPROVED (owner, Sep 20: "You can get this done now")
+STATUS: ✅ DONE (Sep 20, 2026, commits `Task 21 (1/2)`-`(2/2)`, HEAD `756b94b`) — as-built, three
+layers: (1) RECURRENCE CHECK block in the coaching-points prompt of BOTH workers — a behavior
+matching a prior delivered point is never minted as a new point (the followthrough "repeated"
+assessment is the record), with `recurrence_of: "<prior point_id>"` as the model's
+unsure-escape-hatch; (2) `normalizeCoachingPoints(raw, analysisId, priorPointIds = new Set())` in
+both duplicated helper copies drops any point whose recurrence_of matches a fetched prior point —
+both call sites pass `new Set(priorCoachingPoints.map(p => p.point_id))`; (3)
+`getRepeatedCoachingForAgent` in `src/lib/coachingFollowthrough.ts` groups detections per source
+point (`repeat_count` on the `RepeatedCoaching` type, latest detection kept) and the agent page
+card reads "Repeated N times since coaching". Existing clone points in the DB are untouched by
+design (merging history = separate decision). Affects new and re-analyzed chats only.
+(Owner, Sep 20: "You can get this done now")
 
 Every analyzed chat mints brand-new coaching points; recurring weaknesses create near-duplicate
 points across chats, and each clone is separately assessed forever (chat #239011 carried 3 cards
