@@ -37,6 +37,19 @@ function getRangeLabel(range: string): string {
   return "all time";
 }
 
+// Raw chat_type strings vary in casing/whitespace; without normalization the
+// model sees "Daily Logs" and "daily logs" as different topics and renders
+// duplicate sections (observed in production, Sep 20 2026).
+function normalizeTopicLabel(value: string | null): string {
+  if (!value) return "Uncategorized";
+
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function toDateOnly(value: string | null): string {
   if (!value) return "unknown";
   const date = new Date(value);
@@ -62,6 +75,8 @@ FRICTION BY TOPIC
 For each topic, ordered by chat count descending:
 <Topic> (<n> chats)
 - One to three sentences CONSOLIDATING what feature or behavior soured the experience across ALL of that topic's chats - name the feature, what it failed to do or lacked, and the workflow impact on customers. Synthesize the pattern; do not list every chat.
+- Write "(1 chat)" when the count is one - never "(1 chats)".
+- Each topic appears EXACTLY ONCE. Merge topics with the same name, and merge obviously synonymous topic names (e.g. "Invoices" and "Invoicing", "Customer Portal" and "Client Portal") into one section with combined counts, noting the merged names in parentheses.
 
 HIGH CHURN RISK CALLOUTS
 For each chat rated high churn risk:
@@ -88,7 +103,7 @@ function buildUserPrompt(
   const chats = rows.map((row) => ({
     date: toDateOnly(row.created_at),
     customer: row.customer_name || "Unknown",
-    topic: row.chat_type || "Uncategorized",
+    topic: normalizeTopicLabel(row.chat_type),
     issue_summary: row.issue_summary || "",
     quick_summary: row.quick_summary || "",
     churn_risk: row.churn_risk || "low",

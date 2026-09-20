@@ -1481,6 +1481,15 @@ high-churn callout carries a why; Copy pastes clean ASCII into Slack/email.
 
 ---
 
+### PHASE 3 TASK 23 HOTFIX 2: topic normalization + merge + pluralization (Sep 20, 2026)
+Owner's first full all-time report exposed three defects: a verbatim-duplicated "Daily Logs"
+section (raw chat_type casing variants reach the model as distinct topics), "(1 chats)" (model
+followed the structure template literally), and synonym fragmentation (Invoices/Invoicing,
+Customer/Client Portal). As-built: `normalizeTopicLabel()` title-cases topics in the report
+payload; prompt requires merging same-named and obviously-synonymous topics (noting merged names)
+and singular "(1 chat)". The deeper chat_type taxonomy drift (worker prompt vs reclassify route)
+remains a recorded open item — a reclassification pass is the owner's call.
+
 ### PHASE 3 TASK 23 HOTFIX: report denominator with honest sampling caveat
 STATUS: ✅ DONE (Aug 27, 2026) — as-built in `src/app/api/product-issues-report/route.ts`: second
 head-count query (`totalAnalyzed`, same org/excluded/range filters without the product filter);
