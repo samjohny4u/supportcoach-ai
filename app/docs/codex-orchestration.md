@@ -1415,7 +1415,7 @@ around" with plain "came up again".
 ---
 
 ### PHASE 3 TASK 21: Coaching-point dedup at creation time
-STATUS: 🔒 SCOPED — recommended next real task, not yet approved for build
+STATUS: ⏳ APPROVED (owner, Sep 20: "You can get this done now")
 
 Every analyzed chat mints brand-new coaching points; recurring weaknesses create near-duplicate
 points across chats, and each clone is separately assessed forever (chat #239011 carried 3 cards
