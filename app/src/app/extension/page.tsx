@@ -90,6 +90,23 @@ export default function ExtensionPage() {
           <span style={{ fontSize: "15px", fontWeight: 700, letterSpacing: "0.25em", color: "#6ee7b7" }}>
             SUPPORTCOACH
           </span>
+          <div className="hidden md:flex" style={{ alignItems: "center", gap: "24px" }}>
+            {[
+              { href: "#how-it-works", label: "How It Works" },
+              { href: "#demo", label: "Watch Demo" },
+              { href: "#pricing", label: "Pricing" },
+              { href: "/blog", label: "Blog" },
+            ].map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                style={{ fontSize: "13px", color: "rgba(255,255,255,0.7)", textDecoration: "none" }}
+                className="hover:text-white"
+              >
+                {l.label}
+              </a>
+            ))}
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <a
               href={ADMIN_URL}
