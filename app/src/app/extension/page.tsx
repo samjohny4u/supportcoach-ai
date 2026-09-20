@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { decorateUrl, getStoredAttribution } from "@/lib/attribution";
 
 const SIGNUP_URL = "https://admin.supportcoach.io/signup";
 const ADMIN_URL = "https://admin.supportcoach.io/";
@@ -63,10 +64,18 @@ const includedFeatures = [
 
 export default function ExtensionPage() {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
+  // Cross-domain attribution handoff: signup happens on admin.supportcoach.io, a
+  // different app, so localStorage does not cross — the stored first-touch params ride
+  // the CTA link's query string instead. SSR renders the bare URL; hydration decorates.
+  const [signupUrl, setSignupUrl] = useState(SIGNUP_URL);
 
   useEffect(() => {
     document.body.classList.add("hide-dashboard-nav");
     return () => document.body.classList.remove("hide-dashboard-nav");
+  }, []);
+
+  useEffect(() => {
+    setSignupUrl(decorateUrl(SIGNUP_URL, getStoredAttribution()));
   }, []);
 
   const plan = PRICING[billing];
@@ -119,7 +128,7 @@ export default function ExtensionPage() {
               Sign In
             </a>
             <a
-              href={SIGNUP_URL}
+              href={signupUrl}
               style={{
                 fontSize: "13px",
                 fontWeight: 700,
@@ -176,7 +185,7 @@ export default function ExtensionPage() {
 
             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
               <a
-                href={SIGNUP_URL}
+                href={signupUrl}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -473,7 +482,7 @@ export default function ExtensionPage() {
             </ul>
 
             <a
-              href={SIGNUP_URL}
+              href={signupUrl}
               style={{
                 display: "flex",
                 alignItems: "center",

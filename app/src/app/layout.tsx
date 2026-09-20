@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import AppNav from "@/components/AppNav";
+import AttributionCapture from "@/components/AttributionCapture";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.supportcoach.io"),
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-black text-white antialiased">
+        <AttributionCapture />
         <div className="min-h-screen">
           <AppNav />
           {children}
