@@ -142,7 +142,8 @@ function slugifyCoachingPointId(value: string): string {
 
 function normalizeCoachingPoints(
   raw: unknown,
-  analysisId: string | number | null
+  analysisId: string | number | null,
+  priorPointIds: Set<string> = new Set()
 ): Array<{
   id: string;
   area: string;
@@ -164,6 +165,13 @@ function normalizeCoachingPoints(
     if (!item || typeof item !== "object") continue;
 
     const candidate = item as Record<string, unknown>;
+
+    // Task 21: a point the model marked as a recurrence of a prior delivered
+    // point is already tracked - its followthrough "repeated" assessment is
+    // the record. Never store a clone.
+    const recurrenceOf =
+      typeof candidate.recurrence_of === "string" ? candidate.recurrence_of.trim() : "";
+    if (recurrenceOf && priorPointIds.has(recurrenceOf)) continue;
 
     const rawId =
       typeof candidate.id === "string" && candidate.id.trim().length > 0
@@ -1406,6 +1414,10 @@ Allowed values for "area" (use exactly one, lowercase, from this list):
 Do not invent new area values. If a coaching point doesn't fit one of these, pick the closest match.
 
 The specific_behavior must be precise enough that, given a different chat transcript later, you could check whether the agent did the same thing again or applied the recommended behavior.
+
+RECURRENCE CHECK - never mint duplicate coaching points:
+- When a PREVIOUSLY DELIVERED COACHING list is present, compare every coaching point you are about to create against it. If it is essentially the SAME behavior as a prior point, DO NOT create a new coaching point for it - that behavior is already tracked, and your coaching_followthrough assessment of that point ("repeated") is the record of this recurrence. coaching_points is ONLY for behaviors not covered by any prior point.
+- If you are genuinely unsure whether a behavior matches a prior point, create the point but add "recurrence_of": "<the matching prior point_id, exactly as given>" to it. Points marked recurrence_of are folded into the existing behavior's history instead of being stored as new.
               `.trim(),
             },
             {
@@ -1487,7 +1499,8 @@ The specific_behavior must be precise enough that, given a different chat transc
 
         const normalizedCoachingPoints = normalizeCoachingPoints(
           parsed.coaching_points,
-          insertedAnalysis.id
+          insertedAnalysis.id,
+          new Set(priorCoachingPoints.map((point) => point.point_id))
         );
 
         if (normalizedCoachingPoints.length > 0) {
