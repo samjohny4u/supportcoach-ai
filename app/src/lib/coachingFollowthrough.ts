@@ -50,6 +50,7 @@ export type RepeatedCoaching = {
   detected_in_customer_name: string | null;
   detected_at: string;
   evidence: string | null;
+  repeat_count: number;
 };
 
 function zeroScorecard(): AgentScorecard {
@@ -248,10 +249,34 @@ export async function getRepeatedCoachingForAgent(
           typeof detected.customer_name === "string" ? detected.customer_name : null,
         detected_at: row.created_at,
         evidence: row.evidence || null,
+        repeat_count: 1,
       });
     }
 
-    return enrichedRows.sort((a, b) => {
+    // One card per behavior (Task 21): collapse multiple detections of the
+    // same source coaching point into the LATEST one, carrying the total
+    // repeat count so the card can say "repeated 3 times".
+    const groupedByPoint = new Map<string, RepeatedCoaching>();
+
+    for (const row of enrichedRows) {
+      const key = `${row.source_analysis_id}|${row.source_coaching_point_id}`;
+      const existing = groupedByPoint.get(key);
+
+      if (!existing) {
+        groupedByPoint.set(key, row);
+        continue;
+      }
+
+      const totalCount = existing.repeat_count + row.repeat_count;
+      const latest =
+        new Date(row.detected_at).getTime() > new Date(existing.detected_at).getTime()
+          ? row
+          : existing;
+
+      groupedByPoint.set(key, { ...latest, repeat_count: totalCount });
+    }
+
+    return Array.from(groupedByPoint.values()).sort((a, b) => {
       return new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime();
     });
   } catch (error) {

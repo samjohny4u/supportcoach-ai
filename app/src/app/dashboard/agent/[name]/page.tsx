@@ -345,7 +345,9 @@ export default async function AgentPage({
                 >
                   <div className="flex items-start justify-between gap-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-amber-400">
-                      Repeated
+                      {row.repeat_count > 1
+                        ? `Repeated ${row.repeat_count} times since coaching`
+                        : "Repeated"}
                     </p>
                     <FollowupMessageButton
                       agentName={agentName}
