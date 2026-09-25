@@ -957,6 +957,25 @@ export async function GET() {
         }
         // --- End Task 5 fetch ---
 
+        // Mechanical SHORT-CHAT MODE trigger (Task 19 hotfix 2): the model
+        // under-applies the mode when left to count messages itself, so the
+        // worker counts the agent's non-system messages and asserts the mode.
+        const agentMessageCount = earlyAgentGuess
+          ? parsedMessages.filter(
+              (message) =>
+                message.sender_role !== "system" &&
+                (message.sender_name || "").trim() === earlyAgentGuess &&
+                message.message_text.trim().length > 0
+            ).length
+          : null;
+
+        const shortChatModeDirective =
+          agentMessageCount !== null && agentMessageCount > 0 && agentMessageCount < 6
+            ? `
+
+SHORT-CHAT MODE IS IN EFFECT FOR THIS CHAT: the agent sent only ${agentMessageCount} ${agentMessageCount === 1 ? "message" : "messages"}. Apply every SHORT-CHAT MODE constraint above without exception: 120-250 words total, at most 2 What You Did Well bullets, only the 1-2 highest-impact improvement items (merged when they share a fix), a one-sentence What This Chat Really Was, and at most 2 Summary bullets per list.`
+            : "";
+
         const structuredTranscript = parsedMessages.length > 0
           ? buildStructuredTranscript(parsedMessages)
           : "";
@@ -1329,7 +1348,7 @@ For copy_coaching_message:
   - What This Chat Really Was: one sentence.
   - Summary: at most 2 bullets per list.
   - NEVER manufacture an improvement point just to fill the structure — on a small chat, one well-chosen point coaches better than three, and disproportionate coaching makes agents distrust all of it.
-  The 250-450 word format is the default for normal chats only.
+  The 250-450 word format is the default for normal chats only.${shortChatModeDirective}
 - If a chat reference number or ID appears in the transcript (e.g., "Chat #214196"), include it in the opening line. Example: "Umer — regarding chat #214196, this conversation was about..."
 - Start with the agent's name and an opening that sets context for the coaching.
 
