@@ -1396,6 +1396,15 @@ bullets, 1-2 improvement items with same-fix merging, one-sentence What This Cha
 2 summary bullets per list). Both routes. Lesson recorded: a new prompt rule that contradicts
 older mandatory rules must state its precedence explicitly or the model follows the structure.
 
+**HOTFIX 2 — mechanical trigger (Sep 25, 2026):** second violation observed (Ivana chat #243518:
+4 agent messages, ~430 words / 3 items — the model under-applies the mode when left to count
+messages itself). As-built: BOTH workers now count the agent's non-system messages server-side
+(name-matched against the operator guess / stored agent_name) and inject a hard
+"SHORT-CHAT MODE IS IN EFFECT ... the agent sent only N messages" directive into the prompt when
+the count is under 6 — counting is no longer the model's job. The same chat also exposed a model
+judgment miss (a 6m44s silent gap after "just a moment" went uncoached despite the >4-min rule) —
+noted as nondeterminism, not a rules change; owner advised to re-analyze.
+
 **Edit BOTH** worker routes' COPY COACHING MESSAGE FORMAT: add a PROPORTIONALITY rule — when the
 agent sent fewer than ~6 substantive messages, the message shrinks to 120-250 words with only the
 1-2 highest-impact improvement items; never manufacture improvement points to fill the structure;
