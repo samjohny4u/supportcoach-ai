@@ -142,9 +142,10 @@
   every as-built entry. The repeat-coaching loop, digest (cadence-tracked, all analyzed chats in
   window), Product Friction Report, and dedup are all owner-verified in production.
 - **PENDING OWNER VERIFICATIONS (confirm or do on next session):** (1) ~~team_summaries SQL~~ — RUN by owner Oct 6, 2026 (cache activates on next dashboard load); (2) re-analyze Ivana's chat #243518 to witness the
-  mechanical short-chat trigger fire; (3) paste the WORKAROUND DELIVERY block (involve the
-  customer in the workaround — drafted Oct 5, in the Slack-coaching review) into Settings
-  coaching context.
+  mechanical short-chat trigger fire; (3) ~~WORKAROUND DELIVERY block~~ — PASTED into Settings
+  coaching context by owner and CONFIRMED WORKING in production coaching output (Oct 6, 2026).
+  The involve-the-customer-in-the-workaround technique now applies to all new analyses via
+  `organizations.coaching_context`, per the Settings-not-prompt rule.
 - Task 4 SQL was run by owner (diagnosis queries + enterprise window fix — test org is now plan='enterprise' with synthetic subscription `sub_test_enterprise_local`; revert SQL in REPEAT-COACHING DIAGNOSIS below when testing ends).
 - Owner expanded `organizations.coaching_context` (Settings) on August 26 with: (a) ISSUE IDENTIFICATION rules (404 from menu→reports = access/privileges → direct to admin, no call; recurring bugs → developers, not Zoom; 15-min Zoom with Chris ONLY for identified single-issue device troubleshooting), and (b) feel-heard-before-the-no guidance (acknowledge the customer's goal and confirm understanding BEFORE delivering a limitation; instant no+suggestion feels dismissive). DB-stored, invisible to git — recorded here. Applies to analyses from Aug 26 evening onward.
 - NOTE: the hard-coded `gpt-5.4` model id now has TEN call sites (Task 9 added `src/app/api/coaching-digest/route.ts`; Task 23 added `src/app/api/product-issues-report/route.ts`). A model swap must touch all ten.
