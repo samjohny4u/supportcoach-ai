@@ -37,6 +37,25 @@ function getRangeLabel(range: string): string {
   return "all time";
 }
 
+// Custom start date (?from=YYYY-MM-DD) for windows the presets don't cover,
+// e.g. leadership asking for "everything since the July 15 release".
+function parseFromDate(value: string | null): string | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return value;
+}
+
+function formatSinceLabel(from: string): string {
+  const date = new Date(`${from}T00:00:00.000Z`);
+  return `since ${date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  })}`;
+}
+
 // Raw chat_type strings vary in casing/whitespace; without normalization the
 // model sees "Daily Logs" and "daily logs" as different topics and renders
 // duplicate sections (observed in production, Sep 20 2026).
@@ -150,6 +169,20 @@ export async function GET(req: Request) {
       ? rangeParam
       : "all";
 
+  // A custom from date overrides the preset range. Reject malformed values
+  // instead of silently falling back — a mislabeled window in a leadership
+  // report is worse than an error.
+  const fromParam = searchParams.get("from");
+  const fromDate = parseFromDate(fromParam);
+  if (fromParam && !fromDate) {
+    return NextResponse.json(
+      { error: "Invalid from date. Use YYYY-MM-DD." },
+      { status: 400 }
+    );
+  }
+  const fromIso = fromDate ? `${fromDate}T00:00:00.000Z` : null;
+  const periodLabel = fromDate ? formatSinceLabel(fromDate) : getRangeLabel(range);
+
   try {
     let query = supabaseAdmin
       .from("chat_analyses")
@@ -163,7 +196,9 @@ export async function GET(req: Request) {
       .limit(REPORT_CHAT_LIMIT);
 
     const rangeDays = getRangeDays(range);
-    if (rangeDays !== null) {
+    if (fromIso) {
+      query = query.gte("created_at", fromIso);
+    } else if (rangeDays !== null) {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - rangeDays);
       query = query.gte("created_at", cutoff.toISOString());
@@ -186,7 +221,9 @@ export async function GET(req: Request) {
         .eq("organization_id", organizationId)
         .eq("excluded", false);
 
-      if (rangeDays !== null) {
+      if (fromIso) {
+        countQuery = countQuery.gte("created_at", fromIso);
+      } else if (rangeDays !== null) {
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - rangeDays);
         countQuery = countQuery.gte("created_at", cutoff.toISOString());
@@ -204,7 +241,7 @@ export async function GET(req: Request) {
       return NextResponse.json({
         report: "",
         empty: true,
-        message: `No product-blocker chats found for the ${getRangeLabel(range)}. Nothing to report - that is good news for the product team.`,
+        message: `No product-blocker chats found for the period (${periodLabel}). Nothing to report - that is good news for the product team.`,
       });
     }
 
@@ -213,7 +250,7 @@ export async function GET(req: Request) {
       temperature: 0.2,
       messages: [
         { role: "system", content: buildSystemPrompt() },
-        { role: "user", content: buildUserPrompt(getRangeLabel(range), rows, totalAnalyzed) },
+        { role: "user", content: buildUserPrompt(periodLabel, rows, totalAnalyzed) },
       ],
     });
 

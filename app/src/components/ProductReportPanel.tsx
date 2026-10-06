@@ -5,6 +5,8 @@ import { useState } from "react";
 type ProductReportPanelProps = {
   range: string;
   rangeLabel: string;
+  // Custom start date (YYYY-MM-DD); overrides range on the API side.
+  from?: string;
 };
 
 type ReportResponse = {
@@ -15,7 +17,7 @@ type ReportResponse = {
   error?: string;
 };
 
-export default function ProductReportPanel({ range, rangeLabel }: ProductReportPanelProps) {
+export default function ProductReportPanel({ range, rangeLabel, from }: ProductReportPanelProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [report, setReport] = useState("");
   const [emptyMessage, setEmptyMessage] = useState("");
@@ -31,7 +33,9 @@ export default function ProductReportPanel({ range, rangeLabel }: ProductReportP
       setCopyStatus("idle");
 
       const res = await fetch(
-        `/api/product-issues-report?range=${encodeURIComponent(range)}`,
+        `/api/product-issues-report?range=${encodeURIComponent(range)}${
+          from ? `&from=${encodeURIComponent(from)}` : ""
+        }`,
         { cache: "no-store" }
       );
       const data = (await res.json()) as ReportResponse;

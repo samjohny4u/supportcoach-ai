@@ -1803,6 +1803,36 @@ manufactured criticism.
 
 ---
 
+### PHASE 3 TASK 31: Custom from-date for the Product Friction Report
+STATUS: ✅ DONE (Oct 6, 2026) — as-built: `?from=YYYY-MM-DD` on `/api/product-issues-report`
+and `/dashboard/product-issues` (a valid `from` OVERRIDES the preset range everywhere).
+
+**Why:** Owner submitted the all-time report to Steve (leadership); Steve asked for one windowed
+from July 15, 2026 — a window the 7d/30d/90d/all presets cannot express. Rather than a one-off,
+the report now takes any custom start date.
+
+**Edits:**
+1. `src/app/api/product-issues-report/route.ts` — `parseFromDate` (strict `YYYY-MM-DD`, malformed
+   values get a 400 — a mislabeled window in a leadership report is worse than an error) +
+   `formatSinceLabel` ("since July 15, 2026"); `fromIso` (`T00:00:00.000Z` UTC day start) applied
+   to BOTH the report query and the denominator count query; `periodLabel` replaces
+   `getRangeLabel(range)` in the prompt and the empty-state message.
+2. `src/app/dashboard/product-issues/page.tsx` — mirrored `parseFromDate`/`formatSinceLabel`;
+   `selectedFrom` filters the grouped chat list, overrides `rangeLabel`, and un-highlights the
+   preset buttons; new plain GET form ("Since" + `<input type=date>` + Apply, no client JS);
+   invalid `from` in the URL is silently ignored on the page (falls back to range) but rejected
+   by the API.
+3. `src/components/ProductReportPanel.tsx` — optional `from` prop appended to the fetch URL.
+
+**Test (owner):** /dashboard/product-issues → pick 2026-07-15 in the Since field → Apply → list
+and count reflect Jul 15 onward, button label reads "Generate Report (since July 15, 2026)" →
+Generate → report header and OVERVIEW denominator cover the same window → Copy for Steve.
+Presets still work and clear the custom date.
+
+**Commit:** `Task 31: custom from-date for the Product Friction Report`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,

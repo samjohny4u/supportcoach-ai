@@ -57,10 +57,30 @@ function getRangeCutoffIso(days: number) {
   return now.toISOString();
 }
 
+// Custom start date (?from=YYYY-MM-DD) for windows the presets don't cover,
+// e.g. leadership asking for "everything since the July 15 release". Must
+// mirror the validation in /api/product-issues-report.
+function parseFromDate(value: string | null | undefined): string | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return value;
+}
+
+function formatSinceLabel(from: string): string {
+  const date = new Date(`${from}T00:00:00.000Z`);
+  return `since ${date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  })}`;
+}
+
 export default async function ProductIssuesPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ range?: string }>;
+  searchParams?: Promise<{ range?: string; from?: string }>;
 }) {
   const supabaseAuth = await createSupabaseServer();
   const {
@@ -97,6 +117,9 @@ export default async function ProductIssuesPage({
       ? resolvedSearchParams.range
       : "all";
 
+  // A valid custom from date overrides the preset range.
+  const selectedFrom = parseFromDate(resolvedSearchParams.from);
+
   let query = supabase
     .from("chat_analyses")
     .select(
@@ -107,7 +130,9 @@ export default async function ProductIssuesPage({
     .eq("product_limitation_chat", true)
     .order("created_at", { ascending: false });
 
-  if (selectedRange === "7d") {
+  if (selectedFrom) {
+    query = query.gte("created_at", `${selectedFrom}T00:00:00.000Z`);
+  } else if (selectedRange === "7d") {
     query = query.gte("created_at", getRangeCutoffIso(7));
   } else if (selectedRange === "30d") {
     query = query.gte("created_at", getRangeCutoffIso(30));
@@ -144,8 +169,9 @@ export default async function ProductIssuesPage({
     (a, b) => b[1].length - a[1].length
   );
 
-  const rangeLabel =
-    selectedRange === "7d"
+  const rangeLabel = selectedFrom
+    ? formatSinceLabel(selectedFrom)
+    : selectedRange === "7d"
       ? "last 7 days"
       : selectedRange === "30d"
         ? "last 30 days"
@@ -189,7 +215,7 @@ export default async function ProductIssuesPage({
               key={option.value}
               href={`/dashboard/product-issues?range=${option.value}`}
               className={
-                selectedRange === option.value
+                !selectedFrom && selectedRange === option.value
                   ? "rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black"
                   : "rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-white/5 hover:text-white"
               }
@@ -197,9 +223,41 @@ export default async function ProductIssuesPage({
               {option.label}
             </a>
           ))}
+
+          <form
+            method="get"
+            action="/dashboard/product-issues"
+            className="flex items-center gap-2"
+          >
+            <label htmlFor="from-date" className="text-sm text-gray-400">
+              Since
+            </label>
+            <input
+              id="from-date"
+              type="date"
+              name="from"
+              defaultValue={selectedFrom || ""}
+              required
+              className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-gray-200 [color-scheme:dark]"
+            />
+            <button
+              type="submit"
+              className={
+                selectedFrom
+                  ? "rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black"
+                  : "rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-white/5 hover:text-white"
+              }
+            >
+              Apply
+            </button>
+          </form>
         </div>
 
-        <ProductReportPanel range={selectedRange} rangeLabel={rangeLabel} />
+        <ProductReportPanel
+          range={selectedRange}
+          rangeLabel={rangeLabel}
+          from={selectedFrom || undefined}
+        />
 
         {loadError ? (
           <div className="rounded-3xl border border-red-500/20 bg-red-500/10 p-8 text-red-300">
