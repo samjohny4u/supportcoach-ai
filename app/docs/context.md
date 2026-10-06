@@ -141,9 +141,7 @@
   Tasks 27-29 session/logout/report fixes Sep 13). See PHASE 3 TASKS in codex-orchestration.md for
   every as-built entry. The repeat-coaching loop, digest (cadence-tracked, all analyzed chats in
   window), Product Friction Report, and dedup are all owner-verified in production.
-- **PENDING OWNER VERIFICATIONS (confirm or do on next session):** (1) the `team_summaries` cache
-  table SQL from Task 28 — if never run, the dashboard AI summary still regenerates per load
-  (works, but costs an AI call each time); (2) re-analyze Ivana's chat #243518 to witness the
+- **PENDING OWNER VERIFICATIONS (confirm or do on next session):** (1) ~~team_summaries SQL~~ — RUN by owner Oct 6, 2026 (cache activates on next dashboard load); (2) re-analyze Ivana's chat #243518 to witness the
   mechanical short-chat trigger fire; (3) paste the WORKAROUND DELIVERY block (involve the
   customer in the workaround — drafted Oct 5, in the Slack-coaching review) into Settings
   coaching context.
