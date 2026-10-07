@@ -352,7 +352,7 @@ export default function ExtensionPage() {
             }}
           >
             <iframe
-              src="https://www.youtube-nocookie.com/embed/_t77xhDO8B0?rel=0&modestbranding=1"
+              src="https://www.youtube-nocookie.com/embed/oaGdlgw8p-o?rel=0&modestbranding=1"
               title="Support Coach AI — live demo"
               loading="lazy"
               allow="autoplay; encrypted-media; picture-in-picture; web-share"
