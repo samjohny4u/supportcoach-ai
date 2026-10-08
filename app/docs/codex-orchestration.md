@@ -1834,8 +1834,10 @@ Presets still work and clear the custom date.
 ---
 
 ### TASK 32: Pre-launch security hardening — close the unauthenticated OpenAI endpoints + real cron
-STATUS: ✅ DONE (Oct 8, 2026) — code complete, lint/build green; owner action pending: add
-`CRON_SECRET` in Vercel (until then the cron 401s harmlessly; in-app triggering unaffected).
+STATUS: ✅ DONE + OWNER-VERIFIED (Oct 8, 2026) — `CRON_SECRET` added in Vercel (type Secret,
+Production only) and redeployed by owner; public curl of /api/process-jobs confirmed 401;
+dashboard and cache behavior confirmed normal. Remaining check: tomorrow's 06:00 UTC cron run
+should log 200 in Vercel cron logs.
 
 **Why:** Two endpoints were publicly callable (KNOWN ISSUES since Sep 13): `/api/team-summary`
 POST ran an OpenAI call on any posted payload (direct spend amplification for anyone with the
