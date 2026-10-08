@@ -1892,6 +1892,57 @@ and `/api/team-summary` returns 404/405; (5) after adding CRON_SECRET, next sche
 
 ---
 
+### TASK 33: chat_type canonical taxonomy
+STATUS: ✅ DONE (Oct 8, 2026) — code complete; owner runs the migration SQL below.
+
+**Why:** chat_type was an open-ended AI field steered only by "good examples" — it drifted into
+synonyms and non-product names (Invoicing/Invoices, Timesheets vs the product's actual Time
+Cards, Scheduling vs Schedule, Reporting vs Reports). The report-time normalizeTopicLabel patch
+(Task 23 era) fixed display casing only; stored values stayed inconsistent and fragmented the
+Product Friction Report Steve reads. Canonical list = Contractor Foreman's real module nav
+(owner-provided screenshot, Oct 8) + support categories. Owner decisions: QuickBooks STAYS its
+own topic (top friction source — QB sync is always "QuickBooks", never "Integrations"/"Sync
+Issues"); CF nav names win (Time Cards, Schedule, Reports, Bid Manager); Email/Performance/
+Contracts left as-is (1 chat each, no drift evidence).
+
+**Edits:**
+1. `src/lib/chatTypeTaxonomy.ts` (new) — `CANONICAL_CHAT_TYPES` (CF nav modules + support
+   categories), `CHAT_TYPE_PROMPT_SECTION` (closed vocabulary with QB/Billing disambiguation
+   rules; coin-new-only-as-last-resort escape hatch), `normalizeChatType()` (canonical casing,
+   known-variant remap, title-cased passthrough for genuinely new values).
+2. BOTH worker routes (`process-jobs`, `reanalyze-analysis`) — chat_type prompt block replaced
+   with `${CHAT_TYPE_PROMPT_SECTION}` (shared source of truth, Task 20 precedent); stored value
+   wrapped in `normalizeChatType()`.
+3. `src/app/api/reclassify-topics/route.ts` (the Fix 8g one-time tool) — prompt switched to the
+   shared section; local normalizer replaced with the shared one; AND auth added (Task 32
+   pattern): it was a THIRD unauthenticated endpoint, worse than the others — any caller could
+   name any organization_id, mutate that org's chat_type rows, and burn an OpenAI call per chat.
+   Now: logged-in session reclassifies its OWN org only (body organization_id ignored);
+   CRON_SECRET bearer may name the org.
+
+**Migration SQL (owner runs in Supabase SQL Editor — remaps existing rows; org-filtered per
+rule 14):**
+```sql
+UPDATE chat_analyses SET chat_type = 'Invoices'      WHERE organization_id = '8e71dc46-e674-4131-8709-506223a35d7e' AND chat_type = 'Invoicing';
+UPDATE chat_analyses SET chat_type = 'Time Cards'    WHERE organization_id = '8e71dc46-e674-4131-8709-506223a35d7e' AND chat_type = 'Timesheets';
+UPDATE chat_analyses SET chat_type = 'Schedule'      WHERE organization_id = '8e71dc46-e674-4131-8709-506223a35d7e' AND chat_type = 'Scheduling';
+UPDATE chat_analyses SET chat_type = 'Reports'       WHERE organization_id = '8e71dc46-e674-4131-8709-506223a35d7e' AND chat_type = 'Reporting';
+UPDATE chat_analyses SET chat_type = 'User Access'   WHERE organization_id = '8e71dc46-e674-4131-8709-506223a35d7e' AND chat_type IN ('Permissions', 'User Management');
+UPDATE chat_analyses SET chat_type = 'Client Portal' WHERE organization_id = '8e71dc46-e674-4131-8709-506223a35d7e' AND chat_type = 'Customer Portal';
+UPDATE chat_analyses SET chat_type = 'Directory'     WHERE organization_id = '8e71dc46-e674-4131-8709-506223a35d7e' AND chat_type = 'Contacts';
+UPDATE chat_analyses SET chat_type = 'Bid Manager'   WHERE organization_id = '8e71dc46-e674-4131-8709-506223a35d7e' AND chat_type = 'Bidding';
+```
+Expected row counts: 4, 21, 14, 21, 4, 2, 1, 1 (from the Oct 8 inventory). Verify by re-running
+the inventory query — the eight variant names should be gone.
+
+**Test (owner):** (1) run the migration SQL, re-run inventory, variants gone; (2) Product Issues
+page topic groups show merged counts (e.g. Invoices 18); (3) next uploaded chat gets a canonical
+chat_type; (4) unauthenticated POST to /api/reclassify-topics returns 401.
+
+**Commit:** `Task 33: canonical chat_type taxonomy (shared prompt section, write-time normalization, reclassify-topics auth)`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
