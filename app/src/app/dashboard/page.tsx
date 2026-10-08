@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "../../lib/supabaseServer";
 import { getCurrentOrganization } from "../../lib/currentOrganization";
+import { generateTeamSummary } from "../../lib/teamSummary";
 import TrendChart from "../../components/TempChart";
 import CopyButton from "../../components/CopyButton";
 import TrialBanner from "../../components/TrialBanner";
@@ -236,25 +237,16 @@ function buildTrendData(chats: ChatAnalysis[]): TrendPoint[] {
   });
 }
 
+// Direct call into src/lib/teamSummary.ts (Task 32). This was a self-fetch
+// to the public /api/team-summary route through NEXT_PUBLIC_SITE_URL — an
+// unauthenticated OpenAI endpoint, and the hop that silently broke production
+// when the env var was missing. The route is deleted.
 async function getTeamAISummary(payload: unknown): Promise<TeamSummaryResult | null> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
-    const res = await fetch(`${baseUrl}/api/team-summary`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ summaries: payload }),
-      cache: "no-store",
-    });
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    return data.result as TeamSummaryResult;
+    const result = await generateTeamSummary(payload);
+    return (result as TeamSummaryResult) || null;
   } catch (error) {
-    console.error("AI summary fetch error:", error);
+    console.error("AI summary generation error:", error);
     return null;
   }
 }
