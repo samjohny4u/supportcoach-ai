@@ -1893,7 +1893,12 @@ and `/api/team-summary` returns 404/405; (5) after adding CRON_SECRET, next sche
 ---
 
 ### TASK 33: chat_type canonical taxonomy
-STATUS: ✅ DONE (Oct 8, 2026) — code complete; owner runs the migration SQL below.
+STATUS: ✅ DONE + OWNER-VERIFIED (Oct 8, 2026) — migration SQL run by owner; post-migration
+inventory confirmed all 9 variant names gone (35 topics, was 41) with exact predicted counts
+(Invoices 18, Time Cards 23, Reports 21, User Access 16, Schedule 14, Client Portal 3,
+Directory 2, Bid Manager 1). Unauthenticated POST to /api/reclassify-topics returns 401
+(verified by curl). Note: browser-visiting that URL shows HTTP 405 — expected, GET is not
+defined on the route.
 
 **Why:** chat_type was an open-ended AI field steered only by "good examples" — it drifted into
 synonyms and non-product names (Invoicing/Invoices, Timesheets vs the product's actual Time
