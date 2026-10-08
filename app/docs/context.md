@@ -141,7 +141,7 @@
   Tasks 27-29 session/logout/report fixes Sep 13). See PHASE 3 TASKS in codex-orchestration.md for
   every as-built entry. The repeat-coaching loop, digest (cadence-tracked, all analyzed chats in
   window), Product Friction Report, and dedup are all owner-verified in production.
-- **PENDING OWNER VERIFICATIONS (confirm or do on next session):** (1) ~~team_summaries SQL~~ — RUN by owner Oct 6, 2026 (cache activates on next dashboard load); (2) re-analyze Ivana's chat #243518 to witness the
+- **PENDING OWNER VERIFICATIONS (confirm or do on next session):** (1) ~~team_summaries cache~~ — VERIFIED WORKING Oct 8, 2026: owner's SELECT showed a cached `all|all|all` row (generated 12:42 UTC), so the write path and reuse are live; Task 28 fully closed. Expected residual slowness: first visit per filter combo and the first load after new analyses (hash change) each pay one ~5s generation; (2) re-analyze Ivana's chat #243518 to witness the
   mechanical short-chat trigger fire; (3) ~~WORKAROUND DELIVERY block~~ — PASTED into Settings
   coaching context by owner and CONFIRMED WORKING in production coaching output (Oct 6, 2026).
   The involve-the-customer-in-the-workaround technique now applies to all new analyses via
