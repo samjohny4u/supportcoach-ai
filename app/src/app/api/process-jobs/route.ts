@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import { createSupabaseServer } from "@/lib/supabaseServer";
 import {
   fetchPriorDeliveredCoachingPoints,
   fetchOverrideCalibrations,
@@ -793,7 +794,37 @@ function inferConversationParticipants(
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Worker auth (Task 32): this endpoint was publicly triggerable. Two caller
+  // classes are allowed — the Vercel cron (Authorization: Bearer CRON_SECRET,
+  // sent automatically when the CRON_SECRET env var exists) and logged-in app
+  // users (upload page auto-trigger/polling, WorkerTriggerButton — session
+  // cookies ride along on same-origin fetches). Everyone else gets 401.
+  // If CRON_SECRET is unset the cron path is disabled; sessions still work.
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.get("authorization");
+  const isCronCall = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
+
+  if (!isCronCall) {
+    let isLoggedIn = false;
+    try {
+      const supabaseAuth = await createSupabaseServer();
+      const {
+        data: { user },
+      } = await supabaseAuth.auth.getUser();
+      isLoggedIn = Boolean(user);
+    } catch {
+      isLoggedIn = false;
+    }
+
+    if (!isLoggedIn) {
+      return NextResponse.json(
+        { error: "Not authenticated." },
+        { status: 401 }
+      );
+    }
+  }
+
   try {
     const { data: jobs, error: jobsError } = await supabase
       .from("analysis_jobs")
