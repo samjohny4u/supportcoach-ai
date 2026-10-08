@@ -9,6 +9,7 @@ import {
   buildFollowthroughPromptSection,
   type PriorCoachingPoint,
 } from "@/lib/coachingFollowthroughFetch";
+import { CHAT_TYPE_PROMPT_SECTION, normalizeChatType } from "@/lib/chatTypeTaxonomy";
 
 export const runtime = "nodejs";
 
@@ -684,14 +685,7 @@ agent_name:
 - NEVER use the support bot (e.g. "Contractor Foreman Support") as agent_name — an automated greeting is not an agent.
 - When a transfer occurred: coaching may briefly acknowledge what happened before the transfer as context, but all scores, coaching points, and the coaching message apply to the finishing agent's portion of the chat. Do not penalize the finishing agent for the earlier agent's behavior, and do not coach the earlier agent in this analysis.
 
-chat_type:
-- Must be a short, consistent category name describing the product module or issue type.
-- Use general module-level categories, not overly specific descriptions.
-- Always use Title Case.
-- Always use the shortest accurate category name.
-- If a chat covers multiple topics, choose the primary one — the main issue the customer contacted about.
-- Good examples: "Billing", "Integrations", "Permissions", "Scheduling", "Reporting", "Documents", "Projects", "Change Orders", "Estimates", "API", "Account Management", "Notifications", "Sync Issues", "User Access", "Mobile App", "Data Import", "Payments", "Contracts", "Timesheets", "Daily Logs"
-- Bad examples: "Customer asking about invoice discrepancy" (too specific), "billing issue" (wrong casing), "General Question" (too vague), "Help needed" (meaningless)
+${CHAT_TYPE_PROMPT_SECTION}
 
 issue_summary:
 - Must be 1 to 2 sentences maximum.
@@ -1067,7 +1061,7 @@ RECURRENCE CHECK - never mint duplicate coaching points:
         file_name: normalizeOptionalText(analysis.file_name) || null,
         agent_name: safeAgentName,
         customer_name: safeCustomerName,
-        chat_type: normalizeOptionalText(parsed.chat_type) || null,
+        chat_type: normalizeChatType(normalizeOptionalText(parsed.chat_type)),
         issue_summary: normalizeOptionalText(parsed.issue_summary) || null,
         what_you_did_well: parsed.what_you_did_well || [],
         improvement_areas: parsed.improvement_areas || [],
