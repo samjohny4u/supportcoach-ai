@@ -829,11 +829,19 @@ A POST endpoint that:
 ---
 
 ### PHASE 2 TASK 6: Agent page — coaching history, follow-through scorecard, repeat detection with auto-generated follow-up message
-STATUS: ⏳ IN PROGRESS — Task 6a DONE (May 2, 2026, commit `bb04b7e`), Task 6b pending
+STATUS: ✅ DONE — Task 6a May 2, 2026 (commit `bb04b7e`); Task 6b Oct 8, 2026. PHASE 2 COMPLETE.
 
-Task 6a complete: agent page scorecard (Section A) and repeated coaching cards with templated
-follow-up message copy button (Section B) are implemented. Task 6b remains pending: coaching
-history view (Section C).
+Task 6b as-built: `getAgentCoachingHistory(organizationId, agentName, windowDays)` added to
+`src/lib/coachingFollowthrough.ts` per the AS-BUILT convention (positional args, module's own
+service-role client, try/catch returning `[]`). Returns `CoachingHistoryEntry[]` newest-first
+within the plan window, LIMIT 200 (REPORT_CHAT_LIMIT precedent): analysis id, created_at,
+customer_name, coaching_areas (from structured coaching_points[].area, falling back to the
+generic improvement_areas tags for pre-Phase-2 analyses), coaching_points_count, the five
+scores, delivered + delivered_at. Section C renders on the agent page BELOW Repeated Coaching:
+per-chat card with date/customer, delivery badge (green "Delivered <date>" / gray "Not
+delivered" / neutral "No coaching needed" when the analysis has zero coaching points), area
+chips, compact score row, "View analysis ->" link. No window selector (per the 6b scope note —
+that remains a separate change if ever wanted).
 
 > ⚠️ **READ THIS BEFORE BUILDING 6b — THE SPEC BELOW IS NOT THE AS-BUILT CODE.**
 > The helper names and shapes written in this task were the design intent. What actually shipped

@@ -2,7 +2,7 @@
 # Last updated: August 14, 2026
 
 ## PROJECT STATUS
-- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete. Phase 2 (Coaching Effectiveness Tracker) in progress; Tasks 1, 2, 3, 4, 5, and 6a complete. Task 6b is the only Phase 2 task remaining.
+- **Phase:** Live in Production — Paddle billing fully verified end-to-end, landing page and nav complete. **Phase 2 (Coaching Effectiveness Tracker) COMPLETE as of Oct 8, 2026** — Task 6b (agent coaching history view) was the last piece.
 - **Last commit:** `93de005` (July 3, 2026). No code changes between July 3 and August 14, 2026.
 - **All MVP features are DONE**
 - **RLS security is ENABLED on all tables**
@@ -151,7 +151,7 @@
 - NOTE: the hard-coded `gpt-5.4` model id now has TEN call sites (Task 9 added `src/app/api/coaching-digest/route.ts`; Task 23 added `src/app/api/product-issues-report/route.ts`). A model swap must touch all ten.
 - Phase 3 Task 23 (Aug 27): Product Friction Report — copyable per-topic leadership synthesis on /dashboard/product-issues with a new Last 7 Days filter. See codex-orchestration.md Task 23 for as-built.
 - Phase 3 Task 31 (Oct 6): Product Friction Report takes a custom start date — `?from=YYYY-MM-DD` on the API + a "Since" date picker on /dashboard/product-issues; a valid from OVERRIDES the preset range in the report query, denominator count, page list, and all labels ("since July 15, 2026"). Built because Steve (CF leadership) asked for a Jul 15 2026 → today window the presets couldn't express. See codex-orchestration.md Task 31.
-- Phase 2 Tasks 1, 2, 3, 4, 5, and 6a complete. Task 6b (agent coaching history view) remains — the only unbuilt Phase 2 task; queued behind Phase 3.
+- Phase 2 COMPLETE (Oct 8, 2026): Task 6b (agent coaching history view) built — Coaching History section on the agent page below Repeated Coaching, backed by `getAgentCoachingHistory` in `src/lib/coachingFollowthrough.ts`. See codex-orchestration.md PHASE 2 TASK 6 for as-built.
 
 ## REPEAT-COACHING DIAGNOSIS (August 26, 2026 — CORRECTED same day by owner-run SQL)
 Symptom: repeated behaviors (e.g. 3-4 min gaps after "Please hold on") not flagged as repeat coaching.
@@ -238,7 +238,7 @@ names or in a different place; one was never built. When reading the spec, trans
 | Scorecard shape `{coached, followed, repeated, no_opportunity}` | `{followed_through, repeated, no_opportunity, total, followthrough_rate}`. There is no `coached` field; `total` is the count of all rows with a resolvable status, and `followthrough_rate` is a percentage over `followed_through + repeated` only. |
 | `getAgentRepeatedCoachings(...)` | `getRepeatedCoachingForAgent(organizationId, agentName, windowDays)` in the same file. |
 | `buildFollowupCoachingMessage(repeat, agentName)` exported from `src/lib/coachingFollowthrough.ts` | Never built as a lib export. The template lives inline in the `handleCopy()` handler of `src/components/FollowupMessageButton.tsx`. The constants the spec said to export at the top of the file do not exist. |
-| `getAgentCoachingHistory(...)` | NOT BUILT. This is Task 6b. |
+| `getAgentCoachingHistory(...)` | BUILT Oct 8, 2026 (Task 6b): `getAgentCoachingHistory(organizationId, agentName, windowDays)` in `src/lib/coachingFollowthrough.ts`, as-built convention. Returns `CoachingHistoryEntry[]` (areas from coaching_points with improvement_areas fallback, scores, delivered status), newest first, LIMIT 200. |
 
 Both helpers apply `manager_override` over the AI `status` via a shared `effectiveStatus()` function,
 and both count all three statuses (no `no_opportunity` display filter is inherited) — matching the
@@ -300,7 +300,7 @@ Task 5 display-filter decision recorded below.
 | 4 | DONE — Settings toggle to disable Copy auto-check |
 | 5 | DONE — AI follow-through detection at analysis time (gets prior delivered coaching points within plan window, AI outputs per-point status) + manager override UI on analysis page + /api/update-followthrough-override route |
 | 6a | DONE — Agent page scorecard + repeated coaching cards with "Copy follow-up message" button |
-| 6b | Agent page coaching history view |
+| 6b | DONE (Oct 8, 2026) — Agent page coaching history view (Section C below Repeated Coaching; `getAgentCoachingHistory` helper) |
 
 **Key architectural rules:**
 

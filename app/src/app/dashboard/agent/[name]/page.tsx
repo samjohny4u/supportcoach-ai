@@ -6,6 +6,7 @@ import { getCurrentOrganization } from "../../../../lib/currentOrganization";
 import {
   getAgentScorecard,
   getRepeatedCoachingForAgent,
+  getAgentCoachingHistory,
 } from "../../../../lib/coachingFollowthrough";
 import { getFollowthroughWindowDays } from "../../../../lib/planAccess";
 import FollowupMessageButton from "../../../../components/FollowupMessageButton";
@@ -45,6 +46,14 @@ function average(values: Array<number | null>) {
   return Number(
     (valid.reduce((sum, value) => sum + value, 0) / valid.length).toFixed(1)
   );
+}
+
+function formatAreaLabel(value: string): string {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function formatShortDate(value: string | null): string {
@@ -168,9 +177,10 @@ export default async function AgentPage({
     );
   }
 
-  const [scorecard, repeatedCoaching] = await Promise.all([
+  const [scorecard, repeatedCoaching, coachingHistory] = await Promise.all([
     getAgentScorecard(organizationId, agentName, windowDays),
     getRepeatedCoachingForAgent(organizationId, agentName, windowDays),
+    getAgentCoachingHistory(organizationId, agentName, windowDays),
   ]);
 
   // Digest cadence info (Phase 3 Task 24). try/catch: the coaching_digests
@@ -395,6 +405,78 @@ export default async function AgentPage({
                       </blockquote>
                     ) : null}
                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mb-10 rounded-3xl border border-white/10 bg-[#081225] p-8">
+          <h2 className="mb-2 text-2xl font-semibold">Coaching History</h2>
+          <p className="mb-6 text-sm text-gray-400">
+            Every analyzed chat for this agent in the last {windowDays} days — what was
+            coached, the scores at the time, and whether the coaching was delivered.
+          </p>
+
+          {coachingHistory.length === 0 ? (
+            <p className="text-gray-400">
+              No analyzed chats in the last {windowDays} days.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {coachingHistory.map((entry) => (
+                <div
+                  key={entry.analysis_id}
+                  className="rounded-2xl border border-white/10 bg-black/20 p-5"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-sm text-gray-400">
+                      {formatShortDate(entry.created_at)} · Customer:{" "}
+                      {entry.customer_name || "Unknown"}
+                    </div>
+
+                    {entry.coaching_points_count === 0 ? (
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-gray-400">
+                        No coaching needed
+                      </span>
+                    ) : entry.delivered ? (
+                      <span className="rounded-full border border-emerald-500/20 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+                        ✓ Delivered {formatShortDate(entry.delivered_at)}
+                      </span>
+                    ) : (
+                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-gray-400">
+                        — Not delivered
+                      </span>
+                    )}
+                  </div>
+
+                  {entry.coaching_areas.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {entry.coaching_areas.map((area) => (
+                        <span
+                          key={area}
+                          className="rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300"
+                        >
+                          {formatAreaLabel(area)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-400">
+                    <span>Empathy {entry.scores.empathy ?? "-"}</span>
+                    <span>Clarity {entry.scores.clarity ?? "-"}</span>
+                    <span>Ownership {entry.scores.ownership ?? "-"}</span>
+                    <span>Resolution {entry.scores.resolution_quality ?? "-"}</span>
+                    <span>Professionalism {entry.scores.professionalism ?? "-"}</span>
+                  </div>
+
+                  <a
+                    href={`/analysis/${entry.analysis_id}`}
+                    className="mt-3 inline-block text-xs font-semibold text-indigo-300 hover:text-indigo-200"
+                  >
+                    View analysis →
+                  </a>
                 </div>
               ))}
             </div>

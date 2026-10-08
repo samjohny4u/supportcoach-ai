@@ -39,6 +39,25 @@ export type AgentScorecard = {
   followthrough_rate: number;
 };
 
+export type CoachingHistoryEntry = {
+  analysis_id: string;
+  created_at: string;
+  customer_name: string | null;
+  // Areas from the structured coaching_points; falls back to the generic
+  // improvement_areas tags for analyses that predate structured points.
+  coaching_areas: string[];
+  coaching_points_count: number;
+  scores: {
+    empathy: number | null;
+    clarity: number | null;
+    ownership: number | null;
+    resolution_quality: number | null;
+    professionalism: number | null;
+  };
+  delivered: boolean;
+  delivered_at: string | null;
+};
+
 export type RepeatedCoaching = {
   followthrough_id: string;
   source_analysis_id: string;
@@ -112,6 +131,89 @@ function findCoachingPoint(
     specific_behavior: specificBehavior,
     recommended_behavior: recommendedBehavior,
   };
+}
+
+// Phase 2 Task 6b: chronological coaching history for an agent (newest
+// first) within the plan window. Caps at 200 rows (REPORT_CHAT_LIMIT
+// precedent) to protect the page on a 365-day enterprise window.
+export async function getAgentCoachingHistory(
+  organizationId: string,
+  agentName: string,
+  windowDays: number
+): Promise<CoachingHistoryEntry[]> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("chat_analyses")
+      .select(
+        "id, created_at, customer_name, coaching_points, improvement_areas, coaching_delivered, coaching_delivered_at, empathy, clarity, ownership, resolution_quality, professionalism"
+      )
+      .eq("organization_id", organizationId)
+      .eq("agent_name", agentName)
+      .eq("excluded", false)
+      .gte("created_at", getWindowStart(windowDays))
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error) {
+      console.error("Failed to load agent coaching history:", error.message);
+      return [];
+    }
+
+    const entries: CoachingHistoryEntry[] = [];
+
+    for (const row of data || []) {
+      const points = Array.isArray(row.coaching_points) ? row.coaching_points : [];
+
+      const pointAreas = points
+        .map((point: CoachingPointRecord & { area?: unknown }) =>
+          point && typeof point === "object" && typeof point.area === "string"
+            ? point.area
+            : ""
+        )
+        .filter((area: string) => area.length > 0);
+
+      const fallbackAreas = Array.isArray(row.improvement_areas)
+        ? row.improvement_areas.filter(
+            (area: unknown): area is string =>
+              typeof area === "string" && area.length > 0
+          )
+        : [];
+
+      const coachingAreas = Array.from(
+        new Set(pointAreas.length > 0 ? pointAreas : fallbackAreas)
+      );
+
+      entries.push({
+        analysis_id: String(row.id),
+        created_at: String(row.created_at),
+        customer_name:
+          typeof row.customer_name === "string" ? row.customer_name : null,
+        coaching_areas: coachingAreas,
+        coaching_points_count: points.length,
+        scores: {
+          empathy: typeof row.empathy === "number" ? row.empathy : null,
+          clarity: typeof row.clarity === "number" ? row.clarity : null,
+          ownership: typeof row.ownership === "number" ? row.ownership : null,
+          resolution_quality:
+            typeof row.resolution_quality === "number"
+              ? row.resolution_quality
+              : null,
+          professionalism:
+            typeof row.professionalism === "number" ? row.professionalism : null,
+        },
+        delivered: row.coaching_delivered === true,
+        delivered_at:
+          typeof row.coaching_delivered_at === "string"
+            ? row.coaching_delivered_at
+            : null,
+      });
+    }
+
+    return entries;
+  } catch (error) {
+    console.error("Failed to load agent coaching history:", error);
+    return [];
+  }
 }
 
 export async function getAgentScorecard(
