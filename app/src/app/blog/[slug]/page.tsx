@@ -98,7 +98,14 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           ← All articles
         </Link>
         <h1 className="text-3xl font-bold text-white mt-4 mb-3 leading-tight">{article.title}</h1>
-        <p className="text-gray-500 text-sm mb-10">Support Coach AI · September 2026</p>
+        <p className="text-gray-500 text-sm mb-10">
+          Support Coach AI ·{" "}
+          {new Date(`${article.date}T00:00:00Z`).toLocaleDateString("en-US", {
+            month: "long",
+            year: "numeric",
+            timeZone: "UTC",
+          })}
+        </p>
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
           {article.body}
         </ReactMarkdown>
