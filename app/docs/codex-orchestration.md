@@ -1833,6 +1833,55 @@ Presets still work and clear the custom date.
 
 ---
 
+### TASK 32: Pre-launch security hardening — close the unauthenticated OpenAI endpoints + real cron
+STATUS: ✅ DONE (Oct 8, 2026) — code complete, lint/build green; owner action pending: add
+`CRON_SECRET` in Vercel (until then the cron 401s harmlessly; in-app triggering unaffected).
+
+**Why:** Two endpoints were publicly callable (KNOWN ISSUES since Sep 13): `/api/team-summary`
+POST ran an OpenAI call on any posted payload (direct spend amplification for anyone with the
+URL), and `/api/process-jobs` GET let anyone trigger the worker. Also lays the cron foundation
+the bi-weekly digest automation has been blocked on.
+
+**Design decisions:**
+- `/api/team-summary` is DELETED, not auth-wrapped. Its only caller was the dashboard itself via
+  a server-to-server self-fetch through `NEXT_PUBLIC_SITE_URL` — the exact hop that silently broke
+  production before Sep 13. The OpenAI call moves to `src/lib/teamSummary.ts` and the dashboard
+  calls it directly: no HTTP hop, no env dependency, no public surface. Restore from git if a
+  client-side caller ever needs it (it must then require session auth).
+- `/api/process-jobs` GET accepts EITHER a logged-in Supabase session (upload page auto-trigger,
+  polling, WorkerTriggerButton — cookies ride along on same-origin fetches) OR
+  `Authorization: Bearer ${CRON_SECRET}` (Vercel cron sends this header automatically when the
+  CRON_SECRET env var exists). Everything else: 401. If CRON_SECRET is unset, the cron path is
+  simply disabled — session triggering still works, nothing breaks.
+- `app/vercel.json` (new) registers a daily cron: `0 6 * * *` UTC on `/api/process-jobs` —
+  a backstop sweeper for jobs whose uploader closed the tab. Daily is the Hobby-plan ceiling;
+  on Vercel Pro, tighten to `*/5 * * * *`.
+
+**Edits:**
+1. `src/lib/teamSummary.ts` (new) — `generateTeamSummary(payload)`: the exact OpenAI call,
+   prompt, and JSON schema from the old route, returning the parsed result or null.
+2. `src/app/dashboard/page.tsx` — `getTeamAISummary` now calls `generateTeamSummary` directly;
+   self-fetch and `NEXT_PUBLIC_SITE_URL` usage removed. (MUST-NOT-BREAK file — surgical edit.)
+3. `src/app/api/team-summary/route.ts` — DELETED.
+4. `src/app/api/process-jobs/route.ts` — auth gate at the top of GET (cron bearer OR session).
+5. `vercel.json` (new, in app/ = Vercel project root) — daily cron.
+
+**Owner actions (required to finish):**
+1. Vercel → Settings → Environment Variables → add `CRON_SECRET`, a long random string
+   (password-generator grade, 32+ chars), all environments, Sensitive. Do NOT reuse any other
+   key. Without it the cron gets 401s (visible in Vercel logs); app behavior is unaffected.
+2. Redeploy happens via the push; verify the cron appears under Vercel → Settings → Cron Jobs.
+
+**Test (owner):** (1) dashboard loads and the AI summary still appears (cache hit = instant);
+(2) upload a PDF → processing auto-starts as before; (3) Process Now button works; (4) from a
+logged-out browser/incognito: `curl https://www.supportcoach.io/api/process-jobs` returns 401,
+and `/api/team-summary` returns 404/405; (5) after adding CRON_SECRET, next scheduled run shows
+200 in Vercel cron logs.
+
+**Commit:** `Task 32: pre-launch security hardening (worker auth + team-summary inlined + cron)`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
