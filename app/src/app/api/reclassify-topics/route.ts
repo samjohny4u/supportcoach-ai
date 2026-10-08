@@ -2,6 +2,8 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getCurrentOrganization } from "@/lib/currentOrganization";
+import { CHAT_TYPE_PROMPT_SECTION, normalizeChatType } from "@/lib/chatTypeTaxonomy";
 
 export const runtime = "nodejs";
 
@@ -39,14 +41,6 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function normalizeChatType(value: unknown): string | null {
-  if (!isNonEmptyString(value)) {
-    return null;
-  }
-
-  return value.trim();
-}
-
 async function classifyChatType(transcriptText: string): Promise<string> {
   const completion = await openai.chat.completions.create({
     model: "gpt-5.4",
@@ -59,14 +53,8 @@ async function classifyChatType(transcriptText: string): Promise<string> {
 Return ONLY a JSON object with one field:
 { "chat_type": "" }
 
-chat_type rules:
-- Must be a short, consistent category name describing the product module or issue type.
-- Use general module-level categories, not overly specific descriptions.
-- Always use Title Case.
-- Always use the shortest accurate category name.
-- If a chat covers multiple topics, choose the primary one.
-- Good examples: "Billing", "Integrations", "Permissions", "Scheduling", "Reporting", "Documents", "Projects", "Change Orders", "Estimates", "API", "Account Management", "Notifications", "Sync Issues", "User Access", "Mobile App", "Data Import", "Payments", "Contracts", "Timesheets", "Daily Logs", "Feature Request", "Project Settings"
-- Bad examples: "Customer asking about invoice discrepancy" (too specific), "Support" (too vague), "Technical Issue" (too vague), "Unknown" (meaningless), "Abandoned Chat" (that's an outcome, not a topic), "Workflow Confusion" (that's a symptom, not a topic)`,
+${CHAT_TYPE_PROMPT_SECTION}
+- Additional bad examples for transcript classification: "Abandoned Chat" (that's an outcome, not a topic), "Workflow Confusion" (that's a symptom, not a topic), "Support" / "Technical Issue" / "Unknown" (too vague or meaningless).`,
       },
       {
         role: "user",
@@ -110,17 +98,38 @@ ${transcriptText}`,
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as ReclassifyRequestBody;
-    const organizationId =
-      typeof body.organization_id === "string" && body.organization_id.trim().length > 0
-        ? body.organization_id.trim()
-        : null;
+    // Auth (Task 33, same pattern as Task 32): this maintenance tool was
+    // publicly callable with any organization_id — an open OpenAI-spend AND
+    // cross-org data-mutation hole. A logged-in session may only reclassify
+    // its OWN org (body organization_id is ignored); the CRON_SECRET bearer
+    // (owner curl) may name the org in the body.
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = req.headers.get("authorization");
+    const isCronCall = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
 
-    if (!organizationId) {
-      return NextResponse.json(
-        { error: "organization_id is required" },
-        { status: 400 }
-      );
+    const body = (await req.json().catch(() => ({}))) as ReclassifyRequestBody;
+
+    let organizationId: string | null = null;
+
+    if (isCronCall) {
+      organizationId =
+        typeof body.organization_id === "string" && body.organization_id.trim().length > 0
+          ? body.organization_id.trim()
+          : null;
+
+      if (!organizationId) {
+        return NextResponse.json(
+          { error: "organization_id is required" },
+          { status: 400 }
+        );
+      }
+    } else {
+      try {
+        const organization = await getCurrentOrganization();
+        organizationId = organization.organizationId;
+      } catch {
+        return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+      }
     }
 
     const { count, error: countError } = await supabase
