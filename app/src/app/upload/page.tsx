@@ -19,6 +19,7 @@ type QueueResponse = {
   total_files?: number;
   error?: string;
   duplicates?: DuplicateResult[];
+  usage_warning?: string | null;
 };
 
 type Job = {
@@ -62,6 +63,7 @@ export default function UploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isTriggeringWorker, setIsTriggeringWorker] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
+  const [usageWarning, setUsageWarning] = useState("");
   const [recentJobs, setRecentJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [duplicateResults, setDuplicateResults] = useState<DuplicateResult[]>([]);
@@ -217,6 +219,7 @@ export default function UploadPage() {
       setJobId("");
       setQueuedCount(0);
       setDuplicateResults([]);
+      setUsageWarning("");
       setStatus(`Extracting text from ${selectedFiles.length} PDF(s)...`);
 
       const extractedFiles: { file_name: string; transcript_text: string }[] = [];
@@ -258,6 +261,7 @@ export default function UploadPage() {
       setJobId(data.job_id || "");
       setQueuedCount(data.total_files || selectedFiles.length);
       setDuplicateResults(duplicates);
+      setUsageWarning(typeof data.usage_warning === "string" ? data.usage_warning : "");
 
       if (duplicates.length > 0) {
         setStatus(
@@ -393,6 +397,12 @@ export default function UploadPage() {
             {isTriggeringWorker && (
               <div className="inline-flex rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs font-medium text-yellow-300">
                 Processing...
+              </div>
+            )}
+
+            {usageWarning && (
+              <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-4">
+                <p className="text-sm text-orange-300">{usageWarning}</p>
               </div>
             )}
 
