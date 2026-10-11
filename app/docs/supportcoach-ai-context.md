@@ -260,7 +260,8 @@ supportcoach-ai/
     │   ├── currentOrganization.ts          # Helper to get org ID for current user
     │   ├── paddle.ts                       # Paddle price mapping, webhook verification, plan hierarchy
     │   ├── planAccess.ts                   # Plan gating logic, feature access per tier, trial/subscription status, follow-through window per plan (Section 10k)
-    │   └── coachingFollowthrough.ts        # Server helpers for coaching history, scorecard, repeated coaching detection, follow-up message templating (Section 10k — Phase 2)
+    │   ├── coachingFollowthrough.ts        # Server helpers for coaching history, scorecard, repeated coaching detection, follow-up message templating (Section 10k — Phase 2)
+    │   └── aiCostControls.ts               # Task 34: per-seat fair-use allowance, monthly AI spend ceiling, ai_usage ledger, reserved ingestion constants
     │
     ├── components/
     │   ├── CopyButton.tsx                  # Reusable copy-to-clipboard button component (auto-marks coaching delivered on click — Section 10k)
@@ -353,6 +354,8 @@ Stores tenant organizations.
 | name | text | Organization display name |
 | coaching_context | text | Manager-provided company-specific process knowledge, product rules, and coaching expectations. Injected into the AI prompt during analysis. Max 5000 characters. Added by Section 9k. |
 | auto_mark_coaching_delivered | boolean | Default true. When true, clicking Copy Message on an analysis auto-marks coaching as delivered. When false, manager must mark delivery manually on the analysis page. Added by Section 10k. |
+| ai_spend_ceiling_usd | numeric(10,2) | Nullable. When set, overrides the computed monthly AI spend ceiling for this org (see `src/lib/aiCostControls.ts`). Added by Task 34. |
+| fair_use_seats_override | integer | Nullable. When set (> 0), used instead of subscription seats for fair-use allowance math only; billing is untouched. Added by Task 34. |
 | plan | text | Current plan tier: 'trial', 'starter', 'professional', 'enterprise'. Default 'trial'. Updated by Paddle webhook. |
 | trial_ends_at | timestamp | When the org's trial expires. Set to now()+14 days at org creation. |
 | created_at | timestamp | |
@@ -382,6 +385,7 @@ Individual files belonging to a job.
 | status | text | pending, processing, completed, failed. Note: legacy data may contain "done" — treat as equivalent to completed. New records must use completed. |
 | analysis_id | uuid | FK → chat_analyses.id (set after analysis). Also used as the idempotency check — if populated, the item has been fully processed. |
 | transcript_hash | text | SHA-256 hash of transcript_text content. Used for duplicate detection at upload time (see Fix 8f). NULL for legacy rows uploaded before this feature. |
+| failure_reason | text | Nullable. Short ASCII label written by the worker when an item is skipped by a cost control (e.g. "Skipped: monthly analysis allowance reached"). Shown on /jobs/[id]. Added by Task 34. |
 | created_at | timestamp | |
 
 ### chat_analyses
@@ -506,6 +510,24 @@ Stores per-coaching-point follow-through assessments produced by the AI when ana
 Uniqueness constraint: `(source_analysis_id, source_coaching_point_id, detected_in_analysis_id)` — re-analyzing a chat does not create duplicate follow-through rows.
 
 Index: `(organization_id, agent_name, created_at DESC)` for fast agent page queries.
+
+### ai_usage
+One row per OpenAI call made by the analysis workers. Cost accounting for the per-org monthly spend ceiling. Added by Task 34. Written only by `recordAiUsage()` in `src/lib/aiCostControls.ts` (best effort — a failed insert never blocks analysis).
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | Primary key |
+| organization_id | uuid | Required — tenant isolation |
+| source | text | Calling route: `process-jobs` or `reanalyze-analysis` (reports/digests not yet recorded) |
+| model | text | Model id used for the call |
+| prompt_tokens | integer | From the completion's usage |
+| completion_tokens | integer | From the completion's usage |
+| cached_tokens | integer | From usage.prompt_tokens_details.cached_tokens |
+| cost_usd | numeric(10,6) | ESTIMATE from token counts at the rates in `AI_MODEL_PRICING_USD_PER_MILLION`, not an invoice figure |
+| analysis_id | uuid | Nullable FK → chat_analyses.id (set for re-analysis; null for first analysis) |
+| created_at | timestamp | |
+
+Index: `(organization_id, created_at DESC)`. RLS enabled with the standard org-membership policy.
 
 ### 6e. Table Relationships (Foreign Key Chain)
 
@@ -640,7 +662,7 @@ Login, Signup, Logout, Org onboarding for new users, middleware-based route prot
 | /api/signup | POST | User registration | ✅ Working |
 | /api/logout | POST | Session logout | ✅ Working |
 | /api/onboarding | POST | Create organization | ✅ Working |
-| /api/create-analysis-job | POST | Create job + items from PDFs (with duplicate detection) | ✅ Working |
+| /api/create-analysis-job | POST | Create job + items from PDFs (with duplicate detection). Returns 429 when the org's monthly upload allowance is reached; success JSON carries `usage_warning` at 70%+ (Task 34) | ✅ Working |
 | /api/process-jobs | GET | Worker — processes pending jobs | ✅ Working |
 | /api/analyze | POST | Direct single-transcript analysis | ✅ Working (legacy) |
 | /api/job-status | GET | Poll job progress | ✅ Working |

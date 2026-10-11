@@ -1948,6 +1948,115 @@ chat_type; (4) unauthenticated POST to /api/reclassify-topics returns 401.
 
 ---
 
+### TASK 34: AI cost controls — per-seat fair-use allowance, monthly spend ceiling, usage ledger
+STATUS: ✅ BUILT (Oct 11, 2026), lint/tsc/build clean, committed NOT pushed. OWNER ACTIONS
+PENDING: (1) run the migration SQL below BEFORE or AFTER push (code fails open without it —
+see "Behavior before the migration"); (2) set `fair_use_seats_override` on the test org (its
+synthetic enterprise subscription has 1 seat, so the 60-analyses cap would throttle our own
+team); (3) browser verification per the Test block.
+
+**Why:** Price is per agent seat, cost is per chat analysed. Without a cap one customer can
+flip the margin (a 2-seat team pushing 4,000 chats pays $58 and could cost $60-90 in OpenAI).
+Four controls were agreed on Oct 11: (a) fair-use allowance per seat per month; (b) the
+"analyse everything in full" mode is Professional+ only; (c) a monthly OpenAI spend ceiling
+per org with a 70% soft warning and a 100% hard stop; (d) Starter backfills 14 days, not 30.
+(a) and (c) are enforced in this task. (b) and (d) have no code path yet (no analysis modes,
+no connector) — their constants live in the lib so the ingestion build inherits them.
+
+**As-built (file paths and exported names copied from code, rule 38):**
+1. `src/lib/aiCostControls.ts` (new, server-only, own service-role client like
+   `coachingFollowthrough.ts`). Exports: `AI_MODEL_PRICING_USD_PER_MILLION` (gpt-5.4: 2.50 in /
+   0.25 cached / 15 out per M tokens, third-party listed Oct 11), `FAIR_USE_PER_SEAT`
+   (`ingestedChatsPerMonth: 400`, `fullAnalysesPerMonth: 60`), `AI_SPEND_CEILING_USD`
+   (ceiling = max(floor[plan], perSeat[plan] x seats): perSeat trial 0 / starter 3 /
+   professional 5 / enterprise 8; floor trial 10 / starter 15 / professional 25 / enterprise 50),
+   `AI_SOFT_WARN_RATIO = 0.7`, `FULL_ANALYSIS_FOR_ALL_MIN_PLAN_LEVEL = 2` (reserved),
+   `BACKFILL_DAYS_BY_PLAN` (trial 7, starter 14, professional 30, enterprise 30; reserved),
+   `estimateCompletionCostUsd(model, usage)`, `recordAiUsage({organizationId, source, model,
+   usage, analysisId})` (best effort, never throws), `getOrgUsageSnapshot(organizationId)`
+   (returns null on any error = fail open), `checkIngestAllowance(snapshot, newChats)`,
+   `checkAnalysisBudget(snapshot)`, `failureReasonForDecision(decision)`. Month window =
+   calendar month UTC. Seats = subscription seats (trial = 1) unless
+   `organizations.fair_use_seats_override` is set. `organizations.ai_spend_ceiling_usd`
+   overrides the computed ceiling. Analyses are counted from `chat_analyses` INCLUDING excluded
+   rows (cost accounting, not stats — deliberate exception to rule 15, commented in code).
+2. `src/app/api/create-analysis-job/route.ts` — after dedupe, before the job insert:
+   `checkIngestAllowance(snapshot, newItems.length)`; blocked → HTTP 429 JSON
+   `{ error, limit_reason: "ingest_allowance", duplicates, total_files: 0 }`; allowed → success
+   JSON gains `usage_warning` (string or null, the 70% soft warning).
+3. `src/app/api/process-jobs/route.ts` — per-org snapshot cached in a Map for the invocation;
+   `checkAnalysisBudget` runs AFTER the item claim and BEFORE the conversations insert (a skipped
+   item leaves no rows). Blocked → item `status = 'failed'` with `failure_reason` (falls back to
+   status-only update if the column does not exist). After every OpenAI call:
+   `recordAiUsage(source "process-jobs")` and the in-memory snapshot advances (count + cost) so
+   a long batch cannot overshoot.
+4. `src/app/api/reanalyze-analysis/route.ts` — same gate before the OpenAI call (blocked →
+   existing error redirect with the message); `recordAiUsage(source "reanalyze-analysis",
+   analysisId)` after the call. Not a prompt change; both routes carry the identical gate.
+5. `src/app/jobs/[id]/page.tsx` — best-effort second query reads `failure_reason` for failed
+   items and shows it in red under the item. Page works before the migration (query error ignored).
+6. `src/app/upload/page.tsx` — `QueueResponse.usage_warning`; orange banner under the status
+   line when present. A 429 surfaces through the existing `Failed: <error>` path.
+
+**Behavior before the migration runs:** allowances enforce from existing tables
+(`analysis_job_items`, `chat_analyses`); spend ceiling is NOT enforced (ai_usage unreadable →
+`spendUnavailable`); `recordAiUsage` inserts fail silently; skipped items are marked failed
+without a reason. Nothing errors.
+
+**Migration SQL (owner runs in Supabase SQL Editor):**
+```sql
+-- Task 34: AI cost controls
+CREATE TABLE IF NOT EXISTS ai_usage (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  source text NOT NULL,
+  model text,
+  prompt_tokens integer NOT NULL DEFAULT 0,
+  completion_tokens integer NOT NULL DEFAULT 0,
+  cached_tokens integer NOT NULL DEFAULT 0,
+  cost_usd numeric(10,6) NOT NULL DEFAULT 0,
+  analysis_id uuid REFERENCES chat_analyses(id) ON DELETE SET NULL,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE ai_usage ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'ai_usage' AND policyname = 'ai_usage_org_isolation') THEN
+    CREATE POLICY "ai_usage_org_isolation" ON ai_usage
+      FOR ALL USING (organization_id IN (
+        SELECT organization_id FROM organization_memberships WHERE user_id = auth.uid()
+      ));
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS idx_ai_usage_org_created ON ai_usage(organization_id, created_at DESC);
+
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS ai_spend_ceiling_usd numeric(10,2);
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS fair_use_seats_override integer;
+ALTER TABLE analysis_job_items ADD COLUMN IF NOT EXISTS failure_reason text;
+```
+
+**Test-org override (owner runs; our own team is one synthetic seat, so without this the
+60-analyses cap and the $50 enterprise floor apply to all of our uploads):**
+```sql
+UPDATE organizations
+SET fair_use_seats_override = 25, ai_spend_ceiling_usd = 200
+WHERE id = '8e71dc46-e674-4131-8709-506223a35d7e';
+```
+
+**Test (owner):** (1) run the migration; (2) upload one PDF → analysis completes; in Supabase
+`SELECT source, model, prompt_tokens, completion_tokens, cost_usd FROM ai_usage ORDER BY
+created_at DESC LIMIT 1` shows the row; (3) temporarily `UPDATE organizations SET
+fair_use_seats_override = 1 WHERE id = '<test org>'` and, if this month's analyses already
+exceed 60, upload one PDF → /jobs/<id> shows the item FAILED with "Skipped: monthly analysis
+allowance reached"; Re-analyze on an existing chat shows the same message in the red banner;
+(4) `UPDATE organizations SET ai_spend_ceiling_usd = 0.01 WHERE id = '<test org>'` → next
+upload's item is skipped with "Skipped: monthly AI budget reached"; (5) restore the override
+block above; (6) upload again → completes, and if any limit is at 70%+ the orange warning shows
+on /upload after queueing; (7) logged-out curl of /api/process-jobs still returns 401 (unchanged).
+
+**Commit:** `Task 34: AI cost controls (per-seat fair-use allowance, monthly spend ceiling, ai_usage ledger)` — landed as six per-file commits `c36eb51`..`407d7ac` on top of savepoint `f089b8b`.
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,

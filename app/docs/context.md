@@ -136,6 +136,19 @@
   - `/api` was added to the disallow list on July 3 because a crawler was probing `/api/logout`
 
 ## CURRENT TASK
+- **Task 34 (Oct 11, 2026): AI cost controls — BUILT, committed, NOT pushed, owner actions pending.**
+  Per-seat fair-use allowance (400 uploads / 60 analyses per seat per calendar month), monthly
+  AI spend ceiling (70% soft warning on /upload, 100% hard stop in both workers), and an
+  `ai_usage` ledger of every analysis call's tokens and estimated cost. New lib
+  `src/lib/aiCostControls.ts`; gates in `create-analysis-job` (429), `process-jobs` and
+  `reanalyze-analysis`; `failure_reason` shown on /jobs/[id]. Fails open everywhere (null
+  snapshot = allowed; ceiling unenforced until the `ai_usage` table exists). OWNER MUST: run the
+  Task 34 migration SQL (codex-orchestration.md), then set `fair_use_seats_override = 25` and
+  `ai_spend_ceiling_usd = 200` on the test org — its synthetic enterprise subscription has ONE
+  seat, so without the override our own team is capped at 60 analyses and $50 a month. The
+  "analyse everything in full = Professional+" gate and "Starter backfills 14 days" rule are
+  constants only (`FULL_ANALYSIS_FOR_ALL_MIN_PLAN_LEVEL`, `BACKFILL_DAYS_BY_PLAN`) until the
+  ingestion build creates analysis modes and a connector.
 - **Phase 3 is COMPLETE: Tasks 1-30 plus hotfixes all DONE as of September 25, 2026** (Task 21
   dedup Sep 20; Task 30 digest-covers-all-chats Sep 17; mechanical short-chat trigger Sep 25;
   Tasks 27-29 session/logout/report fixes Sep 13). See PHASE 3 TASKS in codex-orchestration.md for
@@ -393,9 +406,27 @@ decisions were made deliberately and each one inverts when uncurated data starts
    volume-based cost controls need review (per-analysis spend currently gated by manual upload).
 6. **Bi-weekly digest automation unblocks** — Task 9's cadence automation was blocked on the cron
    decision; the same scheduler that drives ingestion can drive digests.
+7. **Cost controls already exist — extend, do not reinvent (Task 34, Oct 11, 2026)** —
+   `src/lib/aiCostControls.ts` enforces the per-seat allowance and the monthly spend ceiling in
+   both workers and records every call in `ai_usage`. The connector must (a) count API-ingested
+   chats against `FAIR_USE_PER_SEAT.ingestedChatsPerMonth` the way uploads are counted today;
+   (b) implement the three analysis modes (full / short / classify-only) and gate "analyse
+   everything in full" behind `FULL_ANALYSIS_FOR_ALL_MIN_PLAN_LEVEL` (Professional+), still
+   under the allowance; (c) backfill `BACKFILL_DAYS_BY_PLAN[plan]` days (Starter 14), never 30
+   for Starter; (d) call `recordAiUsage` from the classify-only path too, with its own model id
+   added to `AI_MODEL_PRICING_USD_PER_MILLION`; (e) check `checkAnalysisBudget` before every
+   unattended OpenAI call — the cron path has no human watching the bill.
 
 ## KNOWN ISSUES / BLOCKERS
 - No active blockers
+- Task 34 cost controls (Oct 11, 2026): the spend ceiling is NOT enforced until the owner runs
+  the `ai_usage` migration (code treats an unreadable table as "spend unavailable" and allows).
+  The per-seat allowances ARE enforced from existing tables immediately on deploy — so the
+  test-org override SQL (codex-orchestration.md Task 34) must run before or right after push,
+  or our own team hits the 60-analyses cap. Reports, digests and the team summary do NOT yet
+  record into `ai_usage` (only the two analysis workers do) — the ledger under-counts by the
+  report share, roughly $10-15 a month at our volume. Extending `recordAiUsage` to those call
+  sites is a follow-up, not scoped.
 - AI Weekly Team Summary empty in production — RESOLVED August 26, 2026 (config, not code). Root cause: `NEXT_PUBLIC_SITE_URL` was never added to Vercel, so the dashboard's self-fetch fell back to localhost:3000 inside the lambda; the summary had NEVER worked in production. Fix applied by owner: Vercel env var `NEXT_PUBLIC_SITE_URL` = `https://www.supportcoach.io` added as type Config (not Secret — NEXT_PUBLIC_ values are browser-exposed by design), Production scope, redeployed. Owner confirmed the summary populates. Vercel-dashboard change — invisible to git, recorded here.
 - SECURITY: unauthenticated OpenAI endpoints — FIXED October 8, 2026 (Task 32). `/api/team-summary` is DELETED (its OpenAI call moved to `src/lib/teamSummary.ts`, called directly by the dashboard — this also removes the fragile NEXT_PUBLIC_SITE_URL self-fetch that caused the Aug 26 production incident above). `/api/process-jobs` GET now requires a logged-in session OR `Authorization: Bearer ${CRON_SECRET}` (Vercel cron). New `vercel.json` registers a daily 06:00 UTC cron sweep of process-jobs (Hobby ceiling; tighten to */5 on Pro). `CRON_SECRET` was added by owner Oct 8 (type Secret, Production only) and redeployed; public curl confirmed 401. Vercel-dashboard change — invisible to git, recorded here. The secret exists ONLY in Vercel; if lost or leaked, generate a new random value and update the env var (nothing else depends on it).
 - `src/app/api/extension-waitlist/route.ts` is now ORPHANED — the June 24 extension rebuild replaced the waitlist form with pricing CTAs, so nothing in the codebase calls this route any more. The route and the `extension_waitlist` Supabase table (which holds real signups) both still exist. Do NOT delete either without an explicit decision — the table has customer data and the route is the only thing that can write to it if the waitlist is ever restored.
@@ -474,7 +505,28 @@ decisions were made deliberately and each one inverts when uncurated data starts
   - Docs anti-drift: rules.md rule 38 (as-built names in DONE entries) + warn-only pre-push hook at .githooks/pre-push (activate per machine: `git config core.hooksPath .githooks`).
 - Phase 2 Task 5 display filter (May 1, 2026): the analysis page hides coaching_followthrough rows where the final status (manager_override or AI status) is "no_opportunity". This filter is DISPLAY-ONLY on the analysis page. The DB rows still exist for all three statuses. Task 6 (agent page scorecard) MUST count all three statuses (followed_through, repeated, no_opportunity) when building the scorecard totals — do NOT inherit this filter into Task 6. The scorecard is meant to be honest about what was evaluated; the analysis page filter exists only to reduce per-chat noise for the manager.
 
+- **AI cost controls (Task 34, Oct 11, 2026):**
+  - Allowances are per seat per calendar month (UTC): 400 ingested chats, 60 full analyses.
+    Trial = 1 seat. `organizations.fair_use_seats_override` substitutes a seat count for
+    allowance math only (billing untouched).
+  - Spend ceiling = max(plan floor, per-seat x seats): trial $10 flat; starter $15 / $3 per
+    seat; professional $25 / $5; enterprise $50 / $8. `organizations.ai_spend_ceiling_usd`
+    overrides. Soft warning at 70% (upload page banner), hard stop at 100% (worker skips the
+    item, marks it failed with `failure_reason`).
+  - Cost is ESTIMATED from token usage at listed gpt-5.4 rates, not read from OpenAI billing.
+  - Analyses are counted including excluded rows — cost accounting, deliberate exception to
+    rule 15, commented at the query.
+  - Everything fails OPEN (rule 37 spirit): a snapshot error, a missing table, or a missing
+    column never blocks an upload or an analysis.
+  - "Analyse everything in full" is Professional+ (`FULL_ANALYSIS_FOR_ALL_MIN_PLAN_LEVEL = 2`)
+    and Starter backfills 14 days (`BACKFILL_DAYS_BY_PLAN`) — constants reserved for the
+    ingestion build, no behavior today.
+  - Blocked uploads return HTTP 429 with a plain-language message; blocked re-analysis uses the
+    existing error redirect.
+
 ## FILES THAT MUST NOT BREAK
+- `src/lib/aiCostControls.ts` — Task 34. The only definition site for allowance, ceiling and
+  pricing constants; `getOrgUsageSnapshot` must keep returning null (fail open) on any error.
 - `src/app/api/process-jobs/route.ts` — the core worker
 - `src/app/api/reanalyze-analysis/route.ts` — per-chat re-analyze worker
 - `src/app/dashboard/page.tsx` — main dashboard

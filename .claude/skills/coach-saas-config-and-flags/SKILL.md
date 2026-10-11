@@ -88,6 +88,22 @@ Expected: exactly 3 files (`lib/paddle.ts`, `select-plan/page.tsx`, and no other
 Get-ChildItem C:\Users\CHIST\Desktop\GitRepo\supportcoach-ai\app\src -Recurse -Include *.ts,*.tsx | Select-String -Pattern 'getOrgAccess|getFollowthroughWindowDays|PLAN_HIERARCHY'
 ```
 
+### 3c. AI cost controls — `src/lib/aiCostControls.ts` (Task 34, added 2026-10-11)
+
+One definition site for every cost constant. Plane 2 (TS constants) plus two plane-3 per-org override columns. All fail OPEN.
+
+| Constant / column | Value | Effect |
+|---|---|---|
+| `FAIR_USE_PER_SEAT` | 400 ingested chats, 60 full analyses per seat per calendar month (UTC) | `checkIngestAllowance` in `create-analysis-job` (429); `checkAnalysisBudget` in BOTH workers (item skipped, `failure_reason` set) |
+| `AI_SPEND_CEILING_USD` | ceiling = max(floor, perSeat x seats); perSeat trial 0 / starter 3 / pro 5 / ent 8; floor trial 10 / starter 15 / pro 25 / ent 50 | Hard stop in both workers once `ai_usage` spend this month reaches it; unenforced while the table is unreadable |
+| `AI_SOFT_WARN_RATIO` | 0.7 | `usage_warning` on the upload response → orange banner on /upload |
+| `AI_MODEL_PRICING_USD_PER_MILLION` | gpt-5.4: 2.50 in / 0.25 cached / 15 out (third-party listed) | `estimateCompletionCostUsd`; unknown model ids fall back to the gpt-5.4 row (worst case). A model swap (Section 4) must add a row here or spend is mis-estimated |
+| `FULL_ANALYSIS_FOR_ALL_MIN_PLAN_LEVEL`, `BACKFILL_DAYS_BY_PLAN` | 2 (Professional+); trial 7 / starter 14 / pro 30 / ent 30 | RESERVED — no consumer until the ingestion build (context.md API INGESTION checklist item 7) |
+| `organizations.fair_use_seats_override` (int, nullable) | per-org | Replaces subscription seats in allowance math only. The test org MUST carry this (its synthetic subscription has 1 seat) |
+| `organizations.ai_spend_ceiling_usd` (numeric, nullable) | per-org | Replaces the computed ceiling |
+
+Recorded by `recordAiUsage` from the two analysis workers only; reports, digests and the team summary are not yet in the ledger.
+
 ## 4. The hard-coded model id — `"gpt-5.4"`, 8 call sites (count verified 2026-07-17)
 
 No env var, no shared constant — the model id is a string literal at each site. `temperature: 0.2` accompanies it everywhere EXCEPT team-summary (no temperature param there). A model swap is a multi-file production change: savepoint first (coach-saas-change-control Section 2), and remember the two worker routes are a matched pair (prompt/schema parity rule).
