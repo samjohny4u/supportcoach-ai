@@ -13,8 +13,7 @@ export const metadata = {
   alternates: { canonical: "/pilot" },
 };
 
-const CALL_MAILTO =
-  "mailto:support@supportcoach.io?subject=Support%20Coach%20pilot%20-%20setup%20call&body=Hi%20Johny%2C%0A%0AWe%27d%20like%20to%20run%20the%2030-day%20pilot.%0A%0AHelp%20desk%20(Zendesk%20%2F%20Intercom%20%2F%20Zoho%20SalesIQ)%3A%20%0ANumber%20of%20chat%20agents%3A%20%0AThree%20times%20that%20suit%20you%20for%20a%2020-minute%20call%3A%20%0A";
+const BOOKING_URL = "https://calendly.com/supportcoach-support";
 
 const included: { title: string; body: string }[] = [
   {
@@ -87,7 +86,7 @@ export default function PilotPage() {
         </p>
         <div className="flex flex-wrap gap-3 mb-14">
           <a
-            href={CALL_MAILTO}
+            href={BOOKING_URL}
             className="rounded-full bg-emerald-400 px-6 py-3 text-sm font-bold text-black transition hover:bg-emerald-300"
           >
             Book the setup call
@@ -190,7 +189,7 @@ export default function PilotPage() {
             </p>
             <div>
               <a
-                href={CALL_MAILTO}
+                href={BOOKING_URL}
                 className="inline-block rounded-full bg-emerald-400 px-6 py-3 text-sm font-bold text-black transition hover:bg-emerald-300"
               >
                 Book the setup call
