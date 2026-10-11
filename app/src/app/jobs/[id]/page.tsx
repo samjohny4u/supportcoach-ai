@@ -107,6 +107,25 @@ export default async function JobDetailsPage({
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: true });
 
+  // Task 34: failure_reason is read in a separate best-effort query so the
+  // page keeps working before the migration adds the column.
+  const failureReasons = new Map<string, string>();
+  const failedIds = (items || []).filter((item) => item.status === "failed").map((item) => item.id);
+  if (failedIds.length > 0) {
+    const { data: reasonRows, error: reasonError } = await supabase
+      .from("analysis_job_items")
+      .select("id, failure_reason")
+      .eq("organization_id", organizationId)
+      .in("id", failedIds);
+    if (!reasonError && Array.isArray(reasonRows)) {
+      for (const row of reasonRows) {
+        if (typeof row.failure_reason === "string" && row.failure_reason.trim().length > 0) {
+          failureReasons.set(row.id, row.failure_reason.trim());
+        }
+      }
+    }
+  }
+
   const progress = job
     ? getProgressPercent(job.processed_files || 0, job.total_files || 0)
     : 0;
@@ -241,6 +260,10 @@ export default async function JobDetailsPage({
                       ) : item.status === "completed" ? (
                         <div className="mt-3 text-sm text-gray-500">
                           Analysis link not available for older processed items.
+                        </div>
+                      ) : item.status === "failed" && failureReasons.has(item.id) ? (
+                        <div className="mt-3 text-sm text-red-300">
+                          {failureReasons.get(item.id)}
                         </div>
                       ) : null}
                     </div>
