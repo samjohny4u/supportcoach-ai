@@ -13,7 +13,7 @@ export const metadata = {
   alternates: { canonical: "/pilot" },
 };
 
-const BOOKING_URL = "https://calendly.com/supportcoach-support";
+const BOOKING_URL = "https://calendly.com/supportcoach-support/support-coach-pilot-setup";
 
 const included: { title: string; body: string }[] = [
   {
