@@ -10,6 +10,7 @@ import {
   type PriorCoachingPoint,
 } from "@/lib/coachingFollowthroughFetch";
 import { CHAT_TYPE_PROMPT_SECTION, normalizeChatType } from "@/lib/chatTypeTaxonomy";
+import { getOrgUsageSnapshot, checkAnalysisBudget, recordAiUsage } from "@/lib/aiCostControls";
 
 export const runtime = "nodejs";
 
@@ -630,6 +631,15 @@ ${companyCoachingContext}
       : "";
     // --- End coaching context section ---
 
+    // Task 34: monthly analysis allowance + AI spend ceiling. Fails open on a
+    // null snapshot. A re-analysis costs the same as a first analysis.
+    const budgetDecision = checkAnalysisBudget(await getOrgUsageSnapshot(organizationId));
+    if (!budgetDecision.allowed) {
+      return NextResponse.redirect(
+        buildRedirectUrl(req, returnTo, "error", budgetDecision.message || "Monthly AI budget reached.")
+      );
+    }
+
     const completion = await openai.chat.completions.create({
       model: "gpt-5.4",
       temperature: 0.2,
@@ -1014,6 +1024,15 @@ RECURRENCE CHECK - never mint duplicate coaching points:
           content: transcriptForAI,
         },
       ],
+    });
+
+    // Task 34: record spend whether or not the response parses - the cost was incurred.
+    await recordAiUsage({
+      organizationId,
+      source: "reanalyze-analysis",
+      model: "gpt-5.4",
+      usage: completion.usage,
+      analysisId,
     });
 
     const raw = completion.choices[0]?.message?.content || "";
