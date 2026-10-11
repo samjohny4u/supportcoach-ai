@@ -5,7 +5,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-black text-gray-300">
       <div className="max-w-3xl mx-auto px-6 py-16">
         <h1 className="text-3xl font-bold text-white mb-2">Privacy Policy</h1>
-        <p className="text-gray-500 mb-10">Last updated: September 20, 2026</p>
+        <p className="text-gray-500 mb-10">Last updated: October 11, 2026</p>
 
         <div className="space-y-8 text-sm leading-relaxed">
           <section>
@@ -49,15 +49,20 @@ export default function PrivacyPage() {
             <p className="font-medium text-white mt-3 mb-1">How You Found Us</p>
             <p>
               When you visit our public website, we measure page visits on our own servers — no
-              analytics script runs in your browser, no analytics cookie is set, and your IP address
-              is not attached to these measurements. We record the page visited, standard campaign
+              analytics script runs in your browser and no analytics cookie is set. Your IP address
+              is never stored or sent to our analytics provider: our server uses it, together with
+              your browser type, only for a moment to create a one-way identifier that changes every
+              day, then discards both. That lets us see which pages one visitor opened on the same
+              day (for example, that a visit from an advertisement went on to read our product page),
+              but it cannot be reversed to your IP address and cannot follow you from one day to the
+              next. We record the page visited, standard campaign
               parameters if you arrived from a link that carries them (such as utm_source or an ad
               click identifier), and the domain of the referring site — never the full referring
               address. Your browser may also remember these campaign parameters locally for up to 90
               days (in local storage, not a cookie) so that if you sign up, we can associate your
               account with the campaign or referral that brought you here. This information leaves
               your browser only if you sign up. <span className="text-gray-500">(Added September 20,
-              2026.)</span>
+              2026; daily identifier added October 11, 2026.)</span>
             </p>
           </section>
 

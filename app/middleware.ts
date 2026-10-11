@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 // SERVER-SIDE ONLY, BY REQUIREMENT: /privacy §11 states that "no analytics script or
 // analytics cookie is loaded on this site" — that sentence is public and must stay
 // literally true, so pageviews are captured here at the edge and never in the browser.
-// No cookie is set, no visitor IP is forwarded, referrer is reduced to its DOMAIN, and
+// No cookie is set, no visitor IP is forwarded (it only feeds the one-way daily id below), referrer is reduced to its DOMAIN, and
 // only allowlisted campaign params are read from the query string.
 //
 // The api_key below is PostHog's PUBLISHABLE project token (phc_*) — the same class of
@@ -24,6 +24,33 @@ const PUBLIC_ANALYTICS_PREFIXES = ["/blog"];
 const ATTRIBUTION_QUERY_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "ref", "gclid"];
 const SAFE_VALUE = /^[A-Za-z0-9 _/.:-]{1,100}$/;
 const BOT_UA = /bot|crawl|spider|slurp|headless|lighthouse|pingdom|monitor/i;
+
+// ---- Same-day visitor identifier (Oct 11, 2026) ----
+//
+// Lets a paid-ad visit be followed from the landing article to /extension to signup within
+// ONE day, without a cookie or a browser script. The visitor id is a one-way SHA-256 of
+// (secret + UTC date + IP + user-agent), computed here at the edge and then discarded: the IP
+// and user-agent are never stored or forwarded, and the id changes at every UTC midnight so
+// nobody can be followed across days. /privacy §2 and §11 describe exactly this.
+// VISITOR_ID_SECRET lives in the Vercel env only. If it is unset (or there is no IP) the old
+// behaviour applies — a fresh random id per pageview — the safe fallback, never an error.
+async function dailyVisitorId(request: NextRequest): Promise<string> {
+  const secret = process.env.VISITOR_ID_SECRET;
+  const forwarded = request.headers.get("x-forwarded-for") ?? "";
+  const ip = forwarded.split(",")[0].trim() || request.headers.get("x-real-ip") || "";
+  if (!secret || !ip) {
+    return `web_${crypto.randomUUID()}`;
+  }
+  const userAgent = request.headers.get("user-agent") ?? "";
+  const day = new Date().toISOString().slice(0, 10);
+  const bytes = new TextEncoder().encode(`${secret}|${day}|${ip}|${userAgent}`);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hex = Array.from(new Uint8Array(digest))
+    .slice(0, 16)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return `web_d_${hex}`;
+}
 
 function isPublicAnalyticsPath(pathname: string): boolean {
   return PUBLIC_ANALYTICS_EXACT.has(pathname) || PUBLIC_ANALYTICS_PREFIXES.some((p) => pathname.startsWith(p));
@@ -82,19 +109,23 @@ function capturePageview(request: NextRequest, event: NextFetchEvent): void {
     }
 
     event.waitUntil(
-      fetch(POSTHOG_CAPTURE_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          api_key: POSTHOG_PROJECT_KEY,
-          event: "website_pageview",
-          distinct_id: `web_${crypto.randomUUID()}`,
-          timestamp: new Date().toISOString(),
-          properties,
+      dailyVisitorId(request)
+        .then((distinctId) =>
+          fetch(POSTHOG_CAPTURE_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              api_key: POSTHOG_PROJECT_KEY,
+              event: "website_pageview",
+              distinct_id: distinctId,
+              timestamp: new Date().toISOString(),
+              properties,
+            }),
+          }),
+        )
+        .catch(() => {
+          // Analytics must never affect a page load.
         }),
-      }).catch(() => {
-        // Analytics must never affect a page load.
-      }),
     );
   } catch {
     // Never let analytics break the site.
