@@ -18,7 +18,7 @@ import { createClient } from "@supabase/supabase-js";
 const POSTHOG_CAPTURE_URL = "https://us.i.posthog.com/capture/";
 const POSTHOG_PROJECT_KEY = "phc_oPh8aXHJe2oXioQUg2LK9uGakG6ewbLiNRtqtkt9JMyS";
 
-const PUBLIC_ANALYTICS_EXACT = new Set(["/", "/extension", "/privacy", "/security", "/terms", "/refund", "/support"]);
+const PUBLIC_ANALYTICS_EXACT = new Set(["/", "/extension", "/privacy", "/security", "/terms", "/refund", "/support", "/pilot"]);
 const PUBLIC_ANALYTICS_PREFIXES = ["/blog"];
 
 const ATTRIBUTION_QUERY_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "ref", "gclid"];
@@ -287,6 +287,7 @@ export const config = {
     "/blog/:path*",
     "/privacy",
     "/security",
+    "/pilot",
     "/terms",
     "/refund",
     "/support",
