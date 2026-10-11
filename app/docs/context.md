@@ -145,7 +145,7 @@
   snapshot = allowed; ceiling unenforced until the `ai_usage` table exists). OWNER MUST: run the
   Task 34 migration SQL (codex-orchestration.md), then set `fair_use_seats_override = 25` and
   `ai_spend_ceiling_usd = 200` on the test org — its synthetic enterprise subscription has ONE
-  seat, so without the override our own team is capped at 60 analyses and $50 a month. The
+  seat, so without the override our own team is capped at 60 analyses and $25 a month. The
   "analyse everything in full = Professional+" gate and "Starter backfills 14 days" rule are
   constants only (`FULL_ANALYSIS_FOR_ALL_MIN_PLAN_LEVEL`, `BACKFILL_DAYS_BY_PLAN`) until the
   ingestion build creates analysis modes and a connector.
@@ -509,10 +509,12 @@ decisions were made deliberately and each one inverts when uncurated data starts
   - Allowances are per seat per calendar month (UTC): 400 ingested chats, 60 full analyses.
     Trial = 1 seat. `organizations.fair_use_seats_override` substitutes a seat count for
     allowance math only (billing untouched).
-  - Spend ceiling = max(plan floor, per-seat x seats): trial $10 flat; starter $15 / $3 per
-    seat; professional $25 / $5; enterprise $50 / $8. `organizations.ai_spend_ceiling_usd`
+  - Spend ceiling = max(plan floor, per-seat x seats): trial $10 flat; starter $10 / $5 per
+    seat; professional $15 / $7; enterprise $25 / $10. `organizations.ai_spend_ceiling_usd`
     overrides. Soft warning at 70% (upload page banner), hard stop at 100% (worker skips the
-    item, marks it failed with `failure_reason`).
+    item, marks it failed with `failure_reason`). Per-seat ceiling must stay above 60 analyses
+    x unit cost (~$4.20) or the money cap trips before the allowance — that is why 3/5/8 was
+    corrected to 5/7/10 the same day. Worst-case AI cost per seat = 17% / 12% / 10% of price.
   - Cost is ESTIMATED from token usage at listed gpt-5.4 rates, not read from OpenAI billing.
   - Analyses are counted including excluded rows — cost accounting, deliberate exception to
     rule 15, commented at the query.

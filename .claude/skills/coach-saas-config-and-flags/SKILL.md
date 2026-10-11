@@ -95,7 +95,7 @@ One definition site for every cost constant. Plane 2 (TS constants) plus two pla
 | Constant / column | Value | Effect |
 |---|---|---|
 | `FAIR_USE_PER_SEAT` | 400 ingested chats, 60 full analyses per seat per calendar month (UTC) | `checkIngestAllowance` in `create-analysis-job` (429); `checkAnalysisBudget` in BOTH workers (item skipped, `failure_reason` set) |
-| `AI_SPEND_CEILING_USD` | ceiling = max(floor, perSeat x seats); perSeat trial 0 / starter 3 / pro 5 / ent 8; floor trial 10 / starter 15 / pro 25 / ent 50 | Hard stop in both workers once `ai_usage` spend this month reaches it; unenforced while the table is unreadable |
+| `AI_SPEND_CEILING_USD` | ceiling = max(floor, perSeat x seats); perSeat trial 0 / starter 5 / pro 7 / ent 10; floor trial 10 / starter 10 / pro 15 / ent 25 | Hard stop in both workers once `ai_usage` spend this month reaches it; unenforced while the table is unreadable. Invariant: perSeat > 60 analyses x unit cost (~$4.20) or the money cap trips first |
 | `AI_SOFT_WARN_RATIO` | 0.7 | `usage_warning` on the upload response → orange banner on /upload |
 | `AI_MODEL_PRICING_USD_PER_MILLION` | gpt-5.4: 2.50 in / 0.25 cached / 15 out (third-party listed) | `estimateCompletionCostUsd`; unknown model ids fall back to the gpt-5.4 row (worst case). A model swap (Section 4) must add a row here or spend is mis-estimated |
 | `FULL_ANALYSIS_FOR_ALL_MIN_PLAN_LEVEL`, `BACKFILL_DAYS_BY_PLAN` | 2 (Professional+); trial 7 / starter 14 / pro 30 / ent 30 | RESERVED — no consumer until the ingestion build (context.md API INGESTION checklist item 7) |

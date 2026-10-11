@@ -1952,8 +1952,8 @@ chat_type; (4) unauthenticated POST to /api/reclassify-topics returns 401.
 STATUS: ✅ BUILT (Oct 11, 2026), lint/tsc/build clean, committed NOT pushed. OWNER ACTIONS
 PENDING: (1) run the migration SQL below BEFORE or AFTER push (code fails open without it —
 see "Behavior before the migration"); (2) set `fair_use_seats_override` on the test org (its
-synthetic enterprise subscription has 1 seat, so the 60-analyses cap would throttle our own
-team); (3) browser verification per the Test block.
+synthetic enterprise subscription has 1 seat, so the 60-analyses cap and the $25 enterprise
+floor would throttle our own team); (3) browser verification per the Test block.
 
 **Why:** Price is per agent seat, cost is per chat analysed. Without a cap one customer can
 flip the margin (a 2-seat team pushing 4,000 chats pays $58 and could cost $60-90 in OpenAI).
@@ -1968,8 +1968,10 @@ no connector) — their constants live in the lib so the ingestion build inherit
    `coachingFollowthrough.ts`). Exports: `AI_MODEL_PRICING_USD_PER_MILLION` (gpt-5.4: 2.50 in /
    0.25 cached / 15 out per M tokens, third-party listed Oct 11), `FAIR_USE_PER_SEAT`
    (`ingestedChatsPerMonth: 400`, `fullAnalysesPerMonth: 60`), `AI_SPEND_CEILING_USD`
-   (ceiling = max(floor[plan], perSeat[plan] x seats): perSeat trial 0 / starter 3 /
-   professional 5 / enterprise 8; floor trial 10 / starter 15 / professional 25 / enterprise 50),
+   (ceiling = max(floor[plan], perSeat[plan] x seats): perSeat trial 0 / starter 5 /
+   professional 7 / enterprise 10; floor trial 10 / starter 10 / professional 15 / enterprise 25
+   — corrected Oct 11 from 3/5/8 and 15/25/50 because 60 analyses x ~$0.07 = $4.20 would have
+   tripped the Starter money ceiling before the analysis allowance),
    `AI_SOFT_WARN_RATIO = 0.7`, `FULL_ANALYSIS_FOR_ALL_MIN_PLAN_LEVEL = 2` (reserved),
    `BACKFILL_DAYS_BY_PLAN` (trial 7, starter 14, professional 30, enterprise 30; reserved),
    `estimateCompletionCostUsd(model, usage)`, `recordAiUsage({organizationId, source, model,

@@ -50,10 +50,16 @@ export const FAIR_USE_PER_SEAT = {
  * Monthly AI spend ceiling in USD = max(floor[plan], perSeat[plan] * seats).
  * Trial is a flat floor (perSeat 0). organizations.ai_spend_ceiling_usd, when
  * set, overrides the computed value for that org.
+ *
+ * Consistency rule: perSeat must exceed FAIR_USE_PER_SEAT.fullAnalysesPerMonth
+ * times the cost of one full analysis (about $0.07 at gpt-5.4 rates, so about
+ * $4.20) plus a share of reports, or the money ceiling trips before the
+ * analysis allowance does. Starter 5 / 7 / 10 keeps worst-case AI cost at
+ * roughly 17% / 12% / 10% of the $29 / $59 / $99 seat price.
  */
 export const AI_SPEND_CEILING_USD = {
-  perSeat: { trial: 0, starter: 3, professional: 5, enterprise: 8 } as Record<string, number>,
-  floor: { trial: 10, starter: 15, professional: 25, enterprise: 50 } as Record<string, number>,
+  perSeat: { trial: 0, starter: 5, professional: 7, enterprise: 10 } as Record<string, number>,
+  floor: { trial: 10, starter: 10, professional: 15, enterprise: 25 } as Record<string, number>,
 } as const;
 
 /** Soft warning threshold as a ratio of any limit (0.7 = 70%). */
