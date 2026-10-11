@@ -9,6 +9,14 @@ import {
   buildFollowthroughPromptSection,
   type PriorCoachingPoint,
 } from "@/lib/coachingFollowthroughFetch";
+import {
+  getOrgUsageSnapshot,
+  checkAnalysisBudget,
+  recordAiUsage,
+  estimateCompletionCostUsd,
+  failureReasonForDecision,
+  type OrgUsageSnapshot,
+} from "@/lib/aiCostControls";
 
 export const runtime = "nodejs";
 
@@ -885,6 +893,10 @@ export async function GET(req: Request) {
 
     let processedCount = job.processed_files || 0;
 
+    // Task 34: one usage snapshot per organization per invocation, advanced
+    // locally as analyses complete so a long batch cannot overshoot a limit.
+    const usageSnapshots = new Map<string, OrgUsageSnapshot | null>();
+
     for (const item of items) {
       try {
         const { data: claimedItem, error: claimError } = await supabase
@@ -915,6 +927,33 @@ export async function GET(req: Request) {
             .eq("id", item.id);
           continue;
         }
+
+        // --- Task 34: monthly analysis allowance + AI spend ceiling ---
+        // Checked BEFORE any conversation row is written so a skipped item
+        // leaves nothing behind. Fails open on a null snapshot.
+        if (!usageSnapshots.has(organizationId)) {
+          usageSnapshots.set(organizationId, await getOrgUsageSnapshot(organizationId));
+        }
+        const usageSnapshot = usageSnapshots.get(organizationId) ?? null;
+        const budgetDecision = checkAnalysisBudget(usageSnapshot);
+
+        if (!budgetDecision.allowed) {
+          const failureReason = failureReasonForDecision(budgetDecision);
+          // failure_reason is a Task 34 column; if the migration has not run
+          // yet the first update errors and the status-only update still lands.
+          const { error: reasonUpdateError } = await supabase
+            .from("analysis_job_items")
+            .update({ status: "failed", failure_reason: failureReason })
+            .eq("id", item.id);
+          if (reasonUpdateError) {
+            await supabase
+              .from("analysis_job_items")
+              .update({ status: "failed" })
+              .eq("id", item.id);
+          }
+          continue;
+        }
+        // --- End Task 34 check ---
 
         // --- Section 9k: Fetch company coaching context for this organization ---
         let coachingContext = "";
@@ -1470,6 +1509,20 @@ RECURRENCE CHECK - never mint duplicate coaching points:
             },
           ],
         });
+
+        // Task 34: record spend whether or not the response parses - the cost
+        // was incurred - and advance the in-memory snapshot for later items.
+        await recordAiUsage({
+          organizationId,
+          source: "process-jobs",
+          model: "gpt-5.4",
+          usage: completion.usage,
+          analysisId: null,
+        });
+        if (usageSnapshot) {
+          usageSnapshot.fullAnalyses += 1;
+          usageSnapshot.spendUsd += estimateCompletionCostUsd("gpt-5.4", completion.usage);
+        }
 
         const raw = completion.choices[0]?.message?.content || "";
         const parsed = parseJsonSafely(raw) as AnalysisResult | null;
