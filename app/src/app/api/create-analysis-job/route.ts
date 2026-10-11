@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { createSupabaseServer } from "@/lib/supabaseServer";
 import { getCurrentOrganization } from "@/lib/currentOrganization";
+import { getOrgUsageSnapshot, checkIngestAllowance } from "@/lib/aiCostControls";
 
 export const runtime = "nodejs";
 
@@ -139,6 +140,24 @@ export async function POST(req: Request) {
       );
     }
 
+    // Task 34: fair-use upload allowance (per seat, per calendar month).
+    // Fails open: a null snapshot means the check could not run, so the
+    // upload proceeds. Only the NEW (non-duplicate) items count.
+    const usageSnapshot = await getOrgUsageSnapshot(organizationId);
+    const ingestDecision = checkIngestAllowance(usageSnapshot, newItems.length);
+
+    if (!ingestDecision.allowed) {
+      return NextResponse.json(
+        {
+          error: ingestDecision.message || "Monthly upload allowance reached",
+          limit_reason: ingestDecision.reason,
+          duplicates,
+          total_files: 0,
+        },
+        { status: 429 }
+      );
+    }
+
     const { data: job, error: jobError } = await supabase
       .from("analysis_jobs")
       .insert({
@@ -179,6 +198,7 @@ export async function POST(req: Request) {
       job_id: job.id,
       total_files: newItems.length,
       duplicates,
+      usage_warning: ingestDecision.warning,
     });
   } catch (error: any) {
     console.error("Create analysis job error:", error);
