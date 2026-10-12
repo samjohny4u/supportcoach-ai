@@ -117,9 +117,13 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             Support Coach works inside Zoho SalesIQ, Zendesk and Intercom. $15 per agent per
             month, 14-day free trial, no card.
           </p>
-          <Link href="/extension" className="text-emerald-500 text-sm hover:underline">
+          {/* Plain <a>, not <Link>, on purpose: a full page load is what the server-side
+              pageview capture (middleware.ts) records, so the article -> /extension
+              click-through of a paid visit stays measurable. A client-side <Link>
+              navigation sends only RSC requests, which the capture skips. */}
+          <a href="/extension" className="text-emerald-500 text-sm hover:underline">
             See how it works →
-          </Link>
+          </a>
         </div>
       </div>
     </div>
