@@ -2059,6 +2059,53 @@ on /upload after queueing; (7) logged-out curl of /api/process-jobs still return
 
 ---
 
+### TASK 35: Security — delete legacy /api/analyze, gate /api/toggle-exclude
+STATUS: BUILT + build green (Oct 16, 2026) — committed, NOT pushed; owner verification pending.
+
+**Why:** A portfolio-wide security audit (Oct 16, 2026) found the last two unauthenticated API
+routes that Task 32 missed: `/api/analyze` POST ran an OpenAI gpt-5.4 call on any posted
+transcript with no auth, no rate limit, and no size limit (public spend amplification, bypassing
+ALL Task 34 cost controls — it never called `recordAiUsage` or any allowance gate), and
+`/api/toggle-exclude` POST updated `chat_analyses.excluded` via the service-role client filtered
+only by `id` — any unauthenticated caller could flip exclusion on ANY org's analyses
+(cross-tenant tampering of dashboards/reports/stats, violating rules 14 and 20). Severity is
+amplified by the repo being public on GitHub.
+
+**Design decisions:**
+- `/api/analyze` is DELETED, not auth-wrapped. Zero references in `app/src` (verified by grep for
+  `/api/analyze`): it was the Phase-1 manual-paste endpoint, fully superseded by the
+  create-analysis-job → process-jobs pipeline, which carries auth, org scoping, dedupe, and the
+  Task 34 budget gates. Its 190-line Phase-1 coaching prompt lives on in git history if ever needed.
+- `/api/toggle-exclude` is GATED, not deleted — it has two live callers: the Report Visibility
+  form on `/analysis/[id]` (form-POST + redirect) and `ExcludeToggleButton` (JSON fetch). Gate
+  follows the standard route pattern (same as `/api/export`): `createSupabaseServer()` →
+  `auth.getUser()` → 401; `getCurrentOrganization()` → 400; update now carries
+  `.eq("organization_id", organizationId)` and returns 404 when no row matched (wrong org or
+  nonexistent id). This route intentionally has no `.eq('excluded', false)` filter — it manages
+  exclusions (rule 15 exception).
+- Latent bug fixed in the same edit: `ExcludeToggleButton` has always POSTed JSON, but the route
+  only parsed `formData()` — the button path errored and only the HTML form worked. The route now
+  branches on Content-Type: JSON callers get `{ success: true }`, form callers get the redirect.
+- The form redirect target (`return_to`) is now sanitized to same-origin relative paths
+  (must start with `/`, not `//`) — it previously accepted absolute URLs (open-redirect).
+
+**Edits:**
+1. `src/app/api/analyze/route.ts` — DELETED.
+2. `src/app/api/toggle-exclude/route.ts` — auth gate, org scoping, dual Content-Type parsing,
+   404 on no-match, sanitized redirect. Error contract otherwise unchanged (400/500 JSON).
+
+**Test (owner):** (1) open an analysis page → "Exclude From Reports" button in Report Visibility
+still works and redirects back to the analysis page; (2) the other toggle (ExcludeToggleButton,
+JSON path) also works now — click it on an analysis card and the page reloads with the state
+flipped; (3) dashboard/reports reflect the exclusion as before; (4) logged-out curl:
+`curl -X POST https://www.supportcoach.io/api/toggle-exclude` returns 401, and
+`curl -X POST https://www.supportcoach.io/api/analyze` returns 404/405; (5) no console errors
+on the analysis page.
+
+**Commit:** `Task 35: delete legacy /api/analyze, gate /api/toggle-exclude (auth + org scoping)`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,

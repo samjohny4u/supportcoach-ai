@@ -136,7 +136,13 @@
   - `/api` was added to the disallow list on July 3 because a crawler was probing `/api/logout`
 
 ## CURRENT TASK
-- **Task 34 (Oct 11, 2026): AI cost controls — BUILT, committed, NOT pushed, owner actions pending.**
+- **Task 35 (Oct 16, 2026): security — legacy `/api/analyze` DELETED (unauthenticated OpenAI
+  endpoint, zero callers, bypassed all Task 34 cost controls) and `/api/toggle-exclude` GATED
+  (session auth + `organization_id` scoping + 404 on cross-org id; also fixes the always-broken
+  JSON path used by ExcludeToggleButton and sanitizes the form redirect target). Committed, NOT
+  pushed. Owner test checklist in codex-orchestration.md Task 35.**
+- **Task 34 (Oct 11, 2026): AI cost controls — BUILT, committed and pushed (verified on origin/main
+  Oct 16), owner actions pending (migration SQL + test-org override).**
   Per-seat fair-use allowance (400 uploads / 60 analyses per seat per calendar month), monthly
   AI spend ceiling (70% soft warning on /upload, 100% hard stop in both workers), and an
   `ai_usage` ledger of every analysis call's tokens and estimated cost. New lib
@@ -428,6 +434,7 @@ decisions were made deliberately and each one inverts when uncurated data starts
   report share, roughly $10-15 a month at our volume. Extending `recordAiUsage` to those call
   sites is a follow-up, not scoped.
 - AI Weekly Team Summary empty in production — RESOLVED August 26, 2026 (config, not code). Root cause: `NEXT_PUBLIC_SITE_URL` was never added to Vercel, so the dashboard's self-fetch fell back to localhost:3000 inside the lambda; the summary had NEVER worked in production. Fix applied by owner: Vercel env var `NEXT_PUBLIC_SITE_URL` = `https://www.supportcoach.io` added as type Config (not Secret — NEXT_PUBLIC_ values are browser-exposed by design), Production scope, redeployed. Owner confirmed the summary populates. Vercel-dashboard change — invisible to git, recorded here.
+- SECURITY: last two unauthenticated routes — FIXED October 16, 2026 (Task 35, not yet pushed): `/api/analyze` deleted (unauthenticated OpenAI call, no callers), `/api/toggle-exclude` now requires a session and scopes the update to the caller's own organization. Found by the Oct 16 portfolio security audit; the repo being PUBLIC on GitHub makes unauthenticated routes directly discoverable from source — owner should consider making the repo private.
 - SECURITY: unauthenticated OpenAI endpoints — FIXED October 8, 2026 (Task 32). `/api/team-summary` is DELETED (its OpenAI call moved to `src/lib/teamSummary.ts`, called directly by the dashboard — this also removes the fragile NEXT_PUBLIC_SITE_URL self-fetch that caused the Aug 26 production incident above). `/api/process-jobs` GET now requires a logged-in session OR `Authorization: Bearer ${CRON_SECRET}` (Vercel cron). New `vercel.json` registers a daily 06:00 UTC cron sweep of process-jobs (Hobby ceiling; tighten to */5 on Pro). `CRON_SECRET` was added by owner Oct 8 (type Secret, Production only) and redeployed; public curl confirmed 401. Vercel-dashboard change — invisible to git, recorded here. The secret exists ONLY in Vercel; if lost or leaked, generate a new random value and update the env var (nothing else depends on it).
 - `src/app/api/extension-waitlist/route.ts` is now ORPHANED — the June 24 extension rebuild replaced the waitlist form with pricing CTAs, so nothing in the codebase calls this route any more. The route and the `extension_waitlist` Supabase table (which holds real signups) both still exist. Do NOT delete either without an explicit decision — the table has customer data and the route is the only thing that can write to it if the waitlist is ever restored.
 - AI team summary may still produce Unicode bullet characters — the API route strips them but the prompt also instructs plain ASCII
