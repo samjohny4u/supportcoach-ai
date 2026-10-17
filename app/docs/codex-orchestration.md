@@ -2106,6 +2106,32 @@ on the analysis page.
 
 ---
 
+### TASK 34: Chat-grounded example line on repeat coaching points
+STATUS: ✅ DONE (Oct 17, 2026)
+
+**Why:** Subaiqua's literal response to a repeat coaching point ("acknowledge the customer's
+workflow impact before troubleshooting") was to ask the manager for an example. Proof of demand:
+agents want to see the move, not just the name of it. Per-chat coaching is the surface where
+quoting the actual chat is allowed (digest never is), and an example anchored to the real missed
+moment is the most learnable form of coaching.
+
+**Edit (1 file — the shared section, so BOTH workers pick it up automatically, Task 20
+precedent):** `src/lib/coachingFollowthroughFetch.ts` `buildFollowthroughPromptSection` — in the
+SINCE LAST COACHING format rules, each "Came up again" bullet now gets EXACTLY ONE indented
+example line beneath it: `Try: "<one sentence the agent could have said at the missed moment in
+THIS chat>"`. Guardrails: grounded in the chat's actual context (customer's own words/situation,
+never generic), 25 words max, agent's voice, explicitly example phrasing not a script; NEVER on
+"Applied" bullets (proportionality); Try lines excluded from the section's ~90-word cap.
+
+**Test (owner):** next analyzed/re-analyzed chat for an agent with a repeated point — the Since
+Last Coaching section shows the Came-up-again bullet with a Try line beneath it quoting a
+plausible sentence grounded in that chat; Applied bullets have no Try line. Prompt change:
+affects only NEW and re-analyzed chats.
+
+**Commit:** `Task 34: chat-grounded Try example line on repeat coaching points`
+
+---
+
 ## DEFERRED / REJECTED (August 26, 2026 triage — recorded so they aren't re-proposed blind)
 
 - **Per-chat context box for re-analysis** (manager observations, agent's side): sound design,
